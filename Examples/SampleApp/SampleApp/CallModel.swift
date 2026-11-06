@@ -34,6 +34,7 @@ final class CallModel: ObservableObject {
     @Published var log: [String] = []
     @Published var stats: BaresipCallStatistics?
     @Published var heldCall: BaresipCallID?
+    @Published var callMinimized = false
     @Published var calls: [CallRow] = []
     @Published var transferTarget = ""
     @Published var messages: [ChatMessage] = []
@@ -171,6 +172,7 @@ final class CallModel: ObservableObject {
         let target = normalizedDestination(destination)
         guard !target.isEmpty else { return }
         if uiTest, let engine {
+            callMinimized = false
             do {
                 _ = try await engine.makeCall(accountID: accountID, destination: target, video: video)
                 videoEnabled = video
@@ -179,6 +181,7 @@ final class CallModel: ObservableObject {
             }
             return
         }
+        callMinimized = false
         guard let callKit else { return }
         do {
             _ = try await callKit.startOutgoingCall(to: target, video: video)
@@ -222,6 +225,7 @@ final class CallModel: ObservableObject {
         currentCall = incoming.id
         callState = calls.first { $0.id == incoming.id }?.state
         onHold = false
+        callMinimized = false
         videoEnabled = incoming.hasVideo
         previewing = false
         self.incoming = nil
@@ -265,18 +269,57 @@ final class CallModel: ObservableObject {
     private func updateRow(_ call: BaresipCallID, state: BaresipCallState) {
         if let index = calls.firstIndex(where: { $0.id == call }) {
             calls[index].state = state
+            if calls[index].connectedAt == nil && (state == .connected || state == .streamsRunning) {
+                calls[index].connectedAt = Date()
+                refreshInfo(call)
+            }
             return
         }
         guard state != .released else { return }
         calls.append(CallRow(id: call, remote: "…", state: state, outgoing: state != .incoming))
+        refreshInfo(call)
+    }
+
+    private func refreshInfo(_ call: BaresipCallID) {
         Task { [weak self] in
             guard let self, let engine = self.engine,
                   let info = try? await engine.callInfo(callID: call) else { return }
             if let index = self.calls.firstIndex(where: { $0.id == call }) {
                 self.calls[index].remote = info.remoteDisplayName.isEmpty ? info.remoteURI : info.remoteDisplayName
-                self.calls[index].outgoing = info.outgoing
+                self.calls[index].outgoing = info.isOutgoing
+                self.calls[index].codec = info.audioCodec
             }
         }
+    }
+
+    var currentRow: CallRow? {
+        calls.first { $0.id == currentCall }
+    }
+
+    var heldRow: CallRow? {
+        calls.first { $0.id == heldCall }
+    }
+
+    func endConsultation() async {
+        guard heldCall != nil, let currentCall else { return }
+        try? await engine?.hangup(callID: currentCall)
+    }
+
+    var conversations: [(peer: String, last: ChatMessage)] {
+        var seen: [String: ChatMessage] = [:]
+        var order: [String] = []
+        for message in messages {
+            let key = CallRow.displayName(message.peer)
+            if seen[key] == nil {
+                order.append(key)
+            }
+            seen[key] = message
+        }
+        return order.reversed().compactMap { key in seen[key].map { (key, $0) } }
+    }
+
+    func messages(with peer: String) -> [ChatMessage] {
+        messages.filter { CallRow.displayName($0.peer) == peer }
     }
 
     private func callReleased(_ call: BaresipCallID) async {
@@ -306,6 +349,7 @@ final class CallModel: ObservableObject {
         muted = false
         videoEnabled = false
         previewing = false
+        callMinimized = false
         if previewAudioActive {
             previewAudioActive = false
             await audio?.deactivate()
@@ -674,4 +718,30 @@ struct CallRow: Identifiable, Equatable {
     var remote: String
     var state: BaresipCallState
     var outgoing: Bool
+    var codec: String = ""
+    var connectedAt: Date?
+
+    var title: String { CallRow.displayName(remote) }
+    var initials: String { CallRow.initials(title) }
+    var isHeld: Bool { state == .paused || state == .pausing }
+
+    static func displayName(_ remote: String) -> String {
+        var value = remote
+        for scheme in ["sips:", "sip:", "tel:"] where value.hasPrefix(scheme) {
+            value = String(value.dropFirst(scheme.count))
+        }
+        if let semicolon = value.firstIndex(of: ";") {
+            value = String(value[..<semicolon])
+        }
+        if let at = value.firstIndex(of: "@") {
+            value = String(value[..<at])
+        }
+        return value.isEmpty ? remote : value
+    }
+
+    static func initials(_ name: String) -> String {
+        let words = name.split(whereSeparator: { $0 == " " || $0 == "." || $0 == "-" }).prefix(2)
+        let letters = words.compactMap { $0.first }.map { String($0).uppercased() }.joined()
+        return letters.isEmpty ? String(name.prefix(2)).uppercased() : letters
+    }
 }

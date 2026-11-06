@@ -44,7 +44,7 @@ final class RegistrationCallUITests: XCTestCase {
         app.buttons["call.audio"].tap()
         let state = app.staticTexts["call.state"]
         XCTAssertTrue(state.waitForExistence(timeout: 15), "call did not start")
-        let running = NSPredicate(format: "label CONTAINS 'streamsRunning'")
+        let running = NSPredicate(format: "value CONTAINS 'streamsRunning'")
         expectation(for: running, evaluatedWith: state)
         waitForExpectations(timeout: 20)
         sleep(3)
@@ -93,7 +93,7 @@ final class RegistrationCallUITests: XCTestCase {
     private func waitForRegistration(containing text: String, timeout: TimeInterval) {
         let label = app.staticTexts["registration.state"]
         XCTAssertTrue(label.waitForExistence(timeout: 10))
-        let predicate = NSPredicate(format: "label CONTAINS %@", text)
+        let predicate = NSPredicate(format: "label CONTAINS[c] %@", text)
         expectation(for: predicate, evaluatedWith: label)
         waitForExpectations(timeout: timeout)
     }
