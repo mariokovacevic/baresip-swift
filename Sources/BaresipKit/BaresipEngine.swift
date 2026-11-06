@@ -515,6 +515,13 @@ public final class BaresipEngine: @unchecked Sendable {
         }
     }
 
+    public func restartICE(callID: BaresipCallID) async throws {
+        try await run { h in
+            var err = bsk_error()
+            try BaresipEngine.check(bsk_call_restart_ice(h, callID.rawValue, &err), err)
+        }
+    }
+
     public func transfer(callID: BaresipCallID, to targetURI: String) async throws {
         try await run { h in
             let arena = CStringArena()

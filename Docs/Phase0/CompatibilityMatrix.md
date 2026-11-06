@@ -106,7 +106,7 @@ Everything below was verified by reading the pinned sources; items marked "host-
 | STUN | module | `modules/stun`, `;stunserver=` account param. |
 | TURN over UDP | module + patch 0006, CI-verified | `modules/ice/ice.c:232-258` (`turnc_alloc(... IPPROTO_UDP ...)`). Verified against coturn with the relay-only ICE policy (`ice_relay_only`): relay candidate selected, RTP in both directions. Patch 0006 fixes silent calls when optional SRTP is declined and ICE completes after the answer. |
 | TURN over TCP / TLS | patch 0007 | The ICE module allocated relayed candidates over UDP only. `Patches/0007` adds TURN over TCP and TLS (`turns:`) inside ICE with a relay-only policy for that session; the integration job runs a relay call over each of UDP, TCP and TLS against coturn. |
-| ICE restart | not supported as-is | No `ice-restart`/ufrag regeneration in `modules/ice/ice.c` (searched). Network change today uses `uag_reset_transp(reg, reinvite)` (`uag.c:710`) → `call_reset_transp()` → re-INVITE with the new local address (`call.c:2834`), which works for non-ICE and symmetric-RTP deployments. Full ICE restart needs a patch to `modules/ice` (new ufrag/pwd + re-gather); proposed for Phase 1 as an upstreamable change. |
+| ICE restart | patch 0008 | Upstream `modules/ice/ice.c` has no ufrag regeneration; a network change only re-INVITEd with the old candidates. `Patches/0008` adds an mnat restart hook: new credentials, re-gathering and a re-INVITE after gathering, plus answerer-side restart on a new remote `ice-ufrag`. Tested baresip↔baresip (two-process ICE call) and against Asterisk through TURN over UDP, TCP and TLS. |
 | Trickle ICE | not supported | libre has a `trice` library but baresip's `ice` module uses full candidate exchange in SDP. Documented as unsupported. |
 | ICE disabled, symmetric RTP / latching | as-is | Omit `;medianat=`; baresip learns the remote address from incoming RTP (`stream.c` / `rtprecv.c` latching). |
 | Direct vs relay path visible | patch (implemented) | `Patches/0005-baresip-ice-module-events.patch` emits ICE module events (gathering, checking, connected with candidate types and addresses, failed); the facade maps them to `BSK_EVENT_ICE` and `bsk_call_statistics`. Host-verified with host candidates. |
@@ -156,7 +156,7 @@ Everything below was verified by reading the pinned sources; items marked "host-
 | 0004 | libre | ~80 lines | client-side server-certificate verify hook (pinning) | written, host-verified |
 | 0005 | baresip | ~60 lines | ICE module events (state, selected pair) | written, host-verified |
 | 0007 | baresip | ~200 lines | TURN over TCP/TLS inside the ICE module | written, CI integration stage |
-| later | baresip | larger | ICE restart on network change | planned |
+| 0008 | baresip | ~330 lines | ICE restart on network change and on remote ufrag change | written, CI two-process and integration stages |
 | — | libre | 2 lines | export `HAVE_UNIXSOCK` in the CMake package so consumers get the same `struct sa` layout (found during the proof build) | candidate |
 
 New BaresipKit-owned modules (no upstream change): `vidtoolbox` (H.264 via VideoToolbox), `bskcapture` (AVFoundation camera with `CVPixelBuffer` pass-through), `bskdisplay` (frame sink).

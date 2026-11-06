@@ -3,6 +3,8 @@
 
 static struct waiter w;
 static const char *tag;
+static int ice_gather_n;
+static int ice_reconnected;
 
 static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 {
@@ -14,6 +16,15 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	else if (ev->type == BSK_EVENT_CALL_MEDIA)
 		fprintf(stderr, "%s: call %llu media %d\n", tag,
 			(unsigned long long)ev->call, ev->u.media.event);
+	else if (ev->type == BSK_EVENT_ICE) {
+		if (ev->u.ice.state == BSK_ICE_GATHERING) {
+			__atomic_add_fetch(&ice_gather_n, 1, __ATOMIC_SEQ_CST);
+			__atomic_store_n(&ice_reconnected, 0, __ATOMIC_SEQ_CST);
+		}
+		else if (ev->u.ice.state == BSK_ICE_CONNECTED) {
+			__atomic_store_n(&ice_reconnected, 1, __ATOMIC_SEQ_CST);
+		}
+	}
 	record_event(&w, ev);
 }
 
@@ -27,6 +38,13 @@ static int dtmf3(struct waiter *x) { return x->dtmf_count >= 3; }
 static int ringing_or_later(struct waiter *x) { return x->call_state >= BSK_CALL_OUTGOING_RINGING; }
 static int ice_connected(struct waiter *x) { return x->ice_state == BSK_ICE_CONNECTED; }
 static bool use_ice;
+
+static int ice_restarted(struct waiter *x)
+{
+	(void)x;
+	return __atomic_load_n(&ice_gather_n, __ATOMIC_SEQ_CST) >= 1 &&
+	       __atomic_load_n(&ice_reconnected, __ATOMIC_SEQ_CST);
+}
 
 
 static bsk_engine *start_engine(const char *listen)
@@ -111,6 +129,10 @@ static int run_callee(const char *host)
 		CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
 		CHECK(st.ice_state == BSK_ICE_CONNECTED);
 		CHECK(strlen(st.remote_address) > 0);
+		__atomic_store_n(&ice_gather_n, 0, __ATOMIC_SEQ_CST);
+		CHECK(wait_until(&w, ice_restarted, 15000));
+		printf("callee: ICE restart: PASS\n");
+		fflush(stdout);
 	}
 
 	CHECK(wait_until(&w, paused_remote, 10000));
@@ -142,6 +164,7 @@ static int run_caller(const char *host)
 	bsk_call_id call = BSK_ID_NONE;
 	bsk_call_info info;
 	bsk_call_statistics st;
+	uint32_t rx_before = 0;
 	char dest[128];
 
 	tag = "caller";
@@ -162,6 +185,21 @@ static int run_caller(const char *host)
 		CHECK(wait_until(&w, ice_connected, 10000));
 		CHECK(w.ice_local_type == BSK_CAND_HOST);
 		CHECK(w.ice_remote_type == BSK_CAND_HOST);
+
+		sleep(1);
+		CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+		rx_before = st.audio.rx_packets;
+		__atomic_store_n(&ice_gather_n, 0, __ATOMIC_SEQ_CST);
+		CHECK_OK(bsk_call_restart_ice(e, call, &err), &err);
+		CHECK(wait_until(&w, ice_restarted, 15000));
+		CHECK(w.ice_local_type == BSK_CAND_HOST);
+		sleep(2);
+		CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+		CHECK(st.ice_state == BSK_ICE_CONNECTED);
+		CHECK(st.audio.rx_packets > rx_before + 25);
+		printf("caller: ICE restart: PASS (rx %u -> %u)\n", rx_before,
+		       st.audio.rx_packets);
+		fflush(stdout);
 	}
 
 	sleep(1);

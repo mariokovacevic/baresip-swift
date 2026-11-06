@@ -1,0 +1,493 @@
+From d5d43af73a3c64bb3e6522964e2d54fbf8077149 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Fri, 6 Nov 2026 15:15:02 +0000
+Subject: [PATCH] ice: support ICE restart
+
+Add an optional restart hook to struct mnat. call_reset_transp() uses it
+when the media NAT supports it, so a network change restarts ICE with new
+credentials and fresh candidates instead of re-INVITEing stale ones. The
+re-INVITE is sent once gathering completes. A remote offer with a new
+ice-ufrag restarts ICE on the answering side, reusing its gathered
+candidates so the answer is complete.
+---
+ include/baresip.h |   4 +
+ modules/ice/ice.c | 319 ++++++++++++++++++++++++++++++++++++++++++----
+ src/call.c        |  25 ++++
+ 3 files changed, 325 insertions(+), 23 deletions(-)
+
+diff --git a/include/baresip.h b/include/baresip.h
+index dea4a37..ffa9a3a 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -240,6 +240,7 @@ bool call_has_audio(const struct call *call);
+ bool call_has_video(const struct call *call);
+ bool call_early_video_available(const struct call *call);
+ bool call_refresh_allowed(const struct call *call);
++int  call_restart_mnat(struct call *call);
+ bool call_ack_pending(const struct call *call);
+ bool call_sess_cmp(const struct call *call, const struct sip_msg *msg);
+ int  call_transfer(struct call *call, const char *uri);
+@@ -1678,6 +1679,8 @@ typedef int (mnat_media_h)(struct mnat_media **mp, struct mnat_sess *sess,
+ 
+ typedef int (mnat_update_h)(struct mnat_sess *sess);
+ 
++typedef int (mnat_restart_h)(struct mnat_sess *sess);
++
+ typedef void (mnat_attr_h)(struct mnat_media *mm,
+ 			   const char *name, const char *value);
+ 
+@@ -1690,6 +1693,7 @@ struct mnat {
+ 	mnat_media_h *mediah;
+ 	mnat_update_h *updateh;
+ 	mnat_attr_h *attrh;
++	mnat_restart_h *restarth;
+ };
+ 
+ void mnat_register(struct list *mnatl, struct mnat *mnat);
+diff --git a/modules/ice/ice.c b/modules/ice/ice.c
+index ad9cbc9..fb631d0 100644
+--- a/modules/ice/ice.c
++++ b/modules/ice/ice.c
+@@ -47,6 +47,8 @@ struct mnat_sess {
+ 	char *pass;
+ 	bool started;
+ 	bool send_reinvite;
++	bool restart_wait;
++	char *rufrag;
+ 	mnat_estab_h *estabh;
+ 	void *arg;
+ };
+@@ -63,6 +65,8 @@ struct mnat_media {
+ 		struct turnc *turnc;
+ 		struct udp_helper *uh;
+ 		struct mbuf *mb;
++		struct sa relay;
++		struct sa mapped;
+ 	} compv[2];
+ 	struct le le;
+ 	struct mnat_sess *sess;
+@@ -147,6 +151,8 @@ static void stun_resp_handler(int err, uint16_t scode, const char *reason,
+ 	err = icem_lcand_add(m->icem, icem_lcand_base(lcand),
+ 			     ICE_CAND_TYPE_SRFLX,
+ 			     &attr->v.sa);
++	if (!err)
++		comp->mapped = attr->v.sa;
+ 
+  out:
+ 	call_gather_handler(err, m, scode, reason);
+@@ -215,6 +221,10 @@ static void turnc_handler(int err, uint16_t scode, const char *reason,
+ 	debug("ice: relay gathered for comp %u (%u %s)\n",
+ 	      comp->id, scode, reason);
+ 
++	comp->relay = *relay;
++	if (mapped)
++		comp->mapped = *mapped;
++
+ 	err = icem_lcand_add_base(m->icem, ICE_CAND_TYPE_RELAY, comp->id, 0,
+ 				  NULL, ICE_TRANSP_UDP, relay);
+ 	if (err)
+@@ -518,6 +528,7 @@ static void session_destructor(void *arg)
+ 	mem_deref(sess->user);
+ 	mem_deref(sess->pass);
+ 	mem_deref(sess->host);
++	mem_deref(sess->rufrag);
+ 	mem_deref(sess->sdp);
+ }
+ 
+@@ -1061,6 +1072,41 @@ static int ice_start(struct mnat_sess *sess)
+ }
+ 
+ 
++static int media_icem_alloc(struct mnat_media *m, enum ice_role role)
++{
++	struct mnat_sess *sess = m->sess;
++	unsigned i;
++	int err;
++
++	err = icem_alloc(&m->icem, role, IPPROTO_UDP, ICE_LAYER,
++			 sess->tiebrk, sess->lufrag, sess->lpwd,
++			 conncheck_handler, m);
++	if (err)
++		return err;
++
++	icem_conf(m->icem)->debug  = LEVEL_DEBUG == log_level_get();
++	icem_conf(m->icem)->rc	   = 4;
++	icem_conf(m->icem)->policy = sess->proto == IPPROTO_TCP ?
++		ICE_POLICY_RELAY : ice.policy;
++
++	debug("ice: policy = %s\n",
++	      ice.policy == ICE_POLICY_RELAY ? "relay" : "all");
++
++	icem_set_conf(m->icem, icem_conf(m->icem));
++
++	icem_set_name(m->icem, sdp_media_name(m->sdpm));
++
++	for (i=0; i<2; i++) {
++		m->compv[i].m = m;
++		m->compv[i].id = i+1;
++		if (m->compv[i].sock)
++			err |= icem_comp_add(m->icem, i+1, m->compv[i].sock);
++	}
++
++	return err;
++}
++
++
+ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
+ 		       struct udp_sock *sock1, struct udp_sock *sock2,
+ 		       struct sdp_media *sdpm,
+@@ -1068,7 +1114,6 @@ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
+ {
+ 	struct mnat_media *m;
+ 	enum ice_role role;
+-	unsigned i;
+ 	int err = 0;
+ 
+ 	if (!mp || !sess || !sdpm)
+@@ -1090,31 +1135,10 @@ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
+ 	else
+ 		role = ICE_ROLE_CONTROLLED;
+ 
+-	err = icem_alloc(&m->icem, role, IPPROTO_UDP, ICE_LAYER,
+-			 sess->tiebrk, sess->lufrag, sess->lpwd,
+-			 conncheck_handler, m);
++	err = media_icem_alloc(m, role);
+ 	if (err)
+ 		goto out;
+ 
+-	icem_conf(m->icem)->debug  = LEVEL_DEBUG == log_level_get();
+-	icem_conf(m->icem)->rc	   = 4;
+-	icem_conf(m->icem)->policy = sess->proto == IPPROTO_TCP ?
+-		ICE_POLICY_RELAY : ice.policy;
+-
+-	debug("ice: policy = %s\n",
+-	      ice.policy == ICE_POLICY_RELAY ? "relay" : "all");
+-
+-	icem_set_conf(m->icem, icem_conf(m->icem));
+-
+-	icem_set_name(m->icem, sdp_media_name(sdpm));
+-
+-	for (i=0; i<2; i++) {
+-		m->compv[i].m = m;
+-		m->compv[i].id = i+1;
+-		if (m->compv[i].sock)
+-			err |= icem_comp_add(m->icem, i+1, m->compv[i].sock);
+-	}
+-
+ 	m->connh = connh;
+ 	m->arg = arg;
+ 
+@@ -1181,14 +1205,262 @@ static int enable_turn_channels(struct mnat_sess *sess)
+ 
+ 
+ /** This can be called several times */
++static const char *remote_ufrag(const struct mnat_sess *sess)
++{
++	const char *ufrag = sdp_session_rattr(sess->sdp, ice_attr_ufrag);
++
++	if (!ufrag && sess->medial.head) {
++		const struct mnat_media *m = sess->medial.head->data;
++
++		ufrag = sdp_media_rattr(m->sdpm, ice_attr_ufrag);
++	}
++
++	return ufrag;
++}
++
++
++static int new_credentials(struct mnat_sess *sess)
++{
++	int err;
++
++	rand_str(sess->lufrag, sizeof(sess->lufrag));
++	rand_str(sess->lpwd,   sizeof(sess->lpwd));
++
++	err  = sdp_session_set_lattr(sess->sdp, true,
++				     ice_attr_ufrag, "%s", sess->lufrag);
++	err |= sdp_session_set_lattr(sess->sdp, true,
++				     ice_attr_pwd, "%s", sess->lpwd);
++
++	return err;
++}
++
++
++static int media_reset(struct mnat_media *m, bool keep_gathered)
++{
++	enum ice_role role = icem_local_role(m->icem);
++	unsigned i;
++
++	m->icem = mem_deref(m->icem);
++
++	for (i=0; i<2; i++) {
++		struct comp *comp = &m->compv[i];
++
++		comp->ct_gath = mem_deref(comp->ct_gath);
++
++		if (keep_gathered)
++			continue;
++
++		comp->uh    = mem_deref(comp->uh);
++		comp->turnc = mem_deref(comp->turnc);
++		comp->tlsc  = mem_deref(comp->tlsc);
++		comp->tc    = mem_deref(comp->tc);
++		comp->mb    = mem_deref(comp->mb);
++		sa_init(&comp->laddr, AF_UNSPEC);
++		sa_init(&comp->relay, AF_UNSPEC);
++		sa_init(&comp->mapped, AF_UNSPEC);
++	}
++
++	m->nstun    = 0;
++	m->lpref    = LPREF_INIT;
++	m->complete = false;
++	if (!keep_gathered)
++		m->gathered = false;
++
++	sdp_media_del_lattr(m->sdpm, ice_attr_cand);
++	sdp_media_del_lattr(m->sdpm, ice_attr_remote_cand);
++	sdp_media_del_lattr(m->sdpm, ice_attr_mismatch);
++
++	return media_icem_alloc(m, role);
++}
++
++
++static int media_readd_candidates(struct mnat_media *m)
++{
++	unsigned i;
++	int err = 0;
++
++	net_laddr_apply(baresip_network(), if_handler, m);
++
++	for (i=0; i<2; i++) {
++		struct comp *comp = &m->compv[i];
++		struct ice_cand *lcand;
++
++		if (!comp->sock)
++			continue;
++
++		if (comp->turnc && sa_isset(&comp->relay, SA_ALL)) {
++
++			err |= icem_set_turn_client(m->icem, comp->id,
++						    comp->turnc);
++			err |= icem_lcand_add_base(m->icem,
++						   ICE_CAND_TYPE_RELAY,
++						   comp->id, 0, NULL,
++						   ICE_TRANSP_UDP,
++						   &comp->relay);
++		}
++
++		if (!sa_isset(&comp->mapped, SA_ADDR))
++			continue;
++
++		lcand = icem_cand_find(icem_lcandl(m->icem), comp->id, NULL);
++		if (lcand) {
++			err |= icem_lcand_add(m->icem, icem_lcand_base(lcand),
++					      ICE_CAND_TYPE_SRFLX,
++					      &comp->mapped);
++		}
++	}
++
++	if (err)
++		return err;
++
++	icem_cand_redund_elim(m->icem);
++
++	err = icem_comps_set_default_cand(m->icem);
++	if (err)
++		return err;
++
++	refresh_laddr(m,
++		      icem_cand_default(m->icem, 1),
++		      icem_cand_default(m->icem, 2));
++
++	return set_media_attributes(m);
++}
++
++
++static int restart_regather(struct mnat_sess *sess)
++{
++	struct le *le;
++	int err;
++
++	err = new_credentials(sess);
++	if (err)
++		return err;
++
++	tmr_cancel(&sess->tmr_async);
++	sess->started = false;
++	sess->send_reinvite = false;
++
++	LIST_FOREACH(&sess->medial, le) {
++		err = media_reset(le->data, false);
++		if (err)
++			return err;
++	}
++
++	if (sa_isset(&sess->srv, SA_ALL)) {
++		LIST_FOREACH(&sess->medial, le) {
++			err = media_start(sess, le->data);
++			if (err)
++				return err;
++		}
++	}
++	else if (!sess->host) {
++		LIST_FOREACH(&sess->medial, le) {
++			struct mnat_media *m = le->data;
++
++			module_event("ice", "gathering", NULL, NULL,
++				     "sdpm=%p", m->sdpm);
++		}
++
++		tmr_start(&sess->tmr_async, 1, tmr_async_handler, sess);
++	}
++
++	return 0;
++}
++
++
++static int restart_reuse(struct mnat_sess *sess)
++{
++	struct le *le;
++	int err;
++
++	info("ice: remote ICE restart, reusing gathered candidates\n");
++
++	err = new_credentials(sess);
++	if (err)
++		return err;
++
++	sess->started = false;
++	sess->send_reinvite = false;
++
++	LIST_FOREACH(&sess->medial, le) {
++		struct mnat_media *m = le->data;
++
++		err = media_reset(m, true);
++		if (err)
++			return err;
++
++		module_event("ice", "gathering", NULL, NULL,
++			     "sdpm=%p", m->sdpm);
++
++		err = media_readd_candidates(m);
++		if (err)
++			return err;
++	}
++
++	return 0;
++}
++
++
++static int restart(struct mnat_sess *sess)
++{
++	const char *rufrag;
++	int err;
++
++	if (!sess)
++		return EINVAL;
++
++	if (!sess->started && !sess->restart_wait)
++		return ENOTSUP;
++
++	info("ice: local ICE restart\n");
++
++	rufrag = remote_ufrag(sess);
++	sess->rufrag = mem_deref(sess->rufrag);
++	if (rufrag) {
++		err = str_dup(&sess->rufrag, rufrag);
++		if (err)
++			return err;
++	}
++
++	sess->restart_wait = true;
++
++	return restart_regather(sess);
++}
++
++
+ static int update(struct mnat_sess *sess)
+ {
++	const char *rufrag;
+ 	struct le *le;
+ 	int err = 0;
+ 
+ 	if (!sess)
+ 		return EINVAL;
+ 
++	rufrag = remote_ufrag(sess);
++
++	if (sess->restart_wait) {
++
++		if (!rufrag || !str_cmp(rufrag, sess->rufrag))
++			return 0;
++
++		sess->restart_wait = false;
++	}
++	else if (sess->started && rufrag && sess->rufrag &&
++		 str_cmp(rufrag, sess->rufrag)) {
++
++		err = restart_reuse(sess);
++		if (err)
++			return err;
++	}
++
++	sess->rufrag = mem_deref(sess->rufrag);
++	if (rufrag) {
++		err = str_dup(&sess->rufrag, rufrag);
++		if (err)
++			return err;
++	}
++
+ 	/* SDP session */
+ 	(void)sdp_session_rattr_apply(sess->sdp, NULL, sdp_attr_handler, sess);
+ 
+@@ -1252,6 +1524,7 @@ static struct mnat mnat_ice = {
+ 	.mediah  = media_alloc,
+ 	.updateh = update,
+ 	.attrh   = attr_handler,
++	.restarth = restart,
+ };
+ 
+ 
+diff --git a/src/call.c b/src/call.c
+index 310f386..8cf7b08 100644
+--- a/src/call.c
++++ b/src/call.c
+@@ -2840,10 +2840,35 @@ int call_reset_transp(struct call *call, const struct sa *laddr)
+ 
+ 	sdp_session_set_laddr(call->sdp, laddr);
+ 
++	if (call->acc->mnat && call->acc->mnat->restarth && call->mnats) {
++		int err = call->acc->mnat->restarth(call->mnats);
++		if (err != ENOTSUP)
++			return err;
++	}
++
+ 	return call_modify(call);
+ }
+ 
+ 
++/**
++ * Restart the media NAT session of a call, e.g. an ICE restart
++ *
++ * @param call Call object
++ *
++ * @return 0 if success, ENOTSUP if the media NAT cannot restart
++ */
++int call_restart_mnat(struct call *call)
++{
++	if (!call)
++		return EINVAL;
++
++	if (!call->acc->mnat || !call->acc->mnat->restarth || !call->mnats)
++		return ENOTSUP;
++
++	return call->acc->mnat->restarth(call->mnats);
++}
++
++
+ const struct sa *call_laddr(const struct call *call)
+ {
+ 	if (!call)
+-- 
+2.43.0
+

@@ -141,6 +141,8 @@ openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | op
 
 `nat.mode` selects `.none` (symmetric RTP/latching, for deployments with a server-side media relay), `.stun` or `.ice`. `BaresipConfiguration.iceRelayOnly` restricts ICE to relayed candidates for every call (useful to hide the device address or to force a known media path); it is an engine-wide setting because baresip applies the ICE policy globally. TURN works inside ICE over UDP (`turn:host:3478`), TCP (`turn:host:3478?transport=tcp`) and TLS (`turns:host:5349`, verified against the CA configured in `tls`, and subject to the same pins). With TCP or TLS the call uses relayed candidates only, which is what networks that block UDP need. `.ice(...)` events report gathering, checking, connected (with local and remote candidate types and addresses) and failed; `callStatistics` carries the same selected pair.
 
+ICE restarts on network changes: `networkDidChange(updateCalls: true)` restarts ICE for every established ICE call, with new credentials and freshly gathered candidates, and re-INVITEs once gathering is done. `restartICE(callID:)` triggers the same for one call, for example when media stops arriving. A peer's ICE restart is answered with new credentials. With a peer that does not support ICE the call falls back to a plain re-INVITE with the new address. Media pauses while the new candidates are checked, typically well under a second over UDP.
+
 ## Logging
 
 `setLogHandler` receives every core, SIP and media line with level and domain; `logSIPTrace` adds the full SIP messages. Digest responses, `pn-tok` values (after an 8-character prefix), passwords and STUN passwords are redacted before the handler is called.

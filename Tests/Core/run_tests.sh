@@ -94,7 +94,7 @@ done
 wait "$CALLEE_PID"
 cat "$BUILD/callee.out"
 
-echo "== two-process call with ICE (host candidates, selected pair in statistics)"
+echo "== two-process call with ICE (host candidates, selected pair in statistics, ICE restart)"
 "$BUILD/tests/bsk_test_call" callee "$HOSTIP" ice > "$BUILD/callee-ice.out" 2> "$BUILD/callee-ice.err" &
 CALLEE_PID=$!
 for i in $(seq 1 50); do

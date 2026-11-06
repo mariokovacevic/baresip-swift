@@ -212,6 +212,70 @@ static void apply_audio_activation(bsk_engine *e, struct bsk_call_ctx *c)
 }
 
 
+static bool call_uses_ice(const struct bsk_call_ctx *c)
+{
+	const char *mnat;
+
+	if (!c->call)
+		return false;
+
+	mnat = account_medianat(call_account(c->call));
+
+	return mnat && 0 == str_casecmp(mnat, "ice");
+}
+
+
+static int restart_ice(struct bsk_call_ctx *c)
+{
+	int err;
+
+	if (!call_uses_ice(c))
+		return ENOSYS;
+
+	if (!call_refresh_allowed(c->call))
+		return EBUSY;
+
+	err = call_restart_mnat(c->call);
+	if (err == ENOTSUP)
+		return EALREADY;
+
+	return err;
+}
+
+
+void bsk_calls_snapshot_ice(bsk_engine *engine)
+{
+	struct le *le;
+
+	for (le = engine->calls.head; le; le = le->next) {
+		struct bsk_call_ctx *c = le->data;
+
+		c->ice_gather_snapshot = c->ice_gather_count;
+	}
+}
+
+
+void bsk_calls_restart_ice(bsk_engine *engine)
+{
+	struct le *le;
+
+	for (le = engine->calls.head; le; le = le->next) {
+		struct bsk_call_ctx *c = le->data;
+
+		if (c->state != BSK_CALL_CONNECTED &&
+		    c->state != BSK_CALL_STREAMS_RUNNING &&
+		    c->state != BSK_CALL_PAUSED &&
+		    c->state != BSK_CALL_PAUSED_BY_REMOTE)
+			continue;
+
+		if (c->ice_gather_count != c->ice_gather_snapshot)
+			continue;
+
+		(void)restart_ice(c);
+	}
+}
+
+
 void bsk_calls_audio_changed(bsk_engine *engine)
 {
 	struct le *le;
@@ -583,6 +647,8 @@ void bsk_call_handle_module_event(bsk_engine *e, const char *text)
 		return;
 
 	c->ice_state = info.state;
+	if (info.state == BSK_ICE_GATHERING)
+		++c->ice_gather_count;
 	if (info.state == BSK_ICE_CONNECTED) {
 		c->ice_local_type = info.local_type;
 		c->ice_remote_type = info.remote_type;
@@ -981,6 +1047,19 @@ static int keyframe_op(bsk_engine *e, void *arg)
 }
 
 
+static int ice_restart_op(bsk_engine *e, void *arg)
+{
+	struct call_arg *ca = arg;
+	int err;
+	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
+
+	if (!c)
+		return err;
+
+	return restart_ice(c);
+}
+
+
 static int transfer_op(bsk_engine *e, void *arg)
 {
 	struct call_arg *ca = arg;
@@ -1142,6 +1221,14 @@ bsk_status bsk_call_request_keyframe(bsk_engine *engine, bsk_call_id call,
 {
 	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
 	return run_call(engine, keyframe_op, &ca, err, "keyframe request");
+}
+
+
+bsk_status bsk_call_restart_ice(bsk_engine *engine, bsk_call_id call,
+				bsk_error *err)
+{
+	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
+	return run_call(engine, ice_restart_op, &ca, err, "ICE restart");
 }
 
 

@@ -2,7 +2,6 @@
 
 | Area | Status | Plan |
 |---|---|---|
-| ICE restart | not supported by baresip's ICE module; a network change triggers a re-INVITE with the new local address, which works for non-ICE and latching deployments | upstream patch to `modules/ice` (new ufrag/pwd, re-gather) |
 | Trickle ICE | not supported (full candidate exchange in SDP) | none planned |
 | Video bitrate adaptation | fixed target bitrate with a token-bucket pacer; no REMB/TWCC | facade-side reaction to RTCP loss reports |
 | External audio injection | not exposed in ABI 0.1 | `ausrc`/`auplay` style callbacks in a later ABI revision |

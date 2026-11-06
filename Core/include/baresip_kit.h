@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #define BSK_ABI_VERSION_MAJOR 0
-#define BSK_ABI_VERSION_MINOR 2
+#define BSK_ABI_VERSION_MINOR 3
 
 typedef struct bsk_engine bsk_engine;
 
@@ -533,6 +533,8 @@ BSK_EXPORT bsk_status bsk_call_set_camera(bsk_engine *engine, bsk_call_id call,
 BSK_EXPORT bsk_status bsk_call_request_keyframe(bsk_engine *engine,
 						bsk_call_id call,
 						bsk_error *err);
+BSK_EXPORT bsk_status bsk_call_restart_ice(bsk_engine *engine,
+					   bsk_call_id call, bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_transfer(bsk_engine *engine, bsk_call_id call,
 					const char *target_uri, bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_get_info(const bsk_engine *engine,
