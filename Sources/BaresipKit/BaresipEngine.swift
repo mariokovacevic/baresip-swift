@@ -1,6 +1,10 @@
 import Foundation
 import BaresipKitCore
 
+private struct EngineHandle: @unchecked Sendable {
+    let raw: OpaquePointer
+}
+
 public final class BaresipEngine: @unchecked Sendable {
     private let handle: OpaquePointer
     private let lock = NSLock()
@@ -149,11 +153,11 @@ public final class BaresipEngine: @unchecked Sendable {
     }
 
     private func run<T: Sendable>(_ body: @escaping @Sendable (OpaquePointer) throws -> T) async throws -> T {
-        let handle = self.handle
+        let handle = EngineHandle(raw: self.handle)
         return try await withCheckedThrowingContinuation { continuation in
             workQueue.async {
                 do {
-                    continuation.resume(returning: try body(handle))
+                    continuation.resume(returning: try body(handle.raw))
                 } catch {
                     continuation.resume(throwing: error)
                 }
@@ -277,11 +281,11 @@ public final class BaresipEngine: @unchecked Sendable {
             return id
         }
         let accountID = BaresipAccountID(rawValue: id)
-        lock.lock()
-        if defaultAccount == nil {
-            defaultAccount = accountID
+        lock.withLock {
+            if defaultAccount == nil {
+                defaultAccount = accountID
+            }
         }
-        lock.unlock()
         return accountID
     }
 
@@ -290,11 +294,11 @@ public final class BaresipEngine: @unchecked Sendable {
             var err = bsk_error()
             try BaresipEngine.check(bsk_account_remove(h, id.rawValue, &err), err)
         }
-        lock.lock()
-        if defaultAccount == id {
-            defaultAccount = nil
+        lock.withLock {
+            if defaultAccount == id {
+                defaultAccount = nil
+            }
         }
-        lock.unlock()
     }
 
     public func setDefaultAccount(_ id: BaresipAccountID) async throws {
@@ -302,9 +306,9 @@ public final class BaresipEngine: @unchecked Sendable {
             var err = bsk_error()
             try BaresipEngine.check(bsk_account_set_default(h, id.rawValue, &err), err)
         }
-        lock.lock()
-        defaultAccount = id
-        lock.unlock()
+        lock.withLock {
+            defaultAccount = id
+        }
     }
 
     public func register(accountID: BaresipAccountID) async throws {
@@ -370,9 +374,7 @@ public final class BaresipEngine: @unchecked Sendable {
 
     public func makeCall(accountID: BaresipAccountID? = nil, destination: String,
                          video: Bool = false) async throws -> BaresipCallID {
-        lock.lock()
-        let account = accountID ?? defaultAccount
-        lock.unlock()
+        let account = lock.withLock { accountID ?? defaultAccount }
         let id: UInt64 = try await run { h in
             let arena = CStringArena()
             var id: UInt64 = 0

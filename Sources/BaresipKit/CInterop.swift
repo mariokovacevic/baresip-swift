@@ -30,7 +30,7 @@ final class CStringArena {
     func bytes(_ data: Data?) -> (UnsafePointer<CChar>?, Int) {
         guard let data, !data.isEmpty else { return (nil, 0) }
         let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: data.count + 1)
-        data.withUnsafeBytes { raw in
+        _ = data.withUnsafeBytes { raw in
             raw.copyBytes(to: UnsafeMutableRawBufferPointer(start: buffer, count: data.count))
         }
         buffer[data.count] = 0

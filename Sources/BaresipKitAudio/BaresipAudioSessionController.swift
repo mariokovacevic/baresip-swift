@@ -33,7 +33,11 @@ public final class BaresipAudioSessionController {
     }
 
     public func configureForVoIP(allowBluetooth: Bool = true, defaultToSpeaker: Bool = false) throws {
+        #if compiler(>=6.2)
+        var options: AVAudioSession.CategoryOptions = [.allowBluetoothHFP]
+        #else
         var options: AVAudioSession.CategoryOptions = [.allowBluetooth]
+        #endif
         if allowBluetooth {
             options.insert(.allowBluetoothA2DP)
         }

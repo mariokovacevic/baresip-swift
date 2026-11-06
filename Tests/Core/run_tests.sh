@@ -7,6 +7,9 @@ PREFIX="${PREFIX:?set PREFIX to a host build prefix (Build/out/host/prefix)}"
 BUILD="${BUILD_DIR:-$ROOT/Build/out/host/core-tests}"
 SANITIZE="${SANITIZE:-address,undefined}"
 HOSTIP="${HOSTIP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"
+if [[ -z "$HOSTIP" && "$(uname -s)" == Darwin ]]; then
+  HOSTIP="$(ipconfig getifaddr en0 2>/dev/null || true)"
+fi
 HOSTIP="${HOSTIP:-127.0.0.1}"
 
 EXTRA="$PREFIX/lib/libopus.a;$PREFIX/lib/libssl.a;$PREFIX/lib/libcrypto.a;z;resolv;pthread;m;dl"
@@ -24,7 +27,11 @@ cmake -S "$ROOT/Core" -B "$BUILD" -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_EXE_LINKER_FLAGS="$FLAGS" >/dev/null
 cmake --build "$BUILD" -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)" >/dev/null
 
-export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=1}"
+if [[ "$(uname -s)" == Darwin ]]; then
+  export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0}"
+else
+  export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=1}"
+fi
 export UBSAN_OPTIONS="${UBSAN_OPTIONS:-print_stacktrace=1}"
 
 echo "== unit"

@@ -98,10 +98,7 @@ public final class BaresipPushKitAdapter: NSObject, PKPushRegistryDelegate, @unc
     }
 
     private func pushTokensToEngine() async {
-        lock.lock()
-        let account = accountID
-        let params = tokens.contactParameters
-        lock.unlock()
+        let (account, params) = lock.withLock { (accountID, tokens.contactParameters) }
         guard let account else { return }
         try? await engine.updateContactParameters(accountID: account, parameters: params, reregisterNow: true)
     }

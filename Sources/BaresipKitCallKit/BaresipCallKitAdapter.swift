@@ -1,4 +1,5 @@
 import Foundation
+import AVFoundation
 import CallKit
 import BaresipKit
 
@@ -33,7 +34,6 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
     public init(engine: BaresipEngine, configuration: BaresipCallKitConfiguration) {
         self.engine = engine
         let cxConfig = CXProviderConfiguration()
-        cxConfig.localizedName = configuration.localizedName
         cxConfig.supportsVideo = configuration.supportsVideo
         cxConfig.maximumCallsPerCallGroup = configuration.maximumCallsPerCallGroup
         cxConfig.supportedHandleTypes = [.generic, .phoneNumber]
@@ -62,9 +62,9 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
 
     public func reportIncomingCallFromPush(uuid: UUID, remoteURI: String?, displayName: String?,
                                            hasVideo: Bool) async throws {
-        lock.lock()
-        pendingIncoming[uuid] = (remoteURI, hasVideo)
-        lock.unlock()
+        lock.withLock {
+            pendingIncoming[uuid] = (remoteURI, hasVideo)
+        }
         let update = CXCallUpdate()
         update.remoteHandle = CXHandle(type: .generic, value: remoteURI ?? "unknown")
         update.localizedCallerName = displayName
@@ -105,22 +105,16 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
     private func handle(_ event: BaresipEvent) async {
         switch event {
         case .incomingCall(let info, _):
-            let matched: UUID?
-            lock.lock()
-            if let (uuid, _) = pendingIncoming.first(where: { pair in
-                pair.value.remoteURI == nil || info.remoteURI.contains(pair.value.remoteURI ?? "")
-            }) {
+            let matched: UUID? = lock.withLock {
+                guard let (uuid, _) = pendingIncoming.first(where: { pair in
+                    pair.value.remoteURI == nil || info.remoteURI.contains(pair.value.remoteURI ?? "")
+                }) else { return nil }
                 pendingIncoming[uuid] = nil
-                matched = uuid
-            } else {
-                matched = nil
+                return uuid
             }
-            lock.unlock()
             if let uuid = matched {
                 bind(info.id, uuid)
-                lock.lock()
-                let answerNow = pendingAnswers.contains(uuid)
-                lock.unlock()
+                let answerNow = lock.withLock { pendingAnswers.contains(uuid) }
                 if answerNow {
                     try? await engine.answer(callID: info.id, video: info.hasVideo)
                 }
