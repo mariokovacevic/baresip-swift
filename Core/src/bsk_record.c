@@ -1,18 +1,29 @@
 #include <errno.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <string.h>
 #include "bsk_internal.h"
+
+enum {
+	REC_FLUSH_MS = 100,
+	REC_BUFFER_SECONDS = 2,
+	REC_LAG_DIVISOR = 2,
+	REC_FALLBACK_SRATE = 8000,
+};
 
 struct bsk_rec {
 	struct le le;
 	const struct audio *au;
 	mtx_t mtx;
+	atomic_bool active;
+	struct tmr tmr;
 	FILE *f;
 	uint32_t srate;
 	uint64_t frames;
 	int16_t *side[2];
 	size_t n[2];
 	size_t cap;
+	int16_t *out;
 };
 
 struct rec_enc {
@@ -71,55 +82,110 @@ static void write_header(FILE *f, uint32_t srate, uint64_t frames)
 }
 
 
-static void write_frames(struct bsk_rec *r, size_t count)
+static size_t max_size(size_t a, size_t b)
 {
-	int16_t buf[2 * 480];
-	size_t done = 0;
+	return a > b ? a : b;
+}
+
+
+static size_t min_size(size_t a, size_t b)
+{
+	return a < b ? a : b;
+}
+
+
+static size_t frames_ready(const struct bsk_rec *r, bool drain)
+{
+	size_t paired = min_size(r->n[0], r->n[1]);
+	size_t longest = max_size(r->n[0], r->n[1]);
+
+	if (drain)
+		return longest;
+	if (longest - paired > r->srate / REC_LAG_DIVISOR)
+		return longest;
+
+	return paired;
+}
+
+
+static size_t take_frames(struct bsk_rec *r, size_t count)
+{
 	size_t i;
 
-	while (done < count) {
-		size_t chunk = count - done;
-
-		if (chunk > 480)
-			chunk = 480;
-
-		for (i = 0; i < chunk; i++) {
-			size_t k = done + i;
-
-			buf[2 * i]     = k < r->n[0] ? r->side[0][k] : 0;
-			buf[2 * i + 1] = k < r->n[1] ? r->side[1][k] : 0;
-		}
-
-		(void)fwrite(buf, sizeof(int16_t), 2 * chunk, r->f);
-		done += chunk;
+	for (i = 0; i < count; i++) {
+		r->out[2 * i]     = i < r->n[0] ? r->side[0][i] : 0;
+		r->out[2 * i + 1] = i < r->n[1] ? r->side[1][i] : 0;
 	}
 
-	r->frames += count;
-
 	for (i = 0; i < 2; i++) {
-		size_t used = count < r->n[i] ? count : r->n[i];
+		size_t used = min_size(count, r->n[i]);
 
 		memmove(r->side[i], r->side[i] + used,
 			(r->n[i] - used) * sizeof(int16_t));
 		r->n[i] -= used;
 	}
+
+	return count;
+}
+
+
+static void flush_frames(struct bsk_rec *r, bool drain)
+{
+	size_t count = 0;
+
+	mtx_lock(&r->mtx);
+	if (r->cap)
+		count = take_frames(r, frames_ready(r, drain));
+	mtx_unlock(&r->mtx);
+
+	if (!count || !r->f)
+		return;
+
+	(void)fwrite(r->out, sizeof(int16_t), 2 * count, r->f);
+	r->frames += count;
+}
+
+
+static void flush_timer(void *arg)
+{
+	struct bsk_rec *r = arg;
+
+	flush_frames(r, false);
+	tmr_start(&r->tmr, REC_FLUSH_MS, flush_timer, r);
 }
 
 
 static void finish_file(struct bsk_rec *r)
 {
-	size_t rest;
+	uint32_t srate;
 
 	if (!r->f)
 		return;
 
-	rest = r->n[0] > r->n[1] ? r->n[0] : r->n[1];
-	if (rest)
-		write_frames(r, rest);
+	atomic_store(&r->active, false);
+	tmr_cancel(&r->tmr);
+	flush_frames(r, true);
 
-	write_header(r->f, r->srate ? r->srate : 8000, r->frames);
+	mtx_lock(&r->mtx);
+	srate = r->srate ? r->srate : REC_FALLBACK_SRATE;
+	mtx_unlock(&r->mtx);
+
+	write_header(r->f, srate, r->frames);
 	(void)fclose(r->f);
 	r->f = NULL;
+}
+
+
+static void reset_buffers(struct bsk_rec *r)
+{
+	mtx_lock(&r->mtx);
+	r->srate = 0;
+	r->cap = 0;
+	r->n[0] = r->n[1] = 0;
+	r->side[0] = mem_deref(r->side[0]);
+	r->side[1] = mem_deref(r->side[1]);
+	r->out = mem_deref(r->out);
+	mtx_unlock(&r->mtx);
 }
 
 
@@ -131,12 +197,12 @@ static void rec_destructor(void *arg)
 	list_unlink(&r->le);
 	mtx_unlock(&recl_mtx);
 
-	mtx_lock(&r->mtx);
 	finish_file(r);
-	mtx_unlock(&r->mtx);
+	tmr_cancel(&r->tmr);
 
 	mem_deref(r->side[0]);
 	mem_deref(r->side[1]);
+	mem_deref(r->out);
 	mtx_destroy(&r->mtx);
 }
 
@@ -148,7 +214,7 @@ static struct bsk_rec *rec_find(const struct audio *au)
 	for (le = recl.head; le; le = le->next) {
 		struct bsk_rec *r = le->data;
 
-		if (r->au == au)
+		if (r->au == au && mem_nrefs(r) > 0)
 			return r;
 	}
 
@@ -170,6 +236,8 @@ static struct bsk_rec *rec_get(const struct audio *au)
 		if (r) {
 			r->au = au;
 			mtx_init(&r->mtx, mtx_plain);
+			atomic_init(&r->active, false);
+			tmr_init(&r->tmr);
 			list_append(&recl, &r->le, r);
 		}
 	}
@@ -179,46 +247,45 @@ static struct bsk_rec *rec_get(const struct audio *au)
 }
 
 
+static bool alloc_buffers(struct bsk_rec *r)
+{
+	r->cap = (size_t)r->srate * REC_BUFFER_SECONDS;
+	r->side[0] = mem_zalloc(r->cap * sizeof(int16_t), NULL);
+	r->side[1] = mem_zalloc(r->cap * sizeof(int16_t), NULL);
+	r->out = mem_zalloc(2 * r->cap * sizeof(int16_t), NULL);
+	if (r->side[0] && r->side[1] && r->out)
+		return true;
+
+	r->cap = 0;
+	r->side[0] = mem_deref(r->side[0]);
+	r->side[1] = mem_deref(r->side[1]);
+	r->out = mem_deref(r->out);
+	return false;
+}
+
+
 static void rec_push(struct bsk_rec *r, const struct auframe *af, int side)
 {
 	const int16_t *s = af->sampv;
 	size_t frames, i;
 
-	if (!r || !af || !af->sampv || af->fmt != AUFMT_S16LE || !af->ch)
+	if (!r || !atomic_load(&r->active))
+		return;
+	if (!af || !af->sampv || af->fmt != AUFMT_S16LE || !af->ch)
 		return;
 
 	mtx_lock(&r->mtx);
-
-	if (!r->f)
-		goto out;
 
 	if (!r->srate)
 		r->srate = af->srate;
 	if (af->srate != r->srate)
 		goto out;
+	if (!r->cap && !alloc_buffers(r))
+		goto out;
 
 	frames = af->sampc / af->ch;
-
-	if (!r->cap) {
-		r->cap = r->srate;
-		r->side[0] = mem_zalloc(r->cap * sizeof(int16_t), NULL);
-		r->side[1] = mem_zalloc(r->cap * sizeof(int16_t), NULL);
-		if (!r->side[0] || !r->side[1]) {
-			finish_file(r);
-			goto out;
-		}
-	}
-
-	if (r->n[side] + frames > r->cap)
-		write_frames(r, r->n[side]);
-
 	for (i = 0; i < frames && r->n[side] < r->cap; i++)
 		r->side[side][r->n[side]++] = s[i * af->ch];
-
-	if (r->n[0] && r->n[1])
-		write_frames(r, r->n[0] < r->n[1] ? r->n[0] : r->n[1]);
-	else if (r->n[side] > r->srate / 5)
-		write_frames(r, r->n[side]);
 
  out:
 	mtx_unlock(&r->mtx);
@@ -359,7 +426,6 @@ int bsk_record_start(const struct audio *au, const char *path, void **handle)
 	if (!r)
 		return ENOMEM;
 
-	mtx_lock(&r->mtx);
 	if (r->f) {
 		err = EALREADY;
 		goto out;
@@ -374,10 +440,11 @@ int bsk_record_start(const struct audio *au, const char *path, void **handle)
 	memset(blank, 0, sizeof(blank));
 	(void)fwrite(blank, 1, sizeof(blank), r->f);
 	r->frames = 0;
-	r->n[0] = r->n[1] = 0;
+	reset_buffers(r);
+	atomic_store(&r->active, true);
+	tmr_start(&r->tmr, REC_FLUSH_MS, flush_timer, r);
 
  out:
-	mtx_unlock(&r->mtx);
 	if (err)
 		mem_deref(r);
 	else
@@ -396,9 +463,7 @@ int bsk_record_stop(void **handle)
 	r = *handle;
 	*handle = NULL;
 
-	mtx_lock(&r->mtx);
 	finish_file(r);
-	mtx_unlock(&r->mtx);
 	mem_deref(r);
 
 	return 0;
