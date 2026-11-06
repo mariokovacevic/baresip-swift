@@ -153,7 +153,7 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	CHECK(st.audio.rx_packets > 0);
 	CHECK(wait_until(&w, streams, 5000));
 
-	printf("10. ICE restart over TURN/%s: new credentials, new relay, "
+	printf("10. ICE restart over TURN/%s: new credentials, same relay, "
 	       "media continues\n", turn_transport);
 	tx_before = st.audio.tx_packets;
 	rx_before = st.audio.rx_packets;

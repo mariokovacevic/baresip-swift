@@ -1,19 +1,23 @@
-From d5d43af73a3c64bb3e6522964e2d54fbf8077149 Mon Sep 17 00:00:00 2001
+From 9816c4524b6711e7c44b0238fd4dae19c138e045 Mon Sep 17 00:00:00 2001
 From: BaresipKit <baresipkit@users.noreply.github.com>
 Date: Fri, 6 Nov 2026 15:15:02 +0000
 Subject: [PATCH] ice: support ICE restart
 
-Add an optional restart hook to struct mnat. call_reset_transp() uses it
-when the media NAT supports it, so a network change restarts ICE with new
-credentials and fresh candidates instead of re-INVITEing stale ones. The
-re-INVITE is sent once gathering completes. A remote offer with a new
-ice-ufrag restarts ICE on the answering side, reusing its gathered
-candidates so the answer is complete.
+Add an optional restart hook to struct mnat and call_restart_mnat().
+call_reset_transp() uses the hook when the media NAT supports it. The
+ICE module creates new credentials; when the local address changed it
+drops its STUN/TURN state, gathers again and re-INVITEs once gathering
+completes, otherwise it keeps the gathered candidates and TURN
+allocations (a new allocation from the same 5-tuple would be rejected)
+and re-INVITEs right away. Connectivity checks start when the answer
+carries the peer's new credentials. A remote offer with a new ice-ufrag
+restarts ICE on the answering side with the gathered candidates, so the
+answer is complete.
 ---
  include/baresip.h |   4 +
- modules/ice/ice.c | 319 ++++++++++++++++++++++++++++++++++++++++++----
- src/call.c        |  25 ++++
- 3 files changed, 325 insertions(+), 23 deletions(-)
+ modules/ice/ice.c | 378 +++++++++++++++++++++++++++++++++++++++++++---
+ src/call.c        |  25 +++
+ 3 files changed, 384 insertions(+), 23 deletions(-)
 
 diff --git a/include/baresip.h b/include/baresip.h
 index dea4a37..ffa9a3a 100644
@@ -45,19 +49,21 @@ index dea4a37..ffa9a3a 100644
  
  void mnat_register(struct list *mnatl, struct mnat *mnat);
 diff --git a/modules/ice/ice.c b/modules/ice/ice.c
-index ad9cbc9..fb631d0 100644
+index ad9cbc9..e990970 100644
 --- a/modules/ice/ice.c
 +++ b/modules/ice/ice.c
-@@ -47,6 +47,8 @@ struct mnat_sess {
+@@ -47,6 +47,10 @@ struct mnat_sess {
  	char *pass;
  	bool started;
  	bool send_reinvite;
 +	bool restart_wait;
 +	char *rufrag;
++	struct sa laddr;
++	struct tmr tmr_restart;
  	mnat_estab_h *estabh;
  	void *arg;
  };
-@@ -63,6 +65,8 @@ struct mnat_media {
+@@ -63,6 +67,8 @@ struct mnat_media {
  		struct turnc *turnc;
  		struct udp_helper *uh;
  		struct mbuf *mb;
@@ -66,7 +72,15 @@ index ad9cbc9..fb631d0 100644
  	} compv[2];
  	struct le le;
  	struct mnat_sess *sess;
-@@ -147,6 +151,8 @@ static void stun_resp_handler(int err, uint16_t scode, const char *reason,
+@@ -80,6 +86,7 @@ struct mnat_media {
+ 
+ static void gather_handler(int err, uint16_t scode, const char *reason,
+ 			   void *arg);
++static void record_laddr(struct mnat_sess *sess);
+ 
+ 
+ static void call_gather_handler(int err, struct mnat_media *m, uint16_t scode,
+@@ -147,6 +154,8 @@ static void stun_resp_handler(int err, uint16_t scode, const char *reason,
  	err = icem_lcand_add(m->icem, icem_lcand_base(lcand),
  			     ICE_CAND_TYPE_SRFLX,
  			     &attr->v.sa);
@@ -75,7 +89,7 @@ index ad9cbc9..fb631d0 100644
  
   out:
  	call_gather_handler(err, m, scode, reason);
-@@ -215,6 +221,10 @@ static void turnc_handler(int err, uint16_t scode, const char *reason,
+@@ -215,6 +224,10 @@ static void turnc_handler(int err, uint16_t scode, const char *reason,
  	debug("ice: relay gathered for comp %u (%u %s)\n",
  	      comp->id, scode, reason);
  
@@ -86,7 +100,13 @@ index ad9cbc9..fb631d0 100644
  	err = icem_lcand_add_base(m->icem, ICE_CAND_TYPE_RELAY, comp->id, 0,
  				  NULL, ICE_TRANSP_UDP, relay);
  	if (err)
-@@ -518,6 +528,7 @@ static void session_destructor(void *arg)
+@@ -513,11 +526,13 @@ static void session_destructor(void *arg)
+ 	struct mnat_sess *sess = arg;
+ 
+ 	tmr_cancel(&sess->tmr_async);
++	tmr_cancel(&sess->tmr_restart);
+ 	list_flush(&sess->medial);
+ 	mem_deref(sess->dnsq);
  	mem_deref(sess->user);
  	mem_deref(sess->pass);
  	mem_deref(sess->host);
@@ -94,7 +114,24 @@ index ad9cbc9..fb631d0 100644
  	mem_deref(sess->sdp);
  }
  
-@@ -1061,6 +1072,41 @@ static int ice_start(struct mnat_sess *sess)
+@@ -660,6 +675,7 @@ static void dns_handler(int err, const struct sa *srv, void *arg)
+ 	      sess->turn ? "TURN" : "STUN", srv);
+ 
+ 	sess->srv = *srv;
++	record_laddr(sess);
+ 
+ 	for (le=sess->medial.head; le; le=le->next) {
+ 
+@@ -682,6 +698,8 @@ static void tmr_async_handler(void *arg)
+ 	struct mnat_sess *sess = arg;
+ 	struct le *le;
+ 
++	record_laddr(sess);
++
+ 	for (le = sess->medial.head; le;) {
+ 		struct mnat_media *m = le->data;
+ 		le = le->next;
+@@ -1061,6 +1079,41 @@ static int ice_start(struct mnat_sess *sess)
  }
  
  
@@ -136,7 +173,7 @@ index ad9cbc9..fb631d0 100644
  static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
  		       struct udp_sock *sock1, struct udp_sock *sock2,
  		       struct sdp_media *sdpm,
-@@ -1068,7 +1114,6 @@ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
+@@ -1068,7 +1121,6 @@ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
  {
  	struct mnat_media *m;
  	enum ice_role role;
@@ -144,7 +181,7 @@ index ad9cbc9..fb631d0 100644
  	int err = 0;
  
  	if (!mp || !sess || !sdpm)
-@@ -1090,31 +1135,10 @@ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
+@@ -1090,31 +1142,10 @@ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
  	else
  		role = ICE_ROLE_CONTROLLED;
  
@@ -177,10 +214,36 @@ index ad9cbc9..fb631d0 100644
  	m->connh = connh;
  	m->arg = arg;
  
-@@ -1181,14 +1205,262 @@ static int enable_turn_channels(struct mnat_sess *sess)
+@@ -1181,14 +1212,314 @@ static int enable_turn_channels(struct mnat_sess *sess)
  
  
  /** This can be called several times */
++static const struct sa *default_laddr(const struct mnat_sess *sess)
++{
++	const struct sa *laddr = NULL;
++
++	if (sa_isset(&sess->srv, SA_ADDR))
++		laddr = net_laddr_af(baresip_network(), sa_af(&sess->srv));
++
++	if (!laddr || !sa_isset(laddr, SA_ADDR))
++		laddr = net_laddr_af(baresip_network(), AF_INET);
++
++	if (!laddr || !sa_isset(laddr, SA_ADDR))
++		laddr = net_laddr_af(baresip_network(), AF_INET6);
++
++	return laddr && sa_isset(laddr, SA_ADDR) ? laddr : NULL;
++}
++
++
++static void record_laddr(struct mnat_sess *sess)
++{
++	const struct sa *laddr = default_laddr(sess);
++
++	if (laddr)
++		sess->laddr = *laddr;
++}
++
++
 +static const char *remote_ufrag(const struct mnat_sess *sess)
 +{
 +	const char *ufrag = sdp_session_rattr(sess->sdp, ice_attr_ufrag);
@@ -349,7 +412,7 @@ index ad9cbc9..fb631d0 100644
 +	struct le *le;
 +	int err;
 +
-+	info("ice: remote ICE restart, reusing gathered candidates\n");
++	info("ice: ICE restart, reusing gathered candidates\n");
 +
 +	err = new_credentials(sess);
 +	if (err)
@@ -377,8 +440,18 @@ index ad9cbc9..fb631d0 100644
 +}
 +
 +
++static void restart_tmr_handler(void *arg)
++{
++	struct mnat_sess *sess = arg;
++
++	if (sess->estabh)
++		sess->estabh(0, 0, NULL, sess->arg);
++}
++
++
 +static int restart(struct mnat_sess *sess)
 +{
++	const struct sa *laddr;
 +	const char *rufrag;
 +	int err;
 +
@@ -399,6 +472,22 @@ index ad9cbc9..fb631d0 100644
 +	}
 +
 +	sess->restart_wait = true;
++
++	laddr = default_laddr(sess);
++
++	if (laddr && sa_cmp(laddr, &sess->laddr, SA_ADDR) &&
++	    all_gathered(sess)) {
++
++		err = restart_reuse(sess);
++		if (!err)
++			tmr_start(&sess->tmr_restart, 0, restart_tmr_handler,
++				  sess);
++
++		return err;
++	}
++
++	if (laddr)
++		sess->laddr = *laddr;
 +
 +	return restart_regather(sess);
 +}
@@ -440,7 +529,7 @@ index ad9cbc9..fb631d0 100644
  	/* SDP session */
  	(void)sdp_session_rattr_apply(sess->sdp, NULL, sdp_attr_handler, sess);
  
-@@ -1252,6 +1524,7 @@ static struct mnat mnat_ice = {
+@@ -1252,6 +1583,7 @@ static struct mnat mnat_ice = {
  	.mediah  = media_alloc,
  	.updateh = update,
  	.attrh   = attr_handler,
