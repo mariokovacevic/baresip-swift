@@ -14,6 +14,8 @@ kept as small as possible so that it can be proposed upstream unchanged.
 | `0004-re-tls-verify-server-handler.patch` | libre v4.9.0 | libre verifies server certificates with OpenSSL's default callback and offers no hook for the client side. The patch adds `tls_set_verify_server_handler()`, which receives OpenSSL's pre-verification result, the chain depth and the certificate in DER form for every certificate of the server chain. BaresipKit uses it for SPKI SHA-256 pinning (`Core/src/bsk_tls.c`). Plain C types only, no OpenSSL types in the public API. | to be proposed |
 | `0005-baresip-ice-module-events.patch` | baresip v4.9.0 | The ICE module logs state changes but emits no events, so an application cannot learn the ICE state or the selected candidate pair without parsing logs. The patch emits `module_event("ice", ...)` for gathering, checking, connected (with local/remote candidate types and addresses) and failed, keyed by the SDP media pointer so the application can map it to a call. | to be proposed |
 
+| `0006-baresip-start-media-after-mnat-with-optional-menc.patch` | baresip v4.9.0 | When a media encryption is configured, `stream_mnatconn_handler()` only started the media encryption after the media NAT connected and never started audio or video. With optional SDES-SRTP that the peer declines, and ICE completing after the call was answered (typical for TURN relay), the call stayed silent: no RTP was ever sent. Found by the TURN relay integration stage. The patch starts the streams whenever they are ready; encryptions that wait for a secure state (DTLS-SRTP) are unaffected because `stream_is_ready()` still returns false until they are secure. | to be proposed |
+
 ## Verifying a patch
 
 ```bash
