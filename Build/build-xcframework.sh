@@ -193,12 +193,26 @@ build_baresip() {
   cp "$src/include/baresip.h" "$prefix/include/baresip/"
 }
 
+build_facade() {
+  local slice="$1" prefix="$2"
+  local src="$ROOT/Sources/BaresipKitCore" bdir="$OUT_DIR/$slice/build/facade"
+  log "[$slice] BaresipKitCore facade"
+  local common=() l
+  while IFS= read -r l; do common+=("$l"); done < <(cmake_common "$prefix")
+  cmake -S "$src" -B "$bdir" "${common[@]}" \
+        -DBARESIP_INCLUDE_DIR="$prefix/include/baresip" \
+        -DBARESIP_LIBRARY="$prefix/lib/libbaresip.a" >/dev/null
+  cmake --build "$bdir" -j"$JOBS" >/dev/null
+  cp "$bdir/libbaresipkitcore.a" "$prefix/lib/libbaresipkitcore.a"
+}
+
 merge_slice() {
   local slice="$1" prefix="$2"
   local out="$OUT_DIR/$slice/lib"
   log "[$slice] merging static archives"
   mkdir -p "$out"
-  local libs=("$prefix/lib/libbaresip.a" "$prefix/lib/libre.a" "$prefix/lib/libopus.a"
+  local libs=("$prefix/lib/libbaresipkitcore.a" "$prefix/lib/libbaresip.a"
+              "$prefix/lib/libre.a" "$prefix/lib/libopus.a"
               "$prefix/lib/libssl.a" "$prefix/lib/libcrypto.a")
   [[ -f "$prefix/lib/libvpx.a" ]] && libs+=("$prefix/lib/libvpx.a")
   if [[ "$PLATFORM" == "ios" ]]; then
@@ -289,6 +303,7 @@ main() {
     if [[ "$MODULES" == *vp8* ]]; then build_libvpx "$slice" "$prefix"; fi
     build_libre "$slice" "$prefix"
     build_baresip "$slice" "$prefix"
+    build_facade "$slice" "$prefix"
     merge_slice "$slice" "$prefix"
   done
 

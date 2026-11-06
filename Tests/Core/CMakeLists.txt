@@ -1,0 +1,9 @@
+add_executable(bsk_test_unit test_unit.c)
+target_link_libraries(bsk_test_unit PRIVATE baresipkitcore)
+add_test(NAME unit COMMAND bsk_test_unit)
+
+add_executable(bsk_test_registration test_registration.c)
+target_link_libraries(bsk_test_registration PRIVATE baresipkitcore)
+
+add_executable(bsk_test_call test_call.c)
+target_link_libraries(bsk_test_call PRIVATE baresipkitcore)

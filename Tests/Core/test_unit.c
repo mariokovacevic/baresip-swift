@@ -1,0 +1,159 @@
+#include "test_common.h"
+
+size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
+
+
+static void test_contact_params(void)
+{
+	bsk_contact_param p[] = {
+		{ "app-id", "com.example.app" },
+		{ "pn-type", "apple" },
+		{ "pn-tok", "0123456789abcdef:remote&fedcba9876543210:voip" },
+		{ "pn-silent", "1" },
+		{ "pn-timeout", "0" },
+		{ "flag", NULL },
+	};
+	bsk_contact_param bad_sep[] = { { "pn-tok", "a;b" } };
+	bsk_contact_param bad_eq[] = { { "pn-tok", "a=b" } };
+	bsk_contact_param bad_space[] = { { "pn-tok", "a b" } };
+	bsk_contact_param bad_name[] = { { "pn tok", "a" } };
+	bsk_contact_param empty_name[] = { { "", "a" } };
+	char buf[256];
+	size_t len = 0;
+
+	CHECK(BSK_OK == bsk_contact_params_encode(p, 6, buf, sizeof(buf), &len));
+	CHECK(0 == strcmp(buf,
+		"app-id=com.example.app;pn-type=apple;"
+		"pn-tok=0123456789abcdef:remote&fedcba9876543210:voip;"
+		"pn-silent=1;pn-timeout=0;flag"));
+	CHECK(len == strlen(buf));
+
+	CHECK(BSK_OK == bsk_contact_params_encode(p, 6, NULL, 0, &len));
+	CHECK(len == strlen(buf));
+
+	CHECK(BSK_ERR_BUFFER_TOO_SMALL ==
+	      bsk_contact_params_encode(p, 6, buf, len, NULL));
+	CHECK(BSK_OK == bsk_contact_params_encode(p, 6, buf, len + 1, NULL));
+
+	CHECK(BSK_ERR_INVALID_ARGUMENT ==
+	      bsk_contact_params_encode(bad_sep, 1, buf, sizeof(buf), NULL));
+	CHECK(BSK_ERR_INVALID_ARGUMENT ==
+	      bsk_contact_params_encode(bad_eq, 1, buf, sizeof(buf), NULL));
+	CHECK(BSK_ERR_INVALID_ARGUMENT ==
+	      bsk_contact_params_encode(bad_space, 1, buf, sizeof(buf), NULL));
+	CHECK(BSK_ERR_INVALID_ARGUMENT ==
+	      bsk_contact_params_encode(bad_name, 1, buf, sizeof(buf), NULL));
+	CHECK(BSK_ERR_INVALID_ARGUMENT ==
+	      bsk_contact_params_encode(empty_name, 1, buf, sizeof(buf), NULL));
+
+	CHECK(BSK_OK == bsk_contact_params_encode(NULL, 0, buf, sizeof(buf),
+						  &len));
+	CHECK(len == 0 && buf[0] == '\0');
+}
+
+
+static void test_redaction(void)
+{
+	const char *in =
+		"Authorization: Digest username=\"alice\", realm=\"r\", "
+		"nonce=\"n\", uri=\"sip:x\", response=\"deadbeefdeadbeef\", "
+		"algorithm=MD5\r\n"
+		"Contact: <sip:a@h;pn-tok=0123456789abcdef0123:remote&"
+		"ffffffffffffffff:voip;pn-silent=1>\r\n"
+		"auth_pass=secret;stunpass=s2";
+	char out[512];
+	size_t n = bsk_redact(in, strlen(in), out, sizeof(out));
+
+	CHECK(n > 0);
+	CHECK(strstr(out, "deadbeef") == NULL);
+	CHECK(strstr(out, "response=\"[redacted]\"") != NULL);
+	CHECK(strstr(out, "pn-tok=01234567[redacted];pn-silent=1") != NULL);
+	CHECK(strstr(out, "ffffffff") == NULL);
+	CHECK(strstr(out, "auth_pass=[redacted];") != NULL);
+	CHECK(strstr(out, "stunpass=[redacted]") != NULL);
+	CHECK(strstr(out, "secret") == NULL);
+	CHECK(strstr(out, "username=\"alice\"") != NULL);
+}
+
+
+static void test_status_strings(void)
+{
+	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
+	CHECK(0 == strcmp(bsk_status_string(BSK_ERR_AUTH),
+			  "authentication failed"));
+	CHECK(bsk_abi_version() == 1);
+	CHECK(bsk_capabilities(NULL, 0) > 0);
+}
+
+
+static void test_engine_lifecycle_without_network(void)
+{
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+	bsk_account_id acc = BSK_ID_NONE;
+
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.modules = test_modules;
+	cfg.module_count = sizeof(test_modules) / sizeof(test_modules[0]);
+	cfg.audio.source_module = "ausine";
+	cfg.audio.player_module = "aufile";
+	cfg.audio.player_device = "/dev/null";
+	cfg.tls.verify_server = true;
+	cfg.extra_config = "sip_listen\t\t0.0.0.0:0";
+
+	CHECK(BSK_ERR_INVALID_ARGUMENT ==
+	      bsk_engine_create(NULL, NULL, NULL, &e, &err));
+	CHECK_OK(bsk_engine_create(&cfg, NULL, NULL, &e, &err), &err);
+	CHECK(bsk_engine_get_state(e) == BSK_ENGINE_IDLE);
+
+	CHECK(BSK_ERR_INVALID_STATE ==
+	      bsk_account_add(e, NULL, &acc, &err) ||
+	      BSK_ERR_INVALID_ARGUMENT == err.status);
+
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+	CHECK(bsk_engine_get_state(e) == BSK_ENGINE_READY ||
+	      bsk_engine_get_state(e) == BSK_ENGINE_RUNNING);
+	CHECK(!bsk_engine_is_engine_thread(e));
+	CHECK(BSK_ERR_INVALID_STATE == bsk_engine_start(e, &err));
+
+	{
+		bsk_account_config ac;
+		bsk_registration_state rs;
+		memset(&ac, 0, sizeof(ac));
+		ac.aor = "sip:alice@example.invalid";
+		ac.auth_user = "alice";
+		ac.auth_password = "secret";
+		CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
+		CHECK(acc != BSK_ID_NONE);
+		CHECK(BSK_OK == bsk_account_get_registration_state(e, acc, &rs));
+		CHECK(rs == BSK_REG_NONE);
+		CHECK(BSK_ERR_NOT_FOUND ==
+		      bsk_account_get_registration_state(e, 999, &rs));
+		CHECK_OK(bsk_account_remove(e, acc, &err), &err);
+		CHECK(BSK_ERR_NOT_FOUND == bsk_account_remove(e, acc, &err));
+	}
+
+	CHECK(bsk_call_list(e, NULL, 0) == 0);
+
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	CHECK(bsk_engine_get_state(e) == BSK_ENGINE_STOPPED);
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+
+	bsk_engine_destroy(e);
+	bsk_engine_destroy(NULL);
+}
+
+
+int main(void)
+{
+	test_contact_params();
+	test_redaction();
+	test_status_strings();
+	test_engine_lifecycle_without_network();
+	printf("unit: PASS\n");
+	return 0;
+}

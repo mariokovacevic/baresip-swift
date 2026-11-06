@@ -66,3 +66,4 @@ Build/.deps/
 Build/out/
 Tools/ContactParameterProof/build/
 Tools/ContactParameterProof/trace*.txt
+Build/out/

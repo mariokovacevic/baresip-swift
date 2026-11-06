@@ -218,6 +218,9 @@ typedef struct bsk_engine_config {
 	const char *user_agent;
 	const char *instance_uuid;
 	const char *network_interface;
+	const char *const *modules;
+	size_t module_count;
+	const char *extra_config;
 	bool ipv6;
 	uint16_t rtp_port_min;
 	uint16_t rtp_port_max;
