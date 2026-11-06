@@ -16,6 +16,7 @@ struct SIPSettings: Codable, Equatable {
     var stunURI = ""
     var turnURI = ""
     var turnUser = ""
+    var autoPreview: Bool?
 
     var isComplete: Bool {
         !domain.trimmed.isEmpty && !username.trimmed.isEmpty

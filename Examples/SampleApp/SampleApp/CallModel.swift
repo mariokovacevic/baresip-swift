@@ -29,6 +29,8 @@ final class CallModel: ObservableObject {
     @Published var onHold = false
     @Published var videoEnabled = false
     @Published var frontCamera = true
+    @Published var previewing = false
+    @Published var incomingEarlyVideo = false
     @Published var log: [String] = []
     @Published var stats: BaresipCallStatistics?
 
@@ -168,16 +170,32 @@ final class CallModel: ObservableObject {
         }
     }
 
+    func preview() async {
+        guard let engine, let incoming, !previewing else { return }
+        let video = incoming.hasVideo || incomingEarlyVideo
+        do {
+            try await engine.sendProgress(callID: incoming.id, earlyVideo: video)
+            previewing = true
+            videoEnabled = video
+            append("previewing \(incoming.remoteURI) (they do not hear or see you)")
+        } catch {
+            append("preview failed: \(error)")
+        }
+    }
+
     func answer() async {
         guard let engine, let incoming else { return }
         try? await engine.answer(callID: incoming.id, video: incoming.hasVideo)
         videoEnabled = incoming.hasVideo
+        previewing = false
         self.incoming = nil
     }
 
     func reject() async {
         guard let engine, let incoming else { return }
         try? await engine.reject(callID: incoming.id, statusCode: 486)
+        previewing = false
+        videoEnabled = false
         self.incoming = nil
     }
 
@@ -262,7 +280,8 @@ final class CallModel: ObservableObject {
                                            authUser: authUser,
                                            authPassword: password,
                                            mediaEncryption: settings.mediaEncryption,
-                                           nat: nat)
+                                           nat: nat,
+                                           answerEarlyMedia: settings.autoPreview ?? false)
     }
 
     private func normalizedDestination(_ raw: String) -> String {
@@ -379,10 +398,15 @@ final class CallModel: ObservableObject {
             registration = state
             registrationError = error.map { "\($0)" }
             append("registration \(state) \(error.map { "\($0)" } ?? "")")
-        case .incomingCall(let info, _):
+        case .incomingCall(let info, let earlyVideo):
             incoming = info
+            incomingEarlyVideo = earlyVideo
             currentCall = info.id
-            append("incoming call from \(info.remoteURI)")
+            if settings.autoPreview == true {
+                previewing = true
+                videoEnabled = info.hasVideo || earlyVideo
+            }
+            append("incoming call from \(info.remoteURI)\(earlyVideo ? " (early video offered)" : "")")
         case .call(let call, let state, let error):
             callState = state
             append("call \(call) \(state) \(error.map { "\($0)" } ?? "")")
@@ -396,6 +420,8 @@ final class CallModel: ObservableObject {
                 onHold = false
                 muted = false
                 videoEnabled = false
+                previewing = false
+                incoming = nil
                 if currentTLS != engineTLS {
                     Task { [weak self] in
                         await self?.restartEngine()

@@ -100,6 +100,8 @@ let callKit = BaresipCallKitAdapter(engine: engine, configuration: BaresipCallKi
 let uuid = try await callKit.startOutgoingCall(to: "sip:door@192.0.2.10", video: true)
 ```
 
+Incoming early media (preview before answering, for example at a door intercom): `sendProgress(callID:earlyVideo:)` answers the INVITE with 183 Session Progress and receives the caller's audio, and video when `earlyVideo` is true, while the call is still ringing. During the preview the local direction is receive-only, so the caller does not hear or see you; answering switches both directions back to send and receive. `answerEarlyMedia: true` on the account does the same automatically for every incoming call. The `.incomingCall` event tells whether the caller offered early video. The call state is `earlyMedia` until you answer or reject.
+
 Incoming calls are reported to CallKit when the INVITE arrives. After a VoIP push, report the call first with `reportIncomingCallFromPush(uuid:remoteURI:displayName:hasVideo:)`; when the INVITE arrives it is matched to that UUID and, if the user already answered, answered immediately. Hold, mute, DTMF and end actions are forwarded to the engine. Outgoing progress is reported from `outgoingRinging`/`earlyMedia` (connecting) and `connected` (connected).
 
 ## PushKit

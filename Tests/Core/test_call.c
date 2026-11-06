@@ -5,14 +5,19 @@ static struct waiter w;
 static const char *tag;
 static int ice_gather_n;
 static int ice_reconnected;
+static int saw_early;
+static bool auto_early;
 
 static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 {
 	(void)engine;
 	(void)user;
-	if (ev->type == BSK_EVENT_CALL_STATE)
+	if (ev->type == BSK_EVENT_CALL_STATE) {
 		fprintf(stderr, "%s: call %llu state %d\n", tag,
 			(unsigned long long)ev->call, ev->u.call_state.state);
+		if (ev->u.call_state.state == BSK_CALL_EARLY_MEDIA)
+			__atomic_store_n(&saw_early, 1, __ATOMIC_SEQ_CST);
+	}
 	else if (ev->type == BSK_EVENT_CALL_MEDIA)
 		fprintf(stderr, "%s: call %llu media %d\n", tag,
 			(unsigned long long)ev->call, ev->u.media.event);
@@ -35,6 +40,7 @@ static int paused(struct waiter *x) { return x->call_state == BSK_CALL_PAUSED; }
 static int paused_remote(struct waiter *x) { return x->call_state == BSK_CALL_PAUSED_BY_REMOTE; }
 static int released(struct waiter *x) { return x->released_call != BSK_ID_NONE; }
 static int dtmf3(struct waiter *x) { return x->dtmf_count >= 3; }
+static int early(struct waiter *x) { (void)x; return __atomic_load_n(&saw_early, __ATOMIC_SEQ_CST); }
 static int ringing_or_later(struct waiter *x) { return x->call_state >= BSK_CALL_OUTGOING_RINGING; }
 static int ice_connected(struct waiter *x) { return x->ice_state == BSK_ICE_CONNECTED; }
 static bool use_ice;
@@ -145,6 +151,7 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 	}
 	ac.audio_codecs = codecs;
 	ac.audio_codec_count = 1;
+	ac.answer_early_media = auto_early;
 	CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
 	return acc;
 }
@@ -156,19 +163,39 @@ static int run_callee(const char *host)
 	bsk_error err;
 	bsk_call_info info;
 	bsk_call_statistics st;
+	int i;
 
 	tag = "callee";
 	e = start_engine(callee_port);
+	auto_early = !use_ice;
 	add_account(e, "bob", host, callee_port);
+	auto_early = false;
 
 	printf("READY\n");
 	fflush(stdout);
 
 	CHECK(wait_until(&w, incoming, 15000));
 	CHECK(BSK_OK == bsk_call_get_info(e, w.incoming_call, &info));
-	CHECK(info.state == BSK_CALL_INCOMING);
+	CHECK(info.state == BSK_CALL_INCOMING ||
+	      (!use_ice && info.state == BSK_CALL_EARLY_MEDIA));
 	CHECK(strstr(info.remote_uri, "alice") != NULL);
 	CHECK(!info.outgoing);
+
+	if (use_ice)
+		CHECK_OK(bsk_call_progress(e, w.incoming_call, false, &err), &err);
+	CHECK(wait_until(&w, early, 5000));
+	for (i = 0; i < 80; i++) {
+		CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
+		if (st.audio.rx_packets > 20)
+			break;
+		usleep(100000);
+	}
+	CHECK(st.audio.rx_packets > 20);
+	CHECK(st.audio.tx_packets == 0);
+	printf("callee: early media preview (%s): PASS (rx=%u, tx=%u)\n",
+	       use_ice ? "sendProgress" : "answerEarlyMedia",
+	       st.audio.rx_packets, st.audio.tx_packets);
+	fflush(stdout);
 
 	CHECK_OK(bsk_call_answer(e, w.incoming_call, false, &err), &err);
 	CHECK(wait_until(&w, streams, 10000));
@@ -257,7 +284,8 @@ static int run_caller(const char *host)
 	CHECK(call != BSK_ID_NONE);
 	CHECK(bsk_call_list(e, NULL, 0) == 1);
 	CHECK(wait_until(&w, ringing_or_later, 10000));
-	CHECK(wait_until(&w, streams, 10000));
+	CHECK(wait_until(&w, streams, 20000));
+	CHECK(__atomic_load_n(&saw_early, __ATOMIC_SEQ_CST));
 
 	CHECK(BSK_OK == bsk_call_get_info(e, call, &info));
 	CHECK(info.outgoing);

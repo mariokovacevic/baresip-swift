@@ -114,6 +114,16 @@ struct AccountView: View {
                 Text("One pin per line. With pins set, the connection is accepted only if the chain verifies and a certificate matches a pin.")
             }
 
+            Section {
+                Toggle("Preview incoming calls automatically", isOn: Binding(
+                    get: { model.settings.autoPreview ?? false },
+                    set: { model.settings.autoPreview = $0 }))
+            } header: {
+                Text("Incoming calls")
+            } footer: {
+                Text("Sends 183 Session Progress so you hear and see the caller before answering, for example at a door intercom. Your microphone and camera stay off until you answer.")
+            }
+
             Section("Media") {
                 Picker("Encryption", selection: $model.settings.mediaEncryption) {
                     Text("SRTP optional").tag(BaresipMediaEncryption.srtpOptional)

@@ -29,6 +29,7 @@ struct bsk_account_ctx {
 	bool pending_reregister;
 	bool is_default;
 	bool tls;
+	bool answer_early_media;
 	uint32_t expires;
 	uint64_t reg_started_ms;
 };
@@ -45,6 +46,7 @@ struct bsk_call_ctx {
 	bool local_hold;
 	bool remote_hold;
 	bool rtp_established;
+	bool early_preview;
 	bool muted;
 	char dtmf_queue[BSK_MAX_DTMF];
 	size_t dtmf_pos;

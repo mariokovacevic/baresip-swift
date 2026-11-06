@@ -37,6 +37,9 @@ root cause, keep the fix minimal, and re-run that test.
    f. outgoing video call: remote video in the app, local camera visible
       on the far end, switch front/back camera;
    g. incoming call while the app is in the foreground (answer and reject);
+      tap Preview first and check that you hear (and for video see) the
+      caller before answering while they do not hear you, then answer;
+      repeat with "Preview incoming calls automatically" turned on;
    h. CallKit: the call appears on the lock screen / call UI and the
       audio session activates only after answering.
    i. network change during a call: turn on ICE in the app's NAT section

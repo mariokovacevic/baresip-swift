@@ -421,6 +421,9 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 }
 
 
+static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video);
+
+
 void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 			   struct bevent *event)
 {
@@ -445,6 +448,8 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		bev.u.call_incoming.early_video =
 			call_early_video_available(call);
 		bsk_emit(e, &bev);
+		if (a && a->answer_early_media)
+			(void)start_preview(e, c, true);
 		return;
 	}
 
@@ -800,6 +805,22 @@ static struct ua *call_ua(bsk_engine *e, struct bsk_call_ctx *c)
 }
 
 
+static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video)
+{
+	int err;
+
+	err = call_progress_dir(c->call, SDP_RECVONLY,
+				video && call_has_video(c->call) ?
+				SDP_RECVONLY : SDP_INACTIVE);
+	if (err && err != EAGAIN)
+		return err;
+
+	c->early_preview = true;
+	emit_state(e, c, BSK_CALL_EARLY_MEDIA, NULL);
+	return 0;
+}
+
+
 static int answer_op(bsk_engine *e, void *arg)
 {
 	struct call_arg *ca = arg;
@@ -812,6 +833,11 @@ static int answer_op(bsk_engine *e, void *arg)
 		return EALREADY;
 
 	c->video = ca->flag;
+	if (c->early_preview) {
+		call_set_mdir(c->call, SDP_SENDRECV,
+			      ca->flag ? SDP_SENDRECV : SDP_INACTIVE);
+		c->early_preview = false;
+	}
 	return ua_answer(call_ua(e, c), c->call,
 			 ca->flag ? VIDMODE_ON : VIDMODE_OFF);
 }
@@ -825,13 +851,11 @@ static int progress_op(bsk_engine *e, void *arg)
 
 	if (!c)
 		return err;
+	if (c->outgoing ||
+	    (c->state != BSK_CALL_INCOMING && c->state != BSK_CALL_EARLY_MEDIA))
+		return EALREADY;
 
-	err = call_progress_dir(c->call, SDP_SENDRECV,
-				ca->flag ? SDP_SENDRECV : SDP_INACTIVE);
-	if (!err)
-		emit_state(e, c, BSK_CALL_EARLY_MEDIA, NULL);
-
-	return err;
+	return start_preview(e, c, ca->flag);
 }
 
 

@@ -9,6 +9,30 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let incoming = model.incoming {
+                    Section("Incoming call") {
+                        Text(incoming.remoteDisplayName.isEmpty ? incoming.remoteURI : "\(incoming.remoteDisplayName) <\(incoming.remoteURI)>")
+                            .accessibilityIdentifier("incoming.from")
+                        if model.previewing {
+                            Label("Previewing: you hear\(model.videoEnabled ? " and see" : "") the caller; they do not hear or see you",
+                                  systemImage: "eye")
+                                .font(.caption)
+                        }
+                        HStack {
+                            if !model.previewing {
+                                Button("Preview") { Task { await model.preview() } }
+                                    .accessibilityIdentifier("incoming.preview")
+                                Spacer()
+                            }
+                            Button("Answer") { Task { await model.answer() } }
+                                .accessibilityIdentifier("incoming.answer")
+                            Spacer()
+                            Button("Reject", role: .destructive) { Task { await model.reject() } }
+                                .accessibilityIdentifier("incoming.reject")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
                 Section("Account") {
                     NavigationLink {
                         AccountView()
@@ -42,7 +66,7 @@ struct ContentView: View {
                             .accessibilityIdentifier("call.video")
                     }
                     .buttonStyle(.borderless)
-                    if let state = model.callState {
+                    if let state = model.callState, model.incoming == nil {
                         Text("Call: \(String(describing: state))")
                             .accessibilityIdentifier("call.state")
                         HStack {
@@ -98,12 +122,6 @@ struct ContentView: View {
             }
             .navigationTitle("BaresipKit")
             .task { await model.start() }
-            .alert("Incoming call", isPresented: Binding(get: { model.incoming != nil }, set: { _ in })) {
-                Button("Answer") { Task { await model.answer() } }
-                Button("Reject", role: .cancel) { Task { await model.reject() } }
-            } message: {
-                Text(model.incoming?.remoteURI ?? "")
-            }
         }
     }
 

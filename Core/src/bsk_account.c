@@ -246,15 +246,14 @@ static int add_op(bsk_engine *e, void *arg)
 
 	err = re_snprintf(line, sizeof(line),
 			  "%s%s%s<%s;transport=%s>;regint=0;answermode=manual"
-			  "%s%s%s%s%s%s",
+			  "%s%s%s%s%s",
 			  str_isset(c->display_name) ? "\"" : "",
 			  str_isset(c->display_name) ? c->display_name : "",
 			  str_isset(c->display_name) ? "\" " : "",
 			  c->aor, transport_name(c->transport),
 			  menc ? ";mediaenc=" : "", menc ? menc : "",
 			  mnat ? ";medianat=" : "", mnat ? mnat : "",
-			  c->sip_outbound ? ";sipnat=outbound" : "",
-			  c->answer_early_media ? "" : "");
+			  c->sip_outbound ? ";sipnat=outbound" : "");
 	if (err < 0) {
 		mem_deref(a);
 		return EINVAL;
@@ -341,6 +340,7 @@ static int add_op(bsk_engine *e, void *arg)
 		cparams[i] = 0;
 
 	a->is_default = list_isempty(&e->accounts);
+	a->answer_early_media = c->answer_early_media;
 	list_append(&e->accounts, &a->le, a);
 	aa->id = a->id;
 
