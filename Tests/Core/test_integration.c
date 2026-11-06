@@ -133,15 +133,17 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	CHECK(wait_until(&w, registered, 10000));
 	snprintf(dest, sizeof(dest), "sip:echo@%s", host);
 	CHECK_OK(bsk_call_make(e, alice, dest, false, &call, &err), &err);
-	CHECK(wait_until(&w, streams, 20000));
 	CHECK(wait_until(&w, ice_connected, 20000));
-	sleep(3);
+	sleep(5);
 	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
-	printf("   ice local=%d remote=%d %s -> %s rx=%u\n", st.local_candidate,
-	       st.remote_candidate, st.local_address, st.remote_address,
+	printf("   state=%d ice local=%d remote=%d %s -> %s tx=%u rx=%u\n",
+	       w.call_state, st.local_candidate, st.remote_candidate,
+	       st.local_address, st.remote_address, st.audio.tx_packets,
 	       st.audio.rx_packets);
 	CHECK(st.local_candidate == BSK_CAND_RELAY);
+	CHECK(st.audio.tx_packets > 0);
 	CHECK(st.audio.rx_packets > 0);
+	CHECK(wait_until(&w, streams, 5000));
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
 	CHECK(wait_until(&w, released, 10000));
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);

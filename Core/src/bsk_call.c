@@ -377,6 +377,8 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		if (c->state != BSK_CALL_CONNECTED &&
 		    c->state != BSK_CALL_STREAMS_RUNNING)
 			emit_state(e, c, BSK_CALL_CONNECTED, NULL);
+		if (c->rtp_established && c->state == BSK_CALL_CONNECTED)
+			emit_state(e, c, BSK_CALL_STREAMS_RUNNING, NULL);
 		apply_audio_activation(e, c);
 		break;
 
