@@ -183,4 +183,4 @@ See `ContactParameterProof.md`. PASS at both the libre level and through the pat
 
 ## 10. Proposed C ABI
 
-See `C-ABI.md` and `Sources/BaresipKitCore/include/baresip_kit.h`.
+See `C-ABI.md` and `Core/include/baresip_kit.h`.

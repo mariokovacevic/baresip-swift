@@ -1,6 +1,6 @@
 # Proposed C ABI (Layer 2, `BaresipKitCore`)
 
-Header: `Sources/BaresipKitCore/include/baresip_kit.h`. The header compiles as C11 and C++17 with `-Wall -Wextra -pedantic` and contains no libre or baresip types, so a Kotlin/JNI binding can use it unchanged.
+Header: `Core/include/baresip_kit.h`. The header compiles as C11 and C++17 with `-Wall -Wextra -pedantic` and contains no libre or baresip types, so a Kotlin/JNI binding can use it unchanged.
 
 ## Design rules
 
@@ -25,7 +25,7 @@ Header: `Sources/BaresipKitCore/include/baresip_kit.h`. The header compiles as C
 
 | ABI | baresip / libre |
 |---|---|
-| `bsk_engine_create/start` | `libre_init`, `conf_configure_buf`, `baresip_init`, `ua_init`, static `module_load`, `bevent_register`, `re_main` on the engine thread |
+| `bsk_engine_create/start` (event handler via `bsk_engine_set_event_handler`, modules via `bsk_engine_config.modules`) | `libre_init`, `conf_configure_buf`, `baresip_init`, `ua_init`, static `module_load`, `bevent_register`, `re_main` on the engine thread |
 | `bsk_engine_stop` | `ua_stop_all(false)` → `BEVENT_SHUTDOWN`, then `ua_close`, `baresip_close`, `mod_close`, `libre_close` |
 | `bsk_engine_network_changed` | `uag_reset_transp(reregister, update_calls)` |
 | `bsk_engine_audio_session_*` | start/stop `ausrc`/`auplay` of the active call via `audio_set_source/player`; `audiosess_interrupt()` |

@@ -6,23 +6,25 @@ BaresipKit wraps the [baresip](https://github.com/baresip/baresip) user agent an
 
 ## Status
 
-Phase 0 (feasibility) is complete and waiting for review. No Swift API exists yet. Start with [`Docs/Phase0/README.md`](Docs/Phase0/README.md).
+Phase 0 (feasibility) is complete and reviewed; Phase 1 (facade, bridge, Swift API) is in progress. Start with [`Docs/Phase0/README.md`](Docs/Phase0/README.md).
 
 | Layer | Target | State |
 |---|---|---|
-| 1 | baresip + libre + OpenSSL + Opus C core, reproducible CMake build → XCFramework | build script written, host path verified, iOS slices need a macOS run |
-| 2 | `BaresipKitCore` C ABI | header proposed (`Sources/BaresipKitCore/include/baresip_kit.h`), implementation pending review |
-| 3 | `BaresipKitBridge` | pending |
-| 4 | `BaresipKit` Swift API | pending |
-| 5 | `BaresipKitAudio`, `BaresipKitVideo`, `BaresipKitCallKit`, `BaresipKitPushKit` | pending |
+| 1 | baresip + libre + OpenSSL + Opus C core, reproducible CMake build → XCFramework | verified on macOS for device arm64 and simulator arm64 |
+| 2 | `BaresipKitCore` C ABI (`Core/`) | implemented: engine thread, accounts, registration, Contact parameters, calls, hold/resume, DTMF, mute, statistics; host test suite passes under ASan/UBSan |
+| 3 | `BaresipKitBridge` | C helpers for event unions, module map |
+| 4 | `BaresipKit` Swift API | written, awaiting first compile on macOS (`Docs/Phase1/macOS-verification-prompt.md`) |
+| 5 | `BaresipKitAudio`, `BaresipKitCallKit`, `BaresipKitPushKit` | written, awaiting first compile; `BaresipKitVideo` holds types only until the video core lands |
 
 ## Repository layout
 
 ```
 Build/        versions.env (pins), module-sets.env, build-xcframework.sh, cmake/ios.toolchain.cmake
-Docs/Phase0/  feasibility report, compatibility matrix, Contact parameter proof, C ABI conventions
+Core/         BaresipKitCore: the C facade (include/baresip_kit.h, src/, CMakeLists.txt)
+Docs/         Phase0 feasibility set, Phase1 macOS verification prompt
 Patches/      small upstreamable diffs applied to the pinned baresip/libre sources
-Sources/      BaresipKitCore/include/baresip_kit.h (proposed ABI)
+Sources/      BaresipKitBridge (C helpers), BaresipKit (Swift API), adapters
+Tests/        Core (C tests, run_tests.sh), BaresipKitTests (XCTest)
 Tools/        ContactParameterProof: proof programs, fake registrar, trace verifier
 ```
 

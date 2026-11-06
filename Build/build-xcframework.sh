@@ -195,7 +195,7 @@ build_baresip() {
 
 build_facade() {
   local slice="$1" prefix="$2"
-  local src="$ROOT/Sources/BaresipKitCore" bdir="$OUT_DIR/$slice/build/facade"
+  local src="$ROOT/Core" bdir="$OUT_DIR/$slice/build/facade"
   log "[$slice] BaresipKitCore facade"
   local common=() l
   while IFS= read -r l; do common+=("$l"); done < <(cmake_common "$prefix")
@@ -227,7 +227,7 @@ merge_slice() {
     ranlib "$out/libBaresipKitCore.a"
   fi
   mkdir -p "$OUT_DIR/$slice/Headers"
-  cp "$ROOT/Sources/BaresipKitCore/include/baresip_kit.h" "$OUT_DIR/$slice/Headers/"
+  cp "$ROOT/Core/include/baresip_kit.h" "$OUT_DIR/$slice/Headers/"
   cat > "$OUT_DIR/$slice/Headers/module.modulemap" <<MM
 module BaresipKitCore {
     umbrella header "baresip_kit.h"

@@ -15,7 +15,7 @@ if [[ -n "$SANITIZE" ]]; then
   FLAGS="-fsanitize=$SANITIZE -fno-omit-frame-pointer"
 fi
 
-cmake -S "$ROOT/Sources/BaresipKitCore" -B "$BUILD" -DCMAKE_BUILD_TYPE=Debug \
+cmake -S "$ROOT/Core" -B "$BUILD" -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_PREFIX_PATH="$PREFIX" \
   -DBARESIP_INCLUDE_DIR="$PREFIX/include/baresip" \
   -DBARESIP_LIBRARY="$PREFIX/lib/libbaresip.a" \

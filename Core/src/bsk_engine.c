@@ -637,6 +637,17 @@ void bsk_engine_set_log_handler(bsk_engine *engine, bsk_log_handler handler,
 }
 
 
+void bsk_engine_set_event_handler(bsk_engine *engine,
+				  bsk_event_handler handler, void *user)
+{
+	if (!engine)
+		return;
+
+	engine->handler = handler;
+	engine->user = user;
+}
+
+
 bsk_status bsk_engine_start(bsk_engine *engine, bsk_error *err)
 {
 	int ret;

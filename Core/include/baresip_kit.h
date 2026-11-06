@@ -434,6 +434,9 @@ BSK_EXPORT bsk_status bsk_engine_create(const bsk_engine_config *config,
 BSK_EXPORT void bsk_engine_destroy(bsk_engine *engine);
 BSK_EXPORT void bsk_engine_set_log_handler(bsk_engine *engine,
 					   bsk_log_handler handler, void *user);
+BSK_EXPORT void bsk_engine_set_event_handler(bsk_engine *engine,
+					     bsk_event_handler handler,
+					     void *user);
 BSK_EXPORT bsk_status bsk_engine_start(bsk_engine *engine, bsk_error *err);
 BSK_EXPORT bsk_status bsk_engine_stop(bsk_engine *engine, uint32_t timeout_ms,
 				      bsk_error *err);

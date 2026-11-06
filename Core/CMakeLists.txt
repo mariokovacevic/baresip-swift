@@ -36,5 +36,5 @@ endif()
 
 if(BARESIPKIT_BUILD_TESTS)
   enable_testing()
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../Tests/Core ${CMAKE_CURRENT_BINARY_DIR}/tests)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Tests/Core ${CMAKE_CURRENT_BINARY_DIR}/tests)
 endif()

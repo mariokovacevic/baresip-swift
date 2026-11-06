@@ -10,4 +10,4 @@
 | `contact-parameter-trace-baresip.txt` | sanitized SIP trace, baresip-level program with patch 0001 |
 | `contact-parameter-trace-baresip-iossim.txt` | sanitized SIP trace, the same program built for the iOS simulator slice and run with `simctl spawn` |
 
-Related files outside this directory: `Build/` (reproducible build), `Patches/` (upstreamable diffs), `Tools/ContactParameterProof/` (proof sources), `Sources/BaresipKitCore/include/baresip_kit.h` (proposed ABI).
+Related files outside this directory: `Build/` (reproducible build), `Patches/` (upstreamable diffs), `Tools/ContactParameterProof/` (proof sources), `Core/include/baresip_kit.h` (proposed ABI).
