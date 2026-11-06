@@ -35,6 +35,14 @@ HOSTIP=<interface address> PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
 
 `run_tests.sh` compiles the facade and the C tests with ASan/UBSan and runs: unit tests, registration against a Digest-challenging registrar (UDP and TLS with a private CA, pinning and a missing-CA case), a wrong-password case, two-process audio calls (plain and with ICE), a camera preview with `fakevideo`, and a two-process VP8 video call. `HOSTIP` must be a non-loopback address because baresip excludes loopback interfaces.
 
+## Fuzzing
+
+```bash
+CC=clang RUNS=300000 PREFIX=Build/out/host/prefix Tests/Fuzz/run_fuzz.sh
+```
+
+Builds a libFuzzer harness over the parsing code the facade owns (Contact parameter encoding, log redaction, ICE module event parsing). Where libFuzzer is not available, `FUZZ_MODE=driver` builds a mutation driver with ASan/UBSan instead.
+
 ## CI
 
 `.github/workflows/ci.yml` runs the Linux host suite and the macOS XCFramework build, the host suite, the simulator package build and XCTest on every push and pull request.

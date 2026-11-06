@@ -1,4 +1,5 @@
 #include <string.h>
+#include <strings.h>
 #include "bsk_internal.h"
 
 static const struct {

@@ -519,54 +519,76 @@ static struct bsk_call_ctx *find_by_sdpm(bsk_engine *e, const void *sdpm)
 }
 
 
-void bsk_call_handle_module_event(bsk_engine *e, const char *text)
+bool bsk_ice_parse_event(const char *text, size_t len,
+			 struct bsk_ice_info *out)
 {
 	struct pl module, event, rest, val;
+
+	if (!text || !out || !len)
+		return false;
+
+	memset(out, 0, sizeof(*out));
+
+	if (re_regex(text, len, "[^,]+,[^,]+,[^]*", &module, &event, &rest))
+		return false;
+	if (0 != pl_strcasecmp(&module, "ice"))
+		return false;
+
+	if (0 == re_regex(rest.p, rest.l, "sdpm=0x[0-9a-fA-F]+", &val))
+		out->sdpm = (void *)(uintptr_t)pl_x64(&val);
+	else if (0 == re_regex(rest.p, rest.l, "sdpm=[0-9a-fA-F]+", &val))
+		out->sdpm = (void *)(uintptr_t)pl_x64(&val);
+	else
+		return false;
+
+	if (0 == pl_strcasecmp(&event, "gathering"))
+		out->state = BSK_ICE_GATHERING;
+	else if (0 == pl_strcasecmp(&event, "checking"))
+		out->state = BSK_ICE_CHECKING;
+	else if (0 == pl_strcasecmp(&event, "failed"))
+		out->state = BSK_ICE_FAILED;
+	else if (0 == pl_strcasecmp(&event, "connected")) {
+		out->state = BSK_ICE_CONNECTED;
+		if (0 == re_regex(rest.p, rest.l, "ltype=[a-z]+", &val))
+			out->local_type = cand_type_from_name(&val);
+		if (0 == re_regex(rest.p, rest.l, "rtype=[a-z]+", &val))
+			out->remote_type = cand_type_from_name(&val);
+		if (0 == re_regex(rest.p, rest.l, "laddr=[^ ]+", &val))
+			(void)pl_strcpy(&val, out->local_addr,
+					sizeof(out->local_addr));
+		if (0 == re_regex(rest.p, rest.l, "raddr=[^ ]+", &val))
+			(void)pl_strcpy(&val, out->remote_addr,
+					sizeof(out->remote_addr));
+	}
+	else
+		return false;
+
+	return true;
+}
+
+
+void bsk_call_handle_module_event(bsk_engine *e, const char *text)
+{
+	struct bsk_ice_info info;
 	struct bsk_call_ctx *c;
 	bsk_event ev;
-	void *sdpm = NULL;
 
-	if (!text)
+	if (!text || !bsk_ice_parse_event(text, strlen(text), &info))
 		return;
 
-	if (re_regex(text, strlen(text), "[^,]+,[^,]+,[^]*", &module, &event,
-		     &rest))
-		return;
-	if (0 != pl_strcasecmp(&module, "ice"))
-		return;
-
-	if (0 == re_regex(rest.p, rest.l, "sdpm=0x[0-9a-f]+", &val))
-		sdpm = (void *)(uintptr_t)pl_x64(&val);
-	else if (0 == re_regex(rest.p, rest.l, "sdpm=[0-9a-fx]+", &val))
-		sdpm = (void *)(uintptr_t)pl_x64(&val);
-	if (!sdpm)
-		return;
-
-	c = find_by_sdpm(e, sdpm);
+	c = find_by_sdpm(e, info.sdpm);
 	if (!c)
 		return;
 
-	if (0 == pl_strcasecmp(&event, "gathering"))
-		c->ice_state = BSK_ICE_GATHERING;
-	else if (0 == pl_strcasecmp(&event, "checking"))
-		c->ice_state = BSK_ICE_CHECKING;
-	else if (0 == pl_strcasecmp(&event, "failed"))
-		c->ice_state = BSK_ICE_FAILED;
-	else if (0 == pl_strcasecmp(&event, "connected")) {
-		c->ice_state = BSK_ICE_CONNECTED;
-		if (0 == re_regex(rest.p, rest.l, "ltype=[a-z]+", &val))
-			c->ice_local_type = cand_type_from_name(&val);
-		if (0 == re_regex(rest.p, rest.l, "rtype=[a-z]+", &val))
-			c->ice_remote_type = cand_type_from_name(&val);
-		if (0 == re_regex(rest.p, rest.l, "laddr=[^ ]+", &val))
-			(void)pl_strcpy(&val, c->ice_local_addr,
-					sizeof(c->ice_local_addr));
-		if (0 == re_regex(rest.p, rest.l, "raddr=[^ ]+", &val))
-			(void)pl_strcpy(&val, c->ice_remote_addr,
-					sizeof(c->ice_remote_addr));
+	c->ice_state = info.state;
+	if (info.state == BSK_ICE_CONNECTED) {
+		c->ice_local_type = info.local_type;
+		c->ice_remote_type = info.remote_type;
+		str_ncpy(c->ice_local_addr, info.local_addr,
+			 sizeof(c->ice_local_addr));
+		str_ncpy(c->ice_remote_addr, info.remote_addr,
+			 sizeof(c->ice_remote_addr));
 	}
-	else
-		return;
 
 	bsk_event_init(&ev, BSK_EVENT_ICE);
 	ev.account = c->account;

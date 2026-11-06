@@ -179,6 +179,18 @@ struct bsk_call_ctx *bsk_call_find_call(bsk_engine *engine,
 void bsk_call_handle_event(bsk_engine *engine, enum bevent_ev ev,
 			   struct bevent *event);
 void bsk_call_handle_module_event(bsk_engine *engine, const char *text);
+
+struct bsk_ice_info {
+	void *sdpm;
+	bsk_ice_state state;
+	bsk_candidate_type local_type;
+	bsk_candidate_type remote_type;
+	char local_addr[64];
+	char remote_addr[64];
+};
+
+bool bsk_ice_parse_event(const char *text, size_t len,
+			 struct bsk_ice_info *out);
 void bsk_calls_flush(bsk_engine *engine);
 void bsk_calls_audio_changed(bsk_engine *engine);
 

@@ -14,7 +14,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libssl-dev zlib1g-dev yasm python3
+          sudo apt-get install -y cmake ninja-build libssl-dev zlib1g-dev yasm python3 clang libclang-rt-dev
       - name: Cache pinned sources and built prefix
         uses: actions/cache@v4
         with:
@@ -26,6 +26,8 @@ jobs:
         run: PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
       - name: Run core test suite under ASan/UBSan
         run: HOSTIP=$(hostname -I | awk '{print $1}') PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Fuzz the facade parsers (libFuzzer, 300k runs)
+        run: CC=clang RUNS=300000 PREFIX=Build/out/host/prefix Tests/Fuzz/run_fuzz.sh
       - name: Upload traces
         if: always()
         uses: actions/upload-artifact@v4
