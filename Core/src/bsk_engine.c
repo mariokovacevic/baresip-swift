@@ -100,6 +100,7 @@ bsk_status bsk_status_from_errno(int err)
 	case EINVAL:       return BSK_ERR_INVALID_ARGUMENT;
 	case ENOMEM:       return BSK_ERR_NO_MEMORY;
 	case ENOENT:       return BSK_ERR_NOT_FOUND;
+	case ENODEV:       return BSK_ERR_NOT_FOUND;
 	case ENOSYS:       return BSK_ERR_UNSUPPORTED;
 	case EPROTONOSUPPORT: return BSK_ERR_UNSUPPORTED;
 	case EBUSY:        return BSK_ERR_BUSY;

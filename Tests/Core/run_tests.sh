@@ -117,4 +117,17 @@ else
   echo "== video stages skipped (no libvpx in prefix; build with MODULE_SET=full)"
 fi
 
+if [[ "$(uname -s)" == Darwin ]]; then
+  echo "== two-process H.264 video call (VideoToolbox encode/decode)"
+  BSK_TEST_VCODEC=H264 "$BUILD/tests/bsk_test_video" callee "$HOSTIP" > "$BUILD/h264callee.out" 2> "$BUILD/h264callee.err" &
+  VCALLEE_PID=$!
+  for i in $(seq 1 50); do
+    grep -q READY "$BUILD/h264callee.out" 2>/dev/null && break
+    sleep 0.1
+  done
+  BSK_TEST_VCODEC=H264 "$BUILD/tests/bsk_test_video" caller "$HOSTIP" 2> "$BUILD/h264caller.err"
+  wait "$VCALLEE_PID"
+  cat "$BUILD/h264callee.out"
+fi
+
 echo "ALL CORE TESTS PASSED"

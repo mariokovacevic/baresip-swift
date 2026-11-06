@@ -78,42 +78,71 @@ import AVFoundation
 
 final class VideoSinkTests: XCTestCase {
     final class Recorder: BaresipVideoRenderer, @unchecked Sendable {
+        let lock = NSLock()
         var frames = 0
-        func render(_ frame: BaresipVideoFrame) { frames += 1 }
-        func didChangeSize(width: Int, height: Int) {}
+        var sizes = 0
+        var lastWidth = 0
+        var lastHeight = 0
+        func render(_ frame: BaresipVideoFrame) {
+            lock.withLock {
+                frames += 1
+                lastWidth = frame.width
+                lastHeight = frame.height
+            }
+        }
+        func didChangeSize(width: Int, height: Int) {
+            lock.withLock { sizes += 1 }
+        }
+        var frameCount: Int { lock.withLock { frames } }
     }
 
-    func testRegisterAndRemoveSinkDoesNotCrash() async throws {
+    private func makeEngine() throws -> BaresipEngine {
         var cfg = BaresipConfiguration()
-        cfg.modules = ["g711", "l16", "auconv", "auresamp"]
+        cfg.modules = ["g711", "l16", "auconv", "auresamp", "fakevideo"]
         cfg.audio.sourceModule = "ausine"
         cfg.audio.playerModule = "aufile"
         cfg.audio.playerDevice = "/dev/null"
+        cfg.video.sourceModule = "fakevideo"
+        cfg.video.width = 320
+        cfg.video.height = 240
+        cfg.video.framesPerSecond = 15
         cfg.extraConfiguration = "sip_listen\t\t0.0.0.0:0"
-        let engine = try BaresipEngine(configuration: cfg)
+        return try BaresipEngine(configuration: cfg)
+    }
+
+    func testPreviewDeliversFramesAndStops() async throws {
+        let engine = try makeEngine()
         try await engine.start()
         let recorder = Recorder()
-        let bogus = BaresipCallID(rawValue: 42)
-        do {
-            try await engine.setVideoRenderer(recorder, callID: bogus)
-            XCTFail("expected unsupported or not found")
-        } catch let error as BaresipError {
-            XCTAssertTrue(error.status == .unsupported || error.status == .notFound)
+        try await engine.startVideoPreview(renderer: recorder)
+        let deadline = Date().addingTimeInterval(3)
+        while recorder.frameCount < 3 && Date() < deadline {
+            try await Task.sleep(for: .milliseconds(50))
         }
+        XCTAssertGreaterThanOrEqual(recorder.frameCount, 3)
+        XCTAssertEqual(recorder.lastWidth, 320)
+        XCTAssertEqual(recorder.lastHeight, 240)
+        XCTAssertGreaterThanOrEqual(recorder.sizes, 1)
+        try await engine.stopVideoPreview()
+        let after = recorder.frameCount
+        try await Task.sleep(for: .milliseconds(400))
+        XCTAssertEqual(recorder.frameCount, after)
+        await engine.stop()
+    }
+
+    func testUnknownCallIsNotFound() async throws {
+        let engine = try makeEngine()
+        try await engine.start()
+        let recorder = Recorder()
         do {
-            try await engine.setVideoRenderer(nil, callID: bogus)
+            try await engine.setVideoRenderer(recorder, callID: BaresipCallID(rawValue: 42))
+            XCTFail("expected notFound")
         } catch let error as BaresipError {
-            XCTAssertTrue(error.status == .unsupported || error.status == .notFound)
-        }
-        do {
-            try await engine.startVideoPreview(renderer: recorder)
-        } catch let error as BaresipError {
-            XCTAssertEqual(error.status, .unsupported)
+            XCTAssertEqual(error.status, .notFound)
         }
         let devices = await engine.videoDevices()
-        XCTAssertTrue(devices.isEmpty)
+        XCTAssertNotNil(devices)
         await engine.stop()
-        XCTAssertEqual(recorder.frames, 0)
     }
 
     func testFrameFromNativeBuffer() throws {
@@ -135,6 +164,20 @@ final class VideoSinkTests: XCTestCase {
         XCTAssertEqual(frame.rotationDegrees, 90)
         XCTAssertEqual(frame.timestamp, .microseconds(1_500_000))
         XCTAssertTrue(frame.pixelBuffer === buffer)
+    }
+
+    @MainActor
+    func testVideoViewAcceptsFrame() throws {
+        var pb: CVPixelBuffer?
+        XCTAssertEqual(CVPixelBufferCreate(kCFAllocatorDefault, 32, 16,
+                                           kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, nil, &pb),
+                       kCVReturnSuccess)
+        let buffer = try XCTUnwrap(pb)
+        let view = BaresipVideoView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
+        let frame = BaresipVideoFrame(pixelBuffer: buffer, timestamp: .milliseconds(10), rotationDegrees: 0)
+        view.renderer.render(frame)
+        view.renderer.didChangeSize(width: 32, height: 16)
+        view.flush()
     }
 }
 

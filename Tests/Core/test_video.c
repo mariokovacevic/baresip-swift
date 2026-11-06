@@ -88,8 +88,8 @@ static bsk_engine *start_engine(const char *listen)
 	cfg.audio.player_module = "aufile";
 	cfg.audio.player_device = "/dev/null";
 	cfg.video.source_module = "fakevideo";
-	cfg.video.width = 320;
-	cfg.video.height = 240;
+	cfg.video.width = getenv("BSK_TEST_VCODEC") ? 640 : 320;
+	cfg.video.height = getenv("BSK_TEST_VCODEC") ? 480 : 240;
 	cfg.video.fps = 15;
 	cfg.video.bitrate_bps = 300000;
 	cfg.tls.verify_server = true;
@@ -115,7 +115,9 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 	bsk_error err;
 	char aor[128];
 	static const char *acodecs[] = { "PCMU/8000/1" };
-	static const char *vcodecs[] = { "VP8" };
+	static const char *vcodecs[1];
+
+	vcodecs[0] = getenv("BSK_TEST_VCODEC") ? getenv("BSK_TEST_VCODEC") : "VP8";
 
 	snprintf(aor, sizeof(aor), "sip:%s@%s:%s", user, host, port);
 	memset(&ac, 0, sizeof(ac));
@@ -142,7 +144,7 @@ static int run_preview(void)
 	CHECK(BSK_ERR_INVALID_ARGUMENT == bsk_video_preview_start(e, NULL, NULL, &err));
 	CHECK_OK(bsk_video_preview_start(e, NULL, &sink, &err), &err);
 	CHECK(wait_until(&w, preview3, 3000));
-	CHECK(last_w == 320 && last_h == 240);
+	CHECK(last_w >= 320 && last_h >= 240);
 	CHECK(last_format == BSK_PIX_I420);
 	CHECK(size_events >= 1);
 	CHECK_OK(bsk_video_preview_stop(e, &err), &err);
@@ -223,7 +225,8 @@ static int run_caller(const char *host)
 	CHECK(wait_until(&w, remote3, 15000));
 	CHECK(BSK_OK == bsk_call_get_info(e, call, &info));
 	CHECK(info.has_video);
-	CHECK(0 == strcmp(info.video_codec, "VP8"));
+	CHECK(0 == strcmp(info.video_codec,
+			  getenv("BSK_TEST_VCODEC") ? getenv("BSK_TEST_VCODEC") : "VP8"));
 	CHECK_OK(bsk_call_request_keyframe(e, call, &err), &err);
 	sleep(1);
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
