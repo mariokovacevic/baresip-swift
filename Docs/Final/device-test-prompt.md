@@ -19,12 +19,17 @@ root cause, keep the fix minimal, and re-run that test.
    (ask me for both, do not guess), regenerate, and build and install on the
    connected iPhone with xcodebuild (-destination 'platform=iOS,id=<udid>').
 
-2. Ask me for the SIP account details (AOR, registrar with transport,
-   auth user, password) and a destination to call (an extension, a softphone
-   or an intercom). Never write the password to a file or log.
+2. Ask me for the SIP account details (domain, transport and port,
+   username, password, and the server's CA certificate if it uses a private
+   CA) and a destination to call (an extension, a softphone or an intercom).
+   I enter them myself in the app's Account screen (and import the CA from
+   Files); never write the password to a file or log.
 
 3. With me holding the phone, guide me through and record pass/fail for:
-   a. registration over TLS (state shown in the app);
+   a. registration over TLS (state shown in the app), including after
+      importing a CA certificate, after adding a wrong SPKI pin (must fail
+      with a TLS error) and after removing it again; if my server asks for a
+      client certificate, also with one imported;
    b. outgoing audio call, two-way audio, then mute/unmute;
    c. speaker on/off and, if I have one, a Bluetooth headset;
    d. hold and resume (audio returns after resume);

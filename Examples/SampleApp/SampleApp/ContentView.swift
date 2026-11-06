@@ -10,33 +10,35 @@ struct ContentView: View {
         NavigationStack {
             Form {
                 Section("Account") {
-                    TextField("AOR", text: $model.aor)
-                    TextField("Registrar", text: $model.registrar)
-                    TextField("Auth user", text: $model.authUser)
-                    SecureField("Password", text: $model.password)
-                    HStack {
-                        Text("State: \(String(describing: model.registration))")
-                        Spacer()
-                        Button("Register") { Task { await model.register() } }
+                    NavigationLink {
+                        AccountView()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(model.settings.isComplete ? model.settings.aor : "Set up account")
+                            Text(registrationText)
+                                .font(.caption)
+                                .foregroundStyle(registrationColor)
+                        }
                     }
-                }
-                Section("NAT") {
-                    Toggle("ICE", isOn: $model.useICE)
-                    if model.useICE {
-                        TextField("TURN URI (optional)", text: $model.turnURI)
-                            .textInputAutocapitalization(.never)
-                        TextField("TURN user", text: $model.turnUser)
-                            .textInputAutocapitalization(.never)
-                        SecureField("TURN password", text: $model.turnPassword)
+                    if model.settings.isComplete {
+                        HStack {
+                            Button("Register") { Task { await model.register() } }
+                            Spacer()
+                            Button("Unregister") { Task { await model.unregister() } }
+                        }
+                        .buttonStyle(.borderless)
                     }
                 }
                 Section("Call") {
-                    TextField("Destination", text: $model.destination)
+                    TextField("Number, user or SIP URI", text: $model.destination)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
                     HStack {
                         Button("Audio call") { Task { await model.call(video: false) } }
                         Spacer()
                         Button("Video call") { Task { await model.call(video: true) } }
                     }
+                    .buttonStyle(.borderless)
                     if let state = model.callState {
                         Text("Call: \(String(describing: state))")
                         HStack {
@@ -45,15 +47,17 @@ struct ContentView: View {
                             Button(model.videoEnabled ? "Video off" : "Video on") { Task { await model.toggleVideo() } }
                             Button("Hang up", role: .destructive) { Task { await model.hangup() } }
                         }
+                        .buttonStyle(.borderless)
                         HStack {
                             if model.videoEnabled {
                                 Button("Switch camera") { Task { await model.switchCamera() } }
                             }
-                            if model.useICE {
+                            if model.settings.useICE {
                                 Spacer()
                                 Button("Restart ICE") { Task { await model.restartICE() } }
                             }
                         }
+                        .buttonStyle(.borderless)
                         Toggle("Speaker", isOn: $speaker).onChange(of: speaker) { _, on in model.toggleSpeaker(on) }
                         DTMFPad { digit in Task { await model.sendDTMF(digit) } }
                     }
@@ -67,7 +71,7 @@ struct ContentView: View {
                             Text("video target \(stats.videoTargetBitrate / 1000) kbit/s, sent \(stats.video.transmitBitrate / 1000) kbit/s")
                                 .font(.caption)
                         }
-                        if model.useICE {
+                        if model.settings.useICE {
                             Text("ICE \(String(describing: stats.iceState)) \(String(describing: stats.localCandidate)) -> \(String(describing: stats.remoteCandidate))")
                                 .font(.caption)
                         }
@@ -95,6 +99,21 @@ struct ContentView: View {
             } message: {
                 Text(model.incoming?.remoteURI ?? "")
             }
+        }
+    }
+
+    private var registrationText: String {
+        if let error = model.registrationError {
+            return "\(String(describing: model.registration)): \(error)"
+        }
+        return String(describing: model.registration)
+    }
+
+    private var registrationColor: Color {
+        switch model.registration {
+        case .registered: return .green
+        case .failed: return .red
+        default: return .secondary
         }
     }
 }

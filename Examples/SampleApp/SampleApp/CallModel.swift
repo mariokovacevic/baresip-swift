@@ -6,27 +6,31 @@ import BaresipKitAudio
 import BaresipKitCallKit
 import BaresipKitPushKit
 
+private struct TLSSnapshot: Equatable {
+    let ca: Data?
+    let client: Data?
+    let pins: [String]
+}
+
 @MainActor
 final class CallModel: ObservableObject {
-    @Published var aor = "sip:1001@pbx.example.invalid"
-    @Published var registrar = "sip:pbx.example.invalid:5061;transport=tls"
-    @Published var authUser = "1001"
-    @Published var password = ""
-    @Published var destination = "sip:door@192.0.2.10"
+    @Published var settings = SettingsStore.load()
+    @Published var password = SettingsStore.password
+    @Published var turnPassword = SettingsStore.turnPassword
+    @Published var caCertificates = SettingsStore.caCertificates
+    @Published var clientCertificate = SettingsStore.clientCertificate
+    @Published var destination = ""
     @Published var registration: BaresipRegistrationState = .none
+    @Published var registrationError: String?
     @Published var callState: BaresipCallState?
     @Published var currentCall: BaresipCallID?
     @Published var incoming: BaresipCallInfo?
     @Published var muted = false
     @Published var onHold = false
     @Published var videoEnabled = false
+    @Published var frontCamera = true
     @Published var log: [String] = []
     @Published var stats: BaresipCallStatistics?
-    @Published var useICE = false
-    @Published var turnURI = ""
-    @Published var turnUser = ""
-    @Published var turnPassword = ""
-    @Published var frontCamera = true
 
     private(set) var engine: BaresipEngine?
     private var accountID: BaresipAccountID?
@@ -36,67 +40,99 @@ final class CallModel: ObservableObject {
     private var eventTask: Task<Void, Never>?
     private var pathMonitor: NWPathMonitor?
     private var lastPath: String?
+    private var engineTLS: TLSSnapshot?
+
+    var caSummaries: [String] { PEM.summaries(caCertificates) }
+    var clientSummaries: [String] { PEM.summaries(clientCertificate) }
 
     func start() async {
         guard engine == nil else { return }
-        do {
-            var config = BaresipConfiguration()
-            config.userAgent = "BaresipKitSample/1.0"
-            config.logLevel = .info
-            let engine = try BaresipEngine(configuration: config)
-            engine.setLogHandler(BaresipOSLog.handler(subsystem: "com.example.BaresipKitSample"))
-            self.engine = engine
-            eventTask = Task { [weak self] in
-                for await event in engine.events {
-                    await self?.handle(event)
-                }
-            }
-            try await engine.start()
-            audio = BaresipAudioSessionController(engine: engine)
-            try audio?.configureForVoIP()
-            callKit = BaresipCallKitAdapter(engine: engine,
-                                            configuration: BaresipCallKitConfiguration(supportsVideo: true))
-            push = BaresipPushKitAdapter(engine: engine, appID: "com.example.BaresipKitSample") { [weak self] payload in
-                await self?.pushArrived(payload)
-            }
-            startPathMonitor()
-            append("engine started, core \(BaresipEngine.coreVersion)")
-        } catch {
-            append("start failed: \(error)")
+        startPathMonitor()
+        await startEngine()
+        if settings.isComplete && !password.isEmpty {
+            await register()
         }
+    }
+
+    func importCA(from url: URL) {
+        do {
+            let data = try readSecurityScoped(url)
+            caCertificates = try PEM.caBundle(from: data)
+            append("CA imported: \(caSummaries.joined(separator: ", "))")
+        } catch {
+            append("CA import failed: \(error.localizedDescription)")
+        }
+    }
+
+    func importClientCertificate(from url: URL) {
+        do {
+            let data = try readSecurityScoped(url)
+            clientCertificate = try PEM.clientIdentity(from: data)
+            append("client certificate imported: \(clientSummaries.first ?? "")")
+        } catch {
+            append("client certificate import failed: \(error.localizedDescription)")
+        }
+    }
+
+    func removeCA() {
+        caCertificates = nil
+    }
+
+    func removeClientCertificate() {
+        clientCertificate = nil
+    }
+
+    func saveAndRegister() async {
+        SettingsStore.save(settings)
+        SettingsStore.password = password
+        SettingsStore.turnPassword = turnPassword
+        SettingsStore.caCertificates = caCertificates
+        SettingsStore.clientCertificate = clientCertificate
+        if currentTLS != engineTLS {
+            if currentCall != nil {
+                append("certificates changed; they apply after the current call")
+            } else {
+                await restartEngine()
+            }
+        }
+        await register()
     }
 
     func register() async {
         guard let engine else { return }
+        guard settings.isComplete else {
+            registrationError = "Domain and username are required."
+            return
+        }
+        registrationError = nil
         do {
             if let accountID {
+                try? await engine.unregister(accountID: accountID)
                 try await engine.removeAccount(accountID)
+                self.accountID = nil
             }
-            var nat = BaresipNATConfiguration()
-            if useICE {
-                nat.mode = .ice
-                if !turnURI.isEmpty {
-                    nat.turnServers = [TURNServer(uri: turnURI,
-                                                  username: turnUser.isEmpty ? nil : turnUser,
-                                                  password: turnPassword.isEmpty ? nil : turnPassword)]
-                }
-            }
-            let account = BaresipAccountConfiguration(aor: aor, registrar: registrar, transport: .tls,
-                                                      authUser: authUser, authPassword: password,
-                                                      mediaEncryption: .srtpOptional, nat: nat)
-            let id = try await engine.addAccount(account)
+            let id = try await engine.addAccount(accountConfiguration())
             accountID = id
             push?.bind(accountID: id)
             try await engine.register(accountID: id)
+            append("registering \(settings.aor) via \(settings.registrar)")
         } catch {
+            registrationError = "\(error)"
             append("register failed: \(error)")
         }
     }
 
+    func unregister() async {
+        guard let engine, let accountID else { return }
+        try? await engine.unregister(accountID: accountID)
+    }
+
     func call(video: Bool) async {
         guard let callKit else { return }
+        let target = normalizedDestination(destination)
+        guard !target.isEmpty else { return }
         do {
-            _ = try await callKit.startOutgoingCall(to: destination, video: video)
+            _ = try await callKit.startOutgoingCall(to: target, video: video)
             videoEnabled = video
         } catch {
             append("call failed: \(error)")
@@ -167,13 +203,121 @@ final class CallModel: ObservableObject {
         }
     }
 
+    func toggleSpeaker(_ on: Bool) {
+        try? audio?.setSpeakerEnabled(on)
+    }
+
+    private var currentTLS: TLSSnapshot {
+        TLSSnapshot(ca: caCertificates, client: clientCertificate, pins: settings.pinList)
+    }
+
+    private func accountConfiguration() -> BaresipAccountConfiguration {
+        var nat = BaresipNATConfiguration()
+        if settings.useICE {
+            nat.mode = .ice
+            if !settings.stunURI.trimmed.isEmpty {
+                nat.stunURI = settings.stunURI.trimmed
+            }
+            if !settings.turnURI.trimmed.isEmpty {
+                nat.turnServers = [TURNServer(uri: settings.turnURI.trimmed,
+                                              username: settings.turnUser.trimmed.isEmpty ? nil : settings.turnUser.trimmed,
+                                              password: turnPassword.isEmpty ? nil : turnPassword)]
+            }
+        }
+        let authUser = settings.authUser.trimmed.isEmpty ? settings.username.trimmed : settings.authUser.trimmed
+        return BaresipAccountConfiguration(aor: settings.aor,
+                                           displayName: settings.displayName.trimmed.isEmpty ? nil : settings.displayName.trimmed,
+                                           registrar: settings.registrar,
+                                           outboundProxy: settings.proxy,
+                                           transport: settings.transport,
+                                           authUser: authUser,
+                                           authPassword: password,
+                                           mediaEncryption: settings.mediaEncryption,
+                                           nat: nat)
+    }
+
+    private func normalizedDestination(_ raw: String) -> String {
+        let value = raw.trimmed
+        if value.isEmpty || value.hasPrefix("sip:") || value.hasPrefix("sips:") {
+            return value
+        }
+        if value.contains("@") {
+            return "sip:\(value)"
+        }
+        return "sip:\(value)@\(settings.domain.trimmed)"
+    }
+
+    private func startEngine() async {
+        do {
+            var config = BaresipConfiguration()
+            config.userAgent = "BaresipKitSample/1.0"
+            config.logLevel = .info
+            config.tls = BaresipTLSConfiguration(caCertificatesPEM: caCertificates,
+                                                 clientCertificatePEM: clientCertificate,
+                                                 pinnedSPKISHA256: settings.pinList)
+            let engine = try BaresipEngine(configuration: config)
+            engine.setLogHandler(BaresipOSLog.handler(subsystem: "com.example.BaresipKitSample"))
+            self.engine = engine
+            engineTLS = currentTLS
+            eventTask = Task { [weak self] in
+                for await event in engine.events {
+                    await self?.handle(event)
+                }
+            }
+            try await engine.start()
+            audio = BaresipAudioSessionController(engine: engine)
+            try audio?.configureForVoIP()
+            callKit = BaresipCallKitAdapter(engine: engine,
+                                            configuration: BaresipCallKitConfiguration(supportsVideo: true))
+            push = BaresipPushKitAdapter(engine: engine, appID: "com.example.BaresipKitSample") { [weak self] payload in
+                await self?.pushArrived(payload)
+            }
+            append("engine started, core \(BaresipEngine.coreVersion), CA \(caCertificates == nil ? "system" : "custom"), client certificate \(clientCertificate == nil ? "none" : "set"), pins \(settings.pinList.count)")
+        } catch {
+            append("engine start failed: \(error)")
+        }
+    }
+
+    private func restartEngine() async {
+        append("certificates changed, restarting the engine")
+        if let engine {
+            if let accountID {
+                try? await engine.unregister(accountID: accountID)
+            }
+            await engine.stop()
+        }
+        eventTask?.cancel()
+        eventTask = nil
+        accountID = nil
+        push = nil
+        callKit = nil
+        audio = nil
+        engine = nil
+        registration = .none
+        await startEngine()
+    }
+
+    private func readSecurityScoped(_ url: URL) throws -> Data {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+            if scoped {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+        guard let data = try? Data(contentsOf: url) else {
+            throw CertificateError.unreadable
+        }
+        return data
+    }
+
     private func startPathMonitor() {
         let monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] path in
             let summary = path.availableInterfaces.map { "\($0.type)" }.joined(separator: ",")
                 + (path.status == .satisfied ? "" : " unsatisfied")
+            let satisfied = path.status == .satisfied
             Task { @MainActor [weak self] in
-                await self?.pathChanged(summary, satisfied: path.status == .satisfied)
+                await self?.pathChanged(summary, satisfied: satisfied)
             }
         }
         monitor.start(queue: DispatchQueue(label: "com.example.BaresipKitSample.path"))
@@ -185,10 +329,6 @@ final class CallModel: ObservableObject {
         guard let lastPath, lastPath != summary, satisfied, let engine else { return }
         append("network path changed: \(summary)")
         await engine.networkDidChange()
-    }
-
-    func toggleSpeaker(_ on: Bool) {
-        try? audio?.setSpeakerEnabled(on)
     }
 
     private func pushArrived(_ payload: [AnyHashable: Any]) async {
@@ -203,6 +343,7 @@ final class CallModel: ObservableObject {
             append("engine \(state) \(error.map { "\($0)" } ?? "")")
         case .registration(_, let state, _, let error):
             registration = state
+            registrationError = error.map { "\($0)" }
             append("registration \(state) \(error.map { "\($0)" } ?? "")")
         case .incomingCall(let info, _):
             incoming = info
@@ -214,13 +355,18 @@ final class CallModel: ObservableObject {
             if state == .outgoingInit {
                 currentCall = call
             }
-            if state == .released {
-                if currentCall == call {
-                    currentCall = nil
-                    callState = nil
-                    stats = nil
-                    onHold = false
-                    muted = false
+            if state == .released, currentCall == call {
+                currentCall = nil
+                callState = nil
+                stats = nil
+                onHold = false
+                muted = false
+                videoEnabled = false
+                if currentTLS != engineTLS {
+                    Task { [weak self] in
+                        await self?.restartEngine()
+                        await self?.register()
+                    }
                 }
             }
         case .statistics(_, let s):
