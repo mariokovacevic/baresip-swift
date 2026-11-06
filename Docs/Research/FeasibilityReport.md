@@ -159,7 +159,7 @@ Two build details found during this phase:
 
 ## 7. Feature compatibility matrix
 
-See `CompatibilityMatrix.md`. Headline results:
+See [`../CompatibilityMatrix.md`](../CompatibilityMatrix.md). Headline results:
 
 - Supported as-is or by existing modules: SIP over UDP/TCP/TLS/WSS, Digest MD5 and SHA-256, RFC 5626 outbound, multiple accounts and calls, hold/resume with correct SDP directions and remote-hold events, early media incl. early video, REFER (blind and attended), DTMF RFC 4733 and SIP INFO with per-call selection, ICE/STUN/TURN-UDP, SRTP (SDES, AES-CM and AES-GCM) and DTLS-SRTP, TLS 1.2+ with hostname verification, private CA from memory, Opus/G.711, VoiceProcessingIO audio with hardware AEC/NS/AGC, RTCP NACK/PLI/FIR, call statistics.
 - Needs a small patch (written and verified): Contact URI parameters for push; avcapture CMake gate.
@@ -183,4 +183,4 @@ See `ContactParameterProof.md`. PASS at both the libre level and through the pat
 
 ## 10. Proposed C ABI
 
-See `C-ABI.md` and `Core/include/baresip_kit.h`.
+See [`../C-ABI.md`](../C-ABI.md) and `Core/include/baresip_kit.h`.

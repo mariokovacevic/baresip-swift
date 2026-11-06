@@ -32,7 +32,7 @@ Built from pinned upstream sources by `Build/build-xcframework.sh` with the patc
 | `bsk_tls.c` | SPKI SHA-256 pinning on top of the libre verify handler (patch 0004) |
 | `bsk_log.c` | log routing with redaction of Digest responses, push tokens and passwords, SIP trace routing |
 
-Threading and ownership rules are in [Phase0/C-ABI.md](Phase0/C-ABI.md). In one sentence: every `bsk_*` call is thread-safe and executes on the engine thread; events arrive on the engine thread; video frames arrive on media threads.
+Threading and ownership rules are in [C-ABI.md](C-ABI.md). In one sentence: every `bsk_*` call is thread-safe and executes on the engine thread; events arrive on the engine thread; video frames arrive on media threads.
 
 ## Layer 3: BaresipKitBridge
 
