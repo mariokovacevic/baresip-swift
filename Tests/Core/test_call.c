@@ -205,6 +205,38 @@ static int run_callee(const char *host)
 }
 
 
+static int run_peer(const char *host)
+{
+	bsk_engine *e;
+	bsk_error err;
+	bsk_call_statistics st;
+	int timeout_s = getenv("BSK_PEER_TIMEOUT") ?
+		atoi(getenv("BSK_PEER_TIMEOUT")) : 300;
+
+	tag = "peer";
+	e = start_engine(callee_port);
+	add_account(e, "bob", host, callee_port);
+
+	printf("READY\n");
+	fflush(stdout);
+
+	CHECK(wait_until(&w, incoming, timeout_s * 1000));
+	CHECK_OK(bsk_call_answer(e, w.incoming_call, false, &err), &err);
+	CHECK(wait_until(&w, streams, 15000));
+	printf("peer: call answered\n");
+	fflush(stdout);
+	sleep(2);
+	CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
+	CHECK(wait_until(&w, released, 120000));
+
+	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
+	bsk_engine_destroy(e);
+	printf("peer: PASS (rx=%u pkts, tx=%u pkts)\n", st.audio.rx_packets,
+	       st.audio.tx_packets);
+	return 0;
+}
+
+
 static int run_caller(const char *host)
 {
 	bsk_engine *e;
@@ -308,5 +340,7 @@ int main(int argc, char **argv)
 	waiter_init(&w);
 	if (0 == strcmp(role, "callee"))
 		return run_callee(host);
+	if (0 == strcmp(role, "peer"))
+		return run_peer(host);
 	return run_caller(host);
 }

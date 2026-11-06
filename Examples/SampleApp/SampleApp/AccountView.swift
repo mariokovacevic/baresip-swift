@@ -28,6 +28,7 @@ struct AccountView: View {
         Form {
             Section {
                 TextField("Domain", text: $model.settings.domain, prompt: Text("pbx.example.com"))
+                    .accessibilityIdentifier("account.domain")
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -38,6 +39,7 @@ struct AccountView: View {
                 }
                 TextField("Port", text: $model.settings.port,
                           prompt: Text(model.settings.transport == .tls ? "5061" : "5060"))
+                    .accessibilityIdentifier("account.port")
                     .keyboardType(.numberPad)
                 TextField("Outbound proxy (optional)", text: $model.settings.outboundProxy)
                     .textInputAutocapitalization(.never)
@@ -50,9 +52,11 @@ struct AccountView: View {
 
             Section("Credentials") {
                 TextField("Username", text: $model.settings.username)
+                    .accessibilityIdentifier("account.username")
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                 SecureField("Password", text: $model.password)
+                    .accessibilityIdentifier("account.password")
                 TextField("Auth user (if different)", text: $model.settings.authUser)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -95,10 +99,15 @@ struct AccountView: View {
 
             Section {
                 TextField("SPKI SHA-256 pins (base64)", text: $model.settings.pins, axis: .vertical)
+                    .accessibilityIdentifier("account.pins")
                     .lineLimit(1...4)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(.caption.monospaced())
+                if !model.settings.pins.trimmed.isEmpty {
+                    Button("Clear pins", role: .destructive) { model.settings.pins = "" }
+                        .accessibilityIdentifier("account.pins.clear")
+                }
             } header: {
                 Text("Certificate pinning (optional)")
             } footer: {
@@ -138,6 +147,7 @@ struct AccountView: View {
                     }
                 }
                 .disabled(!model.settings.isComplete || model.password.isEmpty)
+                .accessibilityIdentifier("account.save")
             } footer: {
                 Text("The password is stored in the Keychain and certificates in the app's protected storage. Changing certificates restarts the SIP engine.")
             }

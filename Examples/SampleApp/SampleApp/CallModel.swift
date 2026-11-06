@@ -41,17 +41,37 @@ final class CallModel: ObservableObject {
     private var pathMonitor: NWPathMonitor?
     private var lastPath: String?
     private var engineTLS: TLSSnapshot?
+    private let uiTest = ProcessInfo.processInfo.environment["BSK_UITEST"] == "1"
 
     var caSummaries: [String] { PEM.summaries(caCertificates) }
     var clientSummaries: [String] { PEM.summaries(clientCertificate) }
 
     func start() async {
         guard engine == nil else { return }
+        if uiTest {
+            prepareUITest()
+        }
         startPathMonitor()
         await startEngine()
         if settings.isComplete && !password.isEmpty {
             await register()
         }
+    }
+
+    private func prepareUITest() {
+        settings = SIPSettings()
+        password = ""
+        turnPassword = ""
+        clientCertificate = nil
+        caCertificates = nil
+        if let pem = ProcessInfo.processInfo.environment["BSK_UITEST_CA_PEM"] {
+            caCertificates = try? PEM.caBundle(from: Data(pem.utf8))
+        }
+        SettingsStore.save(settings)
+        SettingsStore.password = ""
+        SettingsStore.turnPassword = ""
+        SettingsStore.caCertificates = caCertificates
+        SettingsStore.clientCertificate = nil
     }
 
     func importCA(from url: URL) {
@@ -128,9 +148,18 @@ final class CallModel: ObservableObject {
     }
 
     func call(video: Bool) async {
-        guard let callKit else { return }
         let target = normalizedDestination(destination)
         guard !target.isEmpty else { return }
+        if uiTest, let engine {
+            do {
+                _ = try await engine.makeCall(accountID: accountID, destination: target, video: video)
+                videoEnabled = video
+            } catch {
+                append("call failed: \(error)")
+            }
+            return
+        }
+        guard let callKit else { return }
         do {
             _ = try await callKit.startOutgoingCall(to: target, video: video)
             videoEnabled = video
@@ -252,6 +281,11 @@ final class CallModel: ObservableObject {
             var config = BaresipConfiguration()
             config.userAgent = "BaresipKitSample/1.0"
             config.logLevel = .info
+            if uiTest {
+                config.modules += ["ausine", "aufile"]
+                config.audio = BaresipAudioConfiguration(sourceModule: "ausine", playerModule: "aufile",
+                                                         playerDevice: NSTemporaryDirectory() + "speaker.wav")
+            }
             config.tls = BaresipTLSConfiguration(caCertificatesPEM: caCertificates,
                                                  clientCertificatePEM: clientCertificate,
                                                  pinnedSPKISHA256: settings.pinList)

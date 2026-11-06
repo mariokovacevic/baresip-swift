@@ -13,13 +13,13 @@ struct ContentView: View {
                     NavigationLink {
                         AccountView()
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(model.settings.isComplete ? model.settings.aor : "Set up account")
-                            Text(registrationText)
-                                .font(.caption)
-                                .foregroundStyle(registrationColor)
-                        }
+                        Text(model.settings.isComplete ? model.settings.aor : "Set up account")
                     }
+                    .accessibilityIdentifier("account.link")
+                    Text(registrationText)
+                        .font(.caption)
+                        .foregroundStyle(registrationColor)
+                        .accessibilityIdentifier("registration.state")
                     if model.settings.isComplete {
                         HStack {
                             Button("Register") { Task { await model.register() } }
@@ -33,19 +33,24 @@ struct ContentView: View {
                     TextField("Number, user or SIP URI", text: $model.destination)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
+                        .accessibilityIdentifier("call.destination")
                     HStack {
                         Button("Audio call") { Task { await model.call(video: false) } }
+                            .accessibilityIdentifier("call.audio")
                         Spacer()
                         Button("Video call") { Task { await model.call(video: true) } }
+                            .accessibilityIdentifier("call.video")
                     }
                     .buttonStyle(.borderless)
                     if let state = model.callState {
                         Text("Call: \(String(describing: state))")
+                            .accessibilityIdentifier("call.state")
                         HStack {
                             Button(model.onHold ? "Resume" : "Hold") { Task { await model.toggleHold() } }
                             Button(model.muted ? "Unmute" : "Mute") { Task { await model.toggleMute() } }
                             Button(model.videoEnabled ? "Video off" : "Video on") { Task { await model.toggleVideo() } }
                             Button("Hang up", role: .destructive) { Task { await model.hangup() } }
+                                .accessibilityIdentifier("call.hangup")
                         }
                         .buttonStyle(.borderless)
                         HStack {
