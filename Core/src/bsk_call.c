@@ -243,39 +243,6 @@ static int restart_ice(struct bsk_call_ctx *c)
 }
 
 
-void bsk_calls_snapshot_ice(bsk_engine *engine)
-{
-	struct le *le;
-
-	for (le = engine->calls.head; le; le = le->next) {
-		struct bsk_call_ctx *c = le->data;
-
-		c->ice_gather_snapshot = c->ice_gather_count;
-	}
-}
-
-
-void bsk_calls_restart_ice(bsk_engine *engine)
-{
-	struct le *le;
-
-	for (le = engine->calls.head; le; le = le->next) {
-		struct bsk_call_ctx *c = le->data;
-
-		if (c->state != BSK_CALL_CONNECTED &&
-		    c->state != BSK_CALL_STREAMS_RUNNING &&
-		    c->state != BSK_CALL_PAUSED &&
-		    c->state != BSK_CALL_PAUSED_BY_REMOTE)
-			continue;
-
-		if (c->ice_gather_count != c->ice_gather_snapshot)
-			continue;
-
-		(void)restart_ice(c);
-	}
-}
-
-
 void bsk_calls_audio_changed(bsk_engine *engine)
 {
 	struct le *le;
@@ -647,8 +614,6 @@ void bsk_call_handle_module_event(bsk_engine *e, const char *text)
 		return;
 
 	c->ice_state = info.state;
-	if (info.state == BSK_ICE_GATHERING)
-		++c->ice_gather_count;
 	if (info.state == BSK_ICE_CONNECTED) {
 		c->ice_local_type = info.local_type;
 		c->ice_remote_type = info.remote_type;

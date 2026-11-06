@@ -60,8 +60,6 @@ struct bsk_call_ctx {
 	bsk_candidate_type ice_remote_type;
 	char ice_local_addr[64];
 	char ice_remote_addr[64];
-	uint32_t ice_gather_count;
-	uint32_t ice_gather_snapshot;
 };
 
 struct bsk_engine {
@@ -196,8 +194,6 @@ bool bsk_ice_parse_event(const char *text, size_t len,
 			 struct bsk_ice_info *out);
 void bsk_calls_flush(bsk_engine *engine);
 void bsk_calls_audio_changed(bsk_engine *engine);
-void bsk_calls_snapshot_ice(bsk_engine *engine);
-void bsk_calls_restart_ice(bsk_engine *engine);
 
 bsk_engine *bsk_global_engine(void);
 

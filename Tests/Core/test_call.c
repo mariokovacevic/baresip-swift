@@ -38,6 +38,35 @@ static int dtmf3(struct waiter *x) { return x->dtmf_count >= 3; }
 static int ringing_or_later(struct waiter *x) { return x->call_state >= BSK_CALL_OUTGOING_RINGING; }
 static int ice_connected(struct waiter *x) { return x->ice_state == BSK_ICE_CONNECTED; }
 static bool use_ice;
+static const char *turn_transport;
+static const char *turn_host;
+static char *ca_pem;
+static size_t ca_len;
+static int expected_type = BSK_CAND_HOST;
+static const char *caller_port = "5060";
+static const char *callee_port = "5070";
+
+
+static char *read_file(const char *path, size_t *len)
+{
+	FILE *f = fopen(path, "rb");
+	char *buf;
+	long n;
+
+	if (!f)
+		return NULL;
+	fseek(f, 0, SEEK_END);
+	n = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	buf = calloc(1, (size_t)n + 1);
+	if (buf && fread(buf, 1, (size_t)n, f) != (size_t)n) {
+		free(buf);
+		buf = NULL;
+	}
+	fclose(f);
+	*len = (size_t)n;
+	return buf;
+}
 
 static int ice_restarted(struct waiter *x)
 {
@@ -63,10 +92,15 @@ static bsk_engine *start_engine(const char *listen)
 	cfg.audio.player_module = "aufile";
 	cfg.audio.player_device = "/dev/null";
 	cfg.tls.verify_server = true;
+	if (turn_transport) {
+		cfg.tls.ca_pem = ca_pem;
+		cfg.tls.ca_pem_len = ca_len;
+		cfg.ice_relay_only = true;
+	}
 	cfg.log_level = getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
 	cfg.log_sip_trace = true;
 	cfg.extra_config = extra;
-	cfg.rtp_port_min = 0 == strcmp(listen, "5070") ? 30000 : 40000;
+	cfg.rtp_port_min = 0 == strcmp(listen, callee_port) ? 30000 : 40000;
 	cfg.rtp_port_max = cfg.rtp_port_min + 100;
 
 	CHECK_OK(bsk_engine_create(&cfg, on_event, NULL, &e, &err), &err);
@@ -86,6 +120,8 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 	bsk_account_id acc = BSK_ID_NONE;
 	bsk_error err;
 	char aor[128];
+	static char turn[128];
+	static bsk_turn_server turns[1];
 	static const char *codecs[] = { "PCMU/8000/1" };
 
 	snprintf(aor, sizeof(aor), "sip:%s@%s:%s", user, host, port);
@@ -94,6 +130,19 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 	ac.dtmf_mode = BSK_DTMF_RTP_EVENT;
 	if (use_ice)
 		ac.nat.mode = BSK_NAT_ICE;
+	if (turn_transport) {
+		if (0 == strcmp(turn_transport, "tls"))
+			snprintf(turn, sizeof(turn), "turns:%s:5349", turn_host);
+		else
+			snprintf(turn, sizeof(turn),
+				 "turn:%s:3478?transport=%s", turn_host,
+				 turn_transport);
+		turns[0].uri = turn;
+		turns[0].username = "bsk";
+		turns[0].password = "bsk";
+		ac.nat.turn_servers = turns;
+		ac.nat.turn_count = 1;
+	}
 	ac.audio_codecs = codecs;
 	ac.audio_codec_count = 1;
 	CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
@@ -109,8 +158,8 @@ static int run_callee(const char *host)
 	bsk_call_statistics st;
 
 	tag = "callee";
-	e = start_engine("5070");
-	add_account(e, "bob", host, "5070");
+	e = start_engine(callee_port);
+	add_account(e, "bob", host, callee_port);
 
 	printf("READY\n");
 	fflush(stdout);
@@ -125,7 +174,7 @@ static int run_callee(const char *host)
 	CHECK(wait_until(&w, streams, 10000));
 	if (use_ice) {
 		CHECK(wait_until(&w, ice_connected, 10000));
-		CHECK(w.ice_local_type == BSK_CAND_HOST);
+		CHECK(w.ice_local_type == expected_type);
 		CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
 		CHECK(st.ice_state == BSK_ICE_CONNECTED);
 		CHECK(strlen(st.remote_address) > 0);
@@ -168,10 +217,10 @@ static int run_caller(const char *host)
 	char dest[128];
 
 	tag = "caller";
-	e = start_engine("5060");
-	acc = add_account(e, "alice", host, "5060");
+	e = start_engine(caller_port);
+	acc = add_account(e, "alice", host, caller_port);
 
-	snprintf(dest, sizeof(dest), "sip:bob@%s:5070", host);
+	snprintf(dest, sizeof(dest), "sip:bob@%s:%s", host, callee_port);
 	CHECK_OK(bsk_call_make(e, acc, dest, false, &call, &err), &err);
 	CHECK(call != BSK_ID_NONE);
 	CHECK(bsk_call_list(e, NULL, 0) == 1);
@@ -183,8 +232,8 @@ static int run_caller(const char *host)
 	CHECK(0 == strcmp(info.audio_codec, "PCMU"));
 	if (use_ice) {
 		CHECK(wait_until(&w, ice_connected, 10000));
-		CHECK(w.ice_local_type == BSK_CAND_HOST);
-		CHECK(w.ice_remote_type == BSK_CAND_HOST);
+		CHECK(w.ice_local_type == expected_type);
+		CHECK(w.ice_remote_type == expected_type);
 
 		sleep(1);
 		CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
@@ -192,7 +241,7 @@ static int run_caller(const char *host)
 		__atomic_store_n(&ice_gather_n, 0, __ATOMIC_SEQ_CST);
 		CHECK_OK(bsk_call_restart_ice(e, call, &err), &err);
 		CHECK(wait_until(&w, ice_restarted, 15000));
-		CHECK(w.ice_local_type == BSK_CAND_HOST);
+		CHECK(w.ice_local_type == expected_type);
 		sleep(2);
 		CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
 		CHECK(st.ice_state == BSK_ICE_CONNECTED);
@@ -243,6 +292,19 @@ int main(int argc, char **argv)
 	const char *host = argc > 2 ? argv[2] : "127.0.0.1";
 
 	use_ice = argc > 3 && 0 == strcmp(argv[3], "ice");
+	turn_transport = getenv("BSK_TEST_TURN");
+	if (turn_transport && use_ice) {
+		turn_host = host;
+		expected_type = BSK_CAND_RELAY;
+		caller_port = "5260";
+		callee_port = "5270";
+		ca_pem = read_file(getenv("BSK_TEST_CA_PEM") ?
+				   getenv("BSK_TEST_CA_PEM") : "", &ca_len);
+		CHECK(ca_pem != NULL);
+	}
+	else {
+		turn_transport = NULL;
+	}
 	waiter_init(&w);
 	if (0 == strcmp(role, "callee"))
 		return run_callee(host);

@@ -917,13 +917,7 @@ static int network_op(bsk_engine *e, void *arg)
 	bsk_event ev;
 	int err;
 
-	if (na->update_calls)
-		bsk_calls_snapshot_ice(e);
-
 	err = uag_reset_transp(na->reregister, na->update_calls);
-
-	if (na->update_calls)
-		bsk_calls_restart_ice(e);
 
 	bsk_event_init(&ev, BSK_EVENT_NETWORK);
 	ev.u.network.transports_reset = (err == 0);

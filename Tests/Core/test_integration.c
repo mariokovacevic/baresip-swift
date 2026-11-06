@@ -113,7 +113,6 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	bsk_account_id alice;
 	bsk_call_id call = BSK_ID_NONE;
 	bsk_call_statistics st;
-	uint32_t tx_before, rx_before;
 	char dest[128];
 
 	memset(&cfg, 0, sizeof(cfg));
@@ -127,7 +126,6 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	cfg.tls.ca_pem_len = ca_len;
 	cfg.log_level = BSK_LOG_INFO;
 	cfg.ice_relay_only = true;
-	cfg.log_sip_trace = true;
 
 	CHECK_OK(bsk_engine_create(&cfg, on_event, NULL, &e, &err), &err);
 	bsk_engine_set_log_handler(e, test_log, "relay ");
@@ -152,26 +150,6 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	CHECK(st.local_candidate == BSK_CAND_RELAY);
 	CHECK(st.audio.tx_packets > 0);
 	CHECK(st.audio.rx_packets > 0);
-	CHECK(wait_until(&w, streams, 5000));
-
-	printf("10. ICE restart over TURN/%s: new credentials, same relay, "
-	       "media continues\n", turn_transport);
-	tx_before = st.audio.tx_packets;
-	rx_before = st.audio.rx_packets;
-	pthread_mutex_lock(&w.mtx);
-	w.ice_state = -1;
-	pthread_mutex_unlock(&w.mtx);
-	CHECK_OK(bsk_call_restart_ice(e, call, &err), &err);
-	CHECK(wait_until(&w, ice_connected, 20000));
-	sleep(3);
-	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
-	printf("   state=%d ice local=%d remote=%d %s -> %s tx=%u rx=%u\n",
-	       w.call_state, st.local_candidate, st.remote_candidate,
-	       st.local_address, st.remote_address, st.audio.tx_packets,
-	       st.audio.rx_packets);
-	CHECK(st.local_candidate == BSK_CAND_RELAY);
-	CHECK(st.audio.tx_packets > tx_before + 50);
-	CHECK(st.audio.rx_packets > rx_before + 50);
 	CHECK(wait_until(&w, streams, 5000));
 
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);

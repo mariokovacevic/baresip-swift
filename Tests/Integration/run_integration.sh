@@ -53,3 +53,25 @@ for tp in udp tcp tls; do
     exit 1
   fi
 done
+
+for tp in udp tcp tls; do
+  echo "== two-process ICE call relayed through TURN/$tp with ICE restart"
+  BSK_TEST_VERBOSE=1 BSK_TEST_TURN="$tp" "$BUILD/tests/bsk_test_call" callee "$HOSTIP" ice > "$BUILD/callee-turn-$tp.out" 2> "$BUILD/callee-turn-$tp.err" &
+  CALLEE_PID=$!
+  for i in $(seq 1 50); do
+    grep -q READY "$BUILD/callee-turn-$tp.out" 2>/dev/null && break
+    sleep 0.1
+  done
+  if ! BSK_TEST_VERBOSE=1 BSK_TEST_TURN="$tp" "$BUILD/tests/bsk_test_call" caller "$HOSTIP" ice 2> "$BUILD/caller-turn-$tp.err"; then
+    tail -60 "$BUILD/caller-turn-$tp.err" || true
+    kill "$CALLEE_PID" 2>/dev/null || true
+    tail -40 "$BUILD/callee-turn-$tp.err" || true
+    exit 1
+  fi
+  if ! wait "$CALLEE_PID"; then
+    cat "$BUILD/callee-turn-$tp.out"
+    tail -60 "$BUILD/callee-turn-$tp.err" || true
+    exit 1
+  fi
+  cat "$BUILD/callee-turn-$tp.out"
+done
