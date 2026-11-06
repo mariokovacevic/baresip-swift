@@ -68,7 +68,7 @@ fetch() {
 apply_patches() {
   local name="$1"
   local dir="$DEPS_DIR/$name"
-  git -C "$dir" checkout --quiet -- .
+  git -C "$dir" reset --quiet --hard HEAD
   for p in "$ROOT"/Patches/*-"$name"-*.patch; do
     [[ -e "$p" ]] || continue
     log "applying $(basename "$p")"
@@ -138,7 +138,8 @@ build_opus() {
   local src="$DEPS_DIR/opus" bdir="$OUT_DIR/$slice/build/opus"
   [[ -f "$prefix/lib/libopus.a" ]] && return
   log "[$slice] Opus $OPUS_TAG"
-  mapfile -t common < <(cmake_common "$prefix")
+  local common=() l
+  while IFS= read -r l; do common+=("$l"); done < <(cmake_common "$prefix")
   cmake -S "$src" -B "$bdir" "${common[@]}" -DBUILD_SHARED_LIBS=OFF \
         -DOPUS_BUILD_PROGRAMS=OFF -DOPUS_BUILD_TESTING=OFF >/dev/null
   cmake --build "$bdir" -j"$JOBS" >/dev/null
@@ -169,7 +170,8 @@ build_libre() {
   local slice="$1" prefix="$2"
   local src="$DEPS_DIR/re" bdir="$OUT_DIR/$slice/build/re"
   log "[$slice] libre $LIBRE_TAG"
-  mapfile -t common < <(cmake_common "$prefix")
+  local common=() l
+  while IFS= read -r l; do common+=("$l"); done < <(cmake_common "$prefix")
   cmake -S "$src" -B "$bdir" "${common[@]}" \
         -DLIBRE_BUILD_SHARED=OFF -DLIBRE_BUILD_STATIC=ON \
         -DUSE_OPENSSL=ON -DOPENSSL_ROOT_DIR="$prefix" \
@@ -182,7 +184,8 @@ build_baresip() {
   local slice="$1" prefix="$2"
   local src="$DEPS_DIR/baresip" bdir="$OUT_DIR/$slice/build/baresip"
   log "[$slice] baresip $BARESIP_TAG modules: $MODULES"
-  mapfile -t common < <(cmake_common "$prefix")
+  local common=() l
+  while IFS= read -r l; do common+=("$l"); done < <(cmake_common "$prefix")
   cmake -S "$src" -B "$bdir" "${common[@]}" -DSTATIC=ON "-DMODULES=$MODULES" >/dev/null
   cmake --build "$bdir" -j"$JOBS" --target baresip >/dev/null
   cp "$bdir/libbaresip.a" "$prefix/lib/libbaresip.a"
@@ -228,11 +231,21 @@ module BaresipKitCore {
 }
 MM
   if [[ "$PLATFORM" == "ios" ]]; then
-    printf '%s %s\n' "$slice" "$(stat -f%z "$out/libBaresipKitCore.a")" >> "$OUT_DIR/sizes.txt"
-    xcrun size -m "$out/libBaresipKitCore.a" | awk '/^total/{print "'"$slice"' text+data", $2}' >> "$OUT_DIR/sizes.txt" || true
+    local a
+    for a in "$out/libBaresipKitCore.a" "${libs[@]}"; do
+      printf '%s %s %s bytes=%s text+data=%s\n' "$MODULE_SET" "$slice" "$(basename "$a")" \
+        "$(stat -f%z "$a")" "$(text_data "$a")" >> "$OUT_DIR/sizes.txt"
+    done
   else
-    printf '%s %s\n' "$slice" "$(stat -c%s "$out/libBaresipKitCore.a")" >> "$OUT_DIR/sizes.txt"
+    printf '%s %s %s bytes=%s\n' "$MODULE_SET" "$slice" libBaresipKitCore.a \
+      "$(stat -c%s "$out/libBaresipKitCore.a")" >> "$OUT_DIR/sizes.txt"
   fi
+}
+
+text_data() {
+  xcrun size -m "$1" | awk '
+    /Section \((__TEXT|__DATA), / && !/__bss\)|__common\)/ { sub(/.*: /, ""); t += $1 }
+    END { print t + 0 }'
 }
 
 create_xcframework() {
@@ -245,13 +258,17 @@ create_xcframework() {
   xcodebuild -create-xcframework "${args[@]}" -output "$OUT_DIR/BaresipKitCore.xcframework" >/dev/null
   (cd "$OUT_DIR" && ditto -c -k --keepParent BaresipKitCore.xcframework BaresipKitCore.xcframework.zip)
   (cd "$OUT_DIR" && swift package compute-checksum BaresipKitCore.xcframework.zip > checksum.txt)
+  printf '%s xcframework.zip bytes=%s checksum=%s\n' "$MODULE_SET" \
+    "$(stat -f%z "$OUT_DIR/BaresipKitCore.xcframework.zip")" "$(cat "$OUT_DIR/checksum.txt")" >> "$OUT_DIR/sizes.txt"
   log "checksum: $(cat "$OUT_DIR/checksum.txt")"
 }
 
 main() {
   mkdir -p "$DEPS_DIR" "$OUT_DIR"
   : > "$OUT_DIR/pins.txt"
-  : > "$OUT_DIR/sizes.txt"
+  touch "$OUT_DIR/sizes.txt"
+  grep -v "^$MODULE_SET " "$OUT_DIR/sizes.txt" > "$OUT_DIR/sizes.txt.tmp" || true
+  mv "$OUT_DIR/sizes.txt.tmp" "$OUT_DIR/sizes.txt"
 
   fetch re "$LIBRE_REPO" "$LIBRE_TAG" "$LIBRE_COMMIT"
   fetch baresip "$BARESIP_REPO" "$BARESIP_TAG" "$BARESIP_COMMIT"

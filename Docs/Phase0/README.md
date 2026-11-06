@@ -8,5 +8,6 @@
 | `C-ABI.md` | ownership, threading and error conventions for `baresip_kit.h` |
 | `contact-parameter-trace.txt` | sanitized SIP trace, libre-level program |
 | `contact-parameter-trace-baresip.txt` | sanitized SIP trace, baresip-level program with patch 0001 |
+| `contact-parameter-trace-baresip-iossim.txt` | sanitized SIP trace, the same program built for the iOS simulator slice and run with `simctl spawn` |
 
 Related files outside this directory: `Build/` (reproducible build), `Patches/` (upstreamable diffs), `Tools/ContactParameterProof/` (proof sources), `Sources/BaresipKitCore/include/baresip_kit.h` (proposed ABI).

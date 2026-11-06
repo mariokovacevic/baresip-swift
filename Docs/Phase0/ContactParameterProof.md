@@ -56,6 +56,7 @@ Both programs produce the same sequence. Traces:
 
 - `contact-parameter-trace.txt` (libre program, loopback)
 - `contact-parameter-trace-baresip.txt` (baresip program; the sandbox address `192.0.2.2` is a documentation range)
+- `contact-parameter-trace-baresip-iossim.txt` (baresip program built for `ios-arm64-simulator` against `libBaresipKitCore.a` and run in an iOS 26.4 simulator; the Mac's LAN address was replaced by `192.0.2.2`; PASS, see `FeasibilityReport.md` §3.4)
 
 The tokens in the traces are synthetic 64-hex-digit strings. The combined Apple form `<remote>:remote&<voip>:voip` is used unchanged, as required.
 
