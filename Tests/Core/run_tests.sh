@@ -130,7 +130,11 @@ if [[ "$(uname -s)" == Darwin ]]; then
     grep -q READY "$BUILD/h264callee.out" 2>/dev/null && break
     sleep 0.1
   done
-  BSK_TEST_VCODEC=H264 "$BUILD/tests/bsk_test_video" caller "$HOSTIP" 2> "$BUILD/h264caller.err"
+  if ! BSK_TEST_VCODEC=H264 "$BUILD/tests/bsk_test_video" caller "$HOSTIP" 2> "$BUILD/h264caller.err"; then
+    grep -E "CHECK|vidtoolbox|video" "$BUILD/h264caller.err" | tail -40 || true
+    kill "$VCALLEE_PID" 2>/dev/null || true
+    exit 1
+  fi
   wait "$VCALLEE_PID"
   cat "$BUILD/h264callee.out"
 fi
