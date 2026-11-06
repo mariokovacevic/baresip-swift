@@ -128,6 +128,7 @@ int main(int argc, char **argv)
 	cfg.tls.ca_pem = ca;
 	cfg.tls.ca_pem_len = ca_len;
 	cfg.log_sip_trace = getenv("BSK_TEST_VERBOSE") != NULL;
+	setvbuf(stdout, NULL, _IOLBF, 0);
 	cfg.log_level = BSK_LOG_INFO;
 	cfg.max_calls = 4;
 
