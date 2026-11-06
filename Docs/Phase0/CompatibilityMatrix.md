@@ -104,7 +104,7 @@ Everything below was verified by reading the pinned sources; items marked "host-
 |---|---|---|
 | ICE | module | `modules/ice` (full ICE, RFC 8445 via libre `src/ice`). |
 | STUN | module | `modules/stun`, `;stunserver=` account param. |
-| TURN over UDP | module | `modules/ice/ice.c:232-258` (`turnc_alloc(... IPPROTO_UDP ...)`). |
+| TURN over UDP | module + patch 0006, CI-verified | `modules/ice/ice.c:232-258` (`turnc_alloc(... IPPROTO_UDP ...)`). Verified against coturn with the relay-only ICE policy (`ice_relay_only`): relay candidate selected, RTP in both directions. Patch 0006 fixes silent calls when optional SRTP is declined and ICE completes after the answer. |
 | TURN over TCP / TLS | partial | `stunuri.c` parses `turns:` and `?transport=tcp`, and `modules/turn/turn.c:232-273` can allocate over TCP/TLS, but the **ICE module hardcodes UDP** for relayed candidates. Supported today only in the non-ICE `turn` medianat mode. ICE+TURN-TCP/TLS needs a baresip patch (candidate, ~40 lines in `ice.c` to honour `srv->proto`). Reported as **patch (later)**. |
 | ICE restart | not supported as-is | No `ice-restart`/ufrag regeneration in `modules/ice/ice.c` (searched). Network change today uses `uag_reset_transp(reg, reinvite)` (`uag.c:710`) → `call_reset_transp()` → re-INVITE with the new local address (`call.c:2834`), which works for non-ICE and symmetric-RTP deployments. Full ICE restart needs a patch to `modules/ice` (new ufrag/pwd + re-gather); proposed for Phase 1 as an upstreamable change. |
 | Trickle ICE | not supported | libre has a `trice` library but baresip's `ice` module uses full candidate exchange in SDP. Documented as unsupported. |
