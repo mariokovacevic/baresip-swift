@@ -62,5 +62,6 @@ jobs:
           gh release create "v${{ inputs.version }}" \
             Build/out/BaresipKitCore.xcframework.zip \
             Build/out/BaresipKitCore-licenses.zip \
+            Build/out/checksum.txt \
             --title "BaresipKit ${{ inputs.version }}" \
             --notes "BaresipKitCore XCFramework (iOS device arm64, simulator arm64). SPM checksum: $(cat Build/out/checksum.txt). Pinned upstream versions: see Build/versions.env."
