@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "test_common.h"
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
@@ -81,7 +82,7 @@ static void test_status_strings(void)
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
 	CHECK(0 == strcmp(bsk_status_string(BSK_ERR_AUTH),
 			  "authentication failed"));
-	CHECK(bsk_abi_version() == 1);
+	CHECK(bsk_abi_version() == 2);
 	CHECK(bsk_capabilities(NULL, 0) > 0);
 }
 
@@ -148,12 +149,52 @@ static void test_engine_lifecycle_without_network(void)
 }
 
 
+static void test_config_size_compat(void)
+{
+	bsk_engine_config cfg = BSK_ENGINE_CONFIG_INIT;
+	bsk_engine *e = NULL;
+	bsk_error err;
+	bsk_account_config ac = BSK_ACCOUNT_CONFIG_INIT;
+	bsk_account_id acc = BSK_ID_NONE;
+	struct {
+		bsk_engine_config cfg;
+		uint8_t future_fields[64];
+	} big;
+
+	CHECK(cfg.size == sizeof(bsk_engine_config));
+	cfg.modules = test_modules;
+	cfg.module_count = sizeof(test_modules) / sizeof(test_modules[0]);
+	cfg.audio.source_module = "ausine";
+	cfg.audio.player_module = "aufile";
+	cfg.audio.player_device = "/dev/null";
+	cfg.extra_config = "sip_listen\t\t0.0.0.0:0";
+
+	memset(&big, 0xAB, sizeof(big));
+	big.cfg = cfg;
+	big.cfg.size = (uint32_t)sizeof(big);
+	CHECK_OK(bsk_engine_create(&big.cfg, NULL, NULL, &e, &err), &err);
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+
+	ac.aor = "sip:alice@example.invalid";
+	CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
+	CHECK(acc != BSK_ID_NONE);
+
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	bsk_engine_destroy(e);
+
+	cfg.size = (uint32_t)offsetof(bsk_engine_config, ice_relay_only);
+	CHECK_OK(bsk_engine_create(&cfg, NULL, NULL, &e, &err), &err);
+	bsk_engine_destroy(e);
+}
+
+
 int main(void)
 {
 	test_contact_params();
 	test_redaction();
 	test_status_strings();
 	test_engine_lifecycle_without_network();
+	test_config_size_compat();
 	printf("unit: PASS\n");
 	return 0;
 }

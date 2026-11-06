@@ -647,7 +647,17 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 	mtx_init(&e->video_mtx, mtx_plain);
 	cnd_init(&e->cnd);
 
-	ret = copy_config(e, config);
+	{
+		bsk_engine_config local;
+		size_t n = config->size ? config->size : sizeof(local);
+
+		if (n > sizeof(local))
+			n = sizeof(local);
+		memset(&local, 0, sizeof(local));
+		memcpy(&local, config, n);
+		local.size = (uint32_t)sizeof(local);
+		ret = copy_config(e, &local);
+	}
 	if (ret) {
 		bsk_engine_destroy(e);
 		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,

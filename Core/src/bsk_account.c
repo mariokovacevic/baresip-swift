@@ -207,17 +207,32 @@ struct add_arg {
 static int add_op(bsk_engine *e, void *arg)
 {
 	struct add_arg *aa = arg;
-	const bsk_account_config *c = aa->cfg;
+	bsk_account_config local;
+	const bsk_account_config *c = &local;
 	struct bsk_account_ctx *a;
 	struct account *acc;
 	char line[1024];
 	char codecs[256];
 	char cparams[BSK_CPARAMS_MAX];
-	const char *menc = mediaenc_name(c->media_encryption);
-	const char *mnat = medianat_name(c->nat.mode);
-	uint32_t expires = c->register_expires ? c->register_expires : 3600;
+	const char *menc;
+	const char *mnat;
+	uint32_t expires;
 	int err;
 	size_t i;
+
+	{
+		size_t n = aa->cfg->size ? aa->cfg->size : sizeof(local);
+
+		if (n > sizeof(local))
+			n = sizeof(local);
+		memset(&local, 0, sizeof(local));
+		memcpy(&local, aa->cfg, n);
+		local.size = (uint32_t)sizeof(local);
+	}
+
+	menc = mediaenc_name(c->media_encryption);
+	mnat = medianat_name(c->nat.mode);
+	expires = c->register_expires ? c->register_expires : 3600;
 
 	a = mem_zalloc(sizeof(*a), account_ctx_destructor);
 	if (!a)

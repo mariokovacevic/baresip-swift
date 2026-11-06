@@ -20,6 +20,7 @@ public final class BaresipEngine: @unchecked Sendable {
         self.configuration = configuration
         let arena = CStringArena()
         var cfg = bsk_engine_config()
+        cfg.size = UInt32(MemoryLayout<bsk_engine_config>.size)
         cfg.user_agent = arena.cString(configuration.userAgent)
         cfg.instance_uuid = arena.cString(configuration.instanceUUID.uuidString.lowercased())
         cfg.network_interface = arena.cString(configuration.networkInterface)
@@ -253,6 +254,7 @@ public final class BaresipEngine: @unchecked Sendable {
         let id: UInt64 = try await run { h in
             let arena = CStringArena()
             var cfg = bsk_account_config()
+            cfg.size = UInt32(MemoryLayout<bsk_account_config>.size)
             cfg.aor = arena.cString(account.aor)
             cfg.display_name = arena.cString(account.displayName)
             cfg.registrar = arena.cString(account.registrar)

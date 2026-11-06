@@ -43,7 +43,7 @@ if(APPLE)
     "-framework VideoToolbox" "-framework Foundation")
 endif()
 target_compile_definitions(baresipkitcore PRIVATE ${BARESIPKIT_RE_DEFINITIONS})
-target_compile_options(baresipkitcore PRIVATE -Wall -Wextra -Wshadow -Wno-unused-parameter)
+target_compile_options(baresipkitcore PRIVATE -Wall -Wextra -Wshadow -Wno-unused-parameter -Werror=uninitialized -Werror=implicit-function-declaration -Werror=incompatible-pointer-types)
 target_link_libraries(baresipkitcore PUBLIC ${BARESIP_LIBRARY} libre::libre)
 
 if(BARESIPKIT_EXTRA_LIBS)

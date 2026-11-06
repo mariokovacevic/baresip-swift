@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #define BSK_ABI_VERSION_MAJOR 0
-#define BSK_ABI_VERSION_MINOR 1
+#define BSK_ABI_VERSION_MINOR 2
 
 typedef struct bsk_engine bsk_engine;
 
@@ -217,6 +217,7 @@ typedef struct bsk_video_config {
 } bsk_video_config;
 
 typedef struct bsk_engine_config {
+	uint32_t size;
 	const char *user_agent;
 	const char *instance_uuid;
 	const char *network_interface;
@@ -241,6 +242,7 @@ typedef struct bsk_contact_param {
 } bsk_contact_param;
 
 typedef struct bsk_account_config {
+	uint32_t size;
 	const char *aor;
 	const char *display_name;
 	const char *registrar;
@@ -426,6 +428,9 @@ typedef struct bsk_video_sink {
 			uint32_t width, uint32_t height, void *user);
 	void *user;
 } bsk_video_sink;
+
+#define BSK_ENGINE_CONFIG_INIT { (uint32_t)sizeof(bsk_engine_config) }
+#define BSK_ACCOUNT_CONFIG_INIT { (uint32_t)sizeof(bsk_account_config) }
 
 BSK_EXPORT uint32_t bsk_abi_version(void);
 BSK_EXPORT const char *bsk_version_string(void);
