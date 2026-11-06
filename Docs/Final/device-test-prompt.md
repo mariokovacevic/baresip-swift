@@ -7,8 +7,8 @@ Paste into Claude Code on the Mac, in a checkout of the branch, with an iPhone (
 ```text
 Repository: mariokovacevic/baresip-swift, branch claude/zen-keller-jl2mtg.
 Context: all CI jobs are green (XCFramework, host suite incl. H.264,
-14 XCTest cases, sample app build, Asterisk/coturn integration incl. a
-TURN relay call). This is the final manual test on a physical iPhone.
+XCTest on a simulator, sample app build, Asterisk/coturn integration incl.
+TURN relay calls and ICE restart). This is the final test on an iPhone.
 Read README.md, Docs/Integration.md and Examples/SampleApp/README.md first.
 Do not change library code unless a test below fails; if it does, fix the
 root cause, keep the fix minimal, and re-run that test.
