@@ -4,7 +4,6 @@
 |---|---|---|
 | ICE restart | not supported by baresip's ICE module; a network change triggers a re-INVITE with the new local address, which works for non-ICE and latching deployments | upstream patch to `modules/ice` (new ufrag/pwd, re-gather) |
 | Trickle ICE | not supported (full candidate exchange in SDP) | none planned |
-| TURN over TCP/TLS inside ICE | the ICE module allocates relayed candidates over UDP only; `turns:` URIs work only in the non-ICE `turn` medianat | ~40-line baresip patch to honour the TURN URI transport |
 | Video bitrate adaptation | fixed target bitrate with a token-bucket pacer; no REMB/TWCC | facade-side reaction to RTCP loss reports |
 | External audio injection | not exposed in ABI 0.1 | `ausrc`/`auplay` style callbacks in a later ABI revision |
 | G.722 | not in the default module set (needs spandsp or libg722) | add on request |

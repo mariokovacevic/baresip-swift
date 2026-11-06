@@ -16,6 +16,8 @@ kept as small as possible so that it can be proposed upstream unchanged.
 
 | `0006-baresip-start-media-after-mnat-with-optional-menc.patch` | baresip v4.9.0 | When a media encryption is configured, `stream_mnatconn_handler()` only started the media encryption after the media NAT connected and never started audio or video. With optional SDES-SRTP that the peer declines, and ICE completing after the call was answered (typical for TURN relay), the call stayed silent: no RTP was ever sent. Found by the TURN relay integration stage. The patch starts the streams whenever they are ready; encryptions that wait for a secure state (DTLS-SRTP) are unaffected because `stream_is_ready()` still returns false until they are secure. | to be proposed |
 
+| `0007-baresip-ice-turn-over-tcp-tls.patch` | baresip v4.9.0 | The ICE module allocated relayed candidates over UDP only, so `turn:...?transport=tcp` and `turns:` were unusable with ICE, which matters on networks that block UDP. The patch connects to the TURN server over TCP (and TLS for `turns:`, verified with the SIP TLS context), allocates the relay on that connection, forwards the component's outgoing packets through it with a UDP helper and injects relayed data back into the UDP socket, reusing the stream framing of baresip's `turn` module. When TURN runs over TCP/TLS the session uses the relay-only ICE policy, because host and server-reflexive paths cannot be assumed to work on such networks. | to be proposed |
+
 ## Verifying a patch
 
 ```bash

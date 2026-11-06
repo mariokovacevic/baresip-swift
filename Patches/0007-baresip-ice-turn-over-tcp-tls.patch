@@ -1,0 +1,286 @@
+diff --git a/modules/ice/ice.c b/modules/ice/ice.c
+--- a/modules/ice/ice.c
++++ b/modules/ice/ice.c
+@@ -40,6 +40,9 @@
+ 	uint64_t tiebrk;
+ 	bool turn;
+ 	bool offerer;
++	int proto;
++	bool secure;
++	char *host;
+ 	char *user;
+ 	char *pass;
+ 	bool started;
+@@ -55,6 +58,11 @@
+ 		struct sa laddr;
+ 		unsigned id;
+ 		void *sock;
++		struct tcp_conn *tc;
++		struct tls_conn *tlsc;
++		struct turnc *turnc;
++		struct udp_helper *uh;
++		struct mbuf *mb;
+ 	} compv[2];
+ 	struct le le;
+ 	struct mnat_sess *sess;
+@@ -229,6 +237,191 @@
+ }
+ 
+ 
++static bool tcp_send_handler(int *err, struct sa *dst, struct mbuf *mb,
++			     void *arg)
++{
++	struct comp *comp = arg;
++
++	if (!comp->turnc || mb->pos < 4)
++		return false;
++
++	*err = turnc_send(comp->turnc, dst, mb);
++
++	return true;
++}
++
++
++static void tcp_data_handler(struct comp *comp, const struct sa *src,
++			     struct mbuf *mb_pkt)
++{
++	struct mbuf *mb = mbuf_alloc(mbuf_get_left(mb_pkt));
++
++	if (!mb)
++		return;
++
++	(void)mbuf_write_mem(mb, mbuf_buf(mb_pkt), mbuf_get_left(mb_pkt));
++	mb->pos = 0;
++
++	udp_recv_helper(comp->sock, src, mb, comp->uh);
++
++	mem_deref(mb);
++}
++
++
++static void tcp_recv_handler(struct mbuf *mb_pkt, void *arg)
++{
++	struct comp *comp = arg;
++	int err = 0;
++
++	if (comp->mb) {
++		size_t pos = comp->mb->pos;
++
++		comp->mb->pos = comp->mb->end;
++		err = mbuf_write_mem(comp->mb, mbuf_buf(mb_pkt),
++				     mbuf_get_left(mb_pkt));
++		if (err)
++			goto out;
++		comp->mb->pos = pos;
++	}
++	else {
++		comp->mb = mem_ref(mb_pkt);
++	}
++
++	for (;;) {
++		size_t len, pos, end;
++		struct sa src;
++		uint16_t typ;
++
++		if (mbuf_get_left(comp->mb) < 4)
++			break;
++
++		typ = ntohs(mbuf_read_u16(comp->mb));
++		len = ntohs(mbuf_read_u16(comp->mb));
++
++		if (typ < 0x4000)
++			len += STUN_HEADER_SIZE;
++		else if (typ < 0x8000)
++			len += 4;
++		else {
++			err = EBADMSG;
++			goto out;
++		}
++
++		comp->mb->pos -= 4;
++
++		if (mbuf_get_left(comp->mb) < len)
++			break;
++
++		pos = comp->mb->pos;
++		end = comp->mb->end;
++		comp->mb->end = pos + len;
++
++		sa_init(&src, AF_UNSPEC);
++		err = turnc_recv(comp->turnc, &src, comp->mb);
++		if (err)
++			goto out;
++
++		if (mbuf_get_left(comp->mb) && sa_isset(&src, SA_ALL))
++			tcp_data_handler(comp, &src, comp->mb);
++
++		while (len & 0x03)
++			++len;
++
++		comp->mb->pos = pos + len;
++		comp->mb->end = end;
++
++		if (comp->mb->pos >= comp->mb->end) {
++			comp->mb = mem_deref(comp->mb);
++			break;
++		}
++	}
++
++ out:
++	if (err) {
++		warning("ice: {%u} TURN/TCP receive error: %m\n",
++			comp->id, err);
++		comp->mb = mem_deref(comp->mb);
++	}
++}
++
++
++static void tcp_estab_handler(void *arg)
++{
++	struct comp *comp = arg;
++	struct mnat_media *m = comp->m;
++	int err;
++
++	info("ice: {%u} TURN %s connection established to %J\n", comp->id,
++	     m->sess->secure ? "TLS" : "TCP", &m->sess->srv);
++
++	err = turnc_alloc(&comp->turnc, stun_conf(icem_stun(m->icem)),
++			  IPPROTO_TCP, comp->tc, 0, &m->sess->srv,
++			  m->sess->user, m->sess->pass, 600,
++			  turnc_handler, comp);
++	if (err) {
++		call_gather_handler(err, m, 0, NULL);
++		return;
++	}
++
++	err = icem_set_turn_client(m->icem, comp->id, comp->turnc);
++	if (err)
++		call_gather_handler(err, m, 0, NULL);
++}
++
++
++static void tcp_close_handler(int err, void *arg)
++{
++	struct comp *comp = arg;
++	struct mnat_media *m = comp->m;
++
++	warning("ice: {%u} TURN %s connection closed: %m\n", comp->id,
++		m->sess->secure ? "TLS" : "TCP", err ? err : ECONNRESET);
++
++	comp->turnc = mem_deref(comp->turnc);
++
++	if (!m->gathered)
++		call_gather_handler(err ? err : ECONNRESET, m, 0, NULL);
++}
++
++
++static int cand_gather_relayed_tcp(struct mnat_media *m, struct comp *comp)
++{
++	int err;
++
++	if (!comp->uh) {
++		err = udp_register_helper(&comp->uh, comp->sock,
++					  ICE_LAYER - 10, tcp_send_handler,
++					  NULL, comp);
++		if (err)
++			return err;
++	}
++
++	err = tcp_connect(&comp->tc, &m->sess->srv, tcp_estab_handler,
++			  tcp_recv_handler, tcp_close_handler, comp);
++	if (err)
++		return err;
++
++	if (m->sess->secure) {
++		struct tls *tls = uag_tls();
++
++		if (!tls)
++			return ENOSYS;
++
++		err = tls_start_tcp(&comp->tlsc, tls, comp->tc, 0);
++		if (err)
++			return err;
++
++		err = tls_set_verify_server(comp->tlsc, m->sess->host);
++		if (err)
++			return err;
++	}
++
++	++m->nstun;
++
++	return 0;
++}
++
++
+ static int cand_gather_relayed(struct mnat_media *m, struct comp *comp,
+ 			       const char *username, const char *password)
+ {
+@@ -236,6 +429,9 @@
+ 	const int layer = ICE_LAYER - 10; /* below ICE stack */
+ 	int err;
+ 
++	if (m->sess->proto == IPPROTO_TCP)
++		return cand_gather_relayed_tcp(m, comp);
++
+ 	err = turnc_alloc(&turnc, stun_conf(icem_stun(m->icem)),
+ 			  IPPROTO_UDP, comp->sock, layer, &m->sess->srv,
+ 			  username, password,
+@@ -321,6 +517,7 @@
+ 	mem_deref(sess->dnsq);
+ 	mem_deref(sess->user);
+ 	mem_deref(sess->pass);
++	mem_deref(sess->host);
+ 	mem_deref(sess->sdp);
+ }
+ 
+@@ -337,6 +534,11 @@
+ 	mem_deref(m->icem);
+ 	for (i=0; i<2; i++) {
+ 		mem_deref(m->compv[i].ct_gath);
++		mem_deref(m->compv[i].uh);
++		mem_deref(m->compv[i].turnc);
++		mem_deref(m->compv[i].tlsc);
++		mem_deref(m->compv[i].tc);
++		mem_deref(m->compv[i].mb);
+ 		mem_deref(m->compv[i].sock);
+ 	}
+ }
+@@ -517,6 +719,7 @@
+ 			break;
+ 
+ 		case STUN_SCHEME_TURN:
++		case STUN_SCHEME_TURNS:
+ 			usage = stun_usage_relay;
+ 			break;
+ 
+@@ -553,10 +756,18 @@
+ 		goto out;
+ 
+ 	if (srv) {
+-		sess->turn = (srv->scheme == STUN_SCHEME_TURN);
++		sess->turn = (srv->scheme == STUN_SCHEME_TURN ||
++			      srv->scheme == STUN_SCHEME_TURNS);
++		sess->secure = (srv->scheme == STUN_SCHEME_TURNS);
++		sess->proto = sess->secure ? IPPROTO_TCP : srv->proto;
++
++		err = str_dup(&sess->host, srv->host);
++		if (err)
++			goto out;
+ 
+ 		err = stun_server_discover(&sess->dnsq, dnsc,
+-					   usage, stun_proto_udp,
++					   usage, sess->proto == IPPROTO_TCP ?
++					   stun_proto_tcp : stun_proto_udp,
+ 					   af, srv->host, srv->port,
+ 					   dns_handler, sess);
+ 	}
+@@ -887,7 +1098,8 @@
+ 
+ 	icem_conf(m->icem)->debug  = LEVEL_DEBUG == log_level_get();
+ 	icem_conf(m->icem)->rc	   = 4;
+-	icem_conf(m->icem)->policy = ice.policy;
++	icem_conf(m->icem)->policy = sess->proto == IPPROTO_TCP ?
++		ICE_POLICY_RELAY : ice.policy;
+ 
+ 	debug("ice: policy = %s\n",
+ 	      ice.policy == ICE_POLICY_RELAY ? "relay" : "all");

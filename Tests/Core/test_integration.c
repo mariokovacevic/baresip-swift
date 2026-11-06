@@ -51,6 +51,8 @@ static char *read_file(const char *path, size_t *len)
 }
 
 
+static const char *turn_transport = "udp";
+
 static bsk_account_id add_account(bsk_engine *e, const char *host,
 				  const char *user, const char *pass,
 				  bool ice_turn, bsk_dtmf_mode dtmf)
@@ -63,7 +65,11 @@ static bsk_account_id add_account(bsk_engine *e, const char *host,
 
 	snprintf(aor, sizeof(aor), "sip:%s@%s", user, host);
 	snprintf(registrar, sizeof(registrar), "sip:%s:5061;transport=tls", host);
-	snprintf(turn, sizeof(turn), "turn:%s:3478?transport=udp", host);
+	if (0 == strcmp(turn_transport, "tls"))
+		snprintf(turn, sizeof(turn), "turns:%s:5349", host);
+	else
+		snprintf(turn, sizeof(turn), "turn:%s:3478?transport=%s", host,
+			 turn_transport);
 
 	memset(&ac, 0, sizeof(ac));
 	ac.aor = aor;
@@ -127,7 +133,8 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	CHECK(wait_until(&w, running, 2000));
 	CHECK_OK(bsk_engine_audio_session_activated(e, &err), &err);
 
-	printf("9. ICE relay-only policy: media must flow through TURN\n");
+	printf("9. ICE relay-only policy over TURN/%s: media must flow "
+	       "through the relay\n", turn_transport);
 	alice = add_account(e, host, "alice", "alicepass", true, BSK_DTMF_AUTO);
 	CHECK_OK(bsk_account_register(e, alice, &err), &err);
 	CHECK(wait_until(&w, registered, 10000));
@@ -148,7 +155,7 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	CHECK(wait_until(&w, released, 10000));
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
-	printf("integration relay: PASS\n");
+	printf("integration relay (%s): PASS\n", turn_transport);
 	return 0;
 }
 
@@ -171,6 +178,9 @@ int main(int argc, char **argv)
 
 	ca = read_file(getenv("BSK_TEST_CA_PEM") ? getenv("BSK_TEST_CA_PEM") : "", &ca_len);
 	CHECK(ca != NULL);
+
+	if (argc > 3)
+		turn_transport = argv[3];
 
 	if (argc > 2 && 0 == strcmp(argv[2], "relay")) {
 		int ret = run_relay(host, ca, ca_len);

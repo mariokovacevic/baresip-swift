@@ -46,8 +46,10 @@ if ! BSK_TEST_VERBOSE=1 "$BUILD/tests/bsk_test_integration" "$HOSTIP" 2> "$BUILD
 fi
 grep -E "integration: call" "$BUILD/integration.err" | tail -40 || true
 
-if ! BSK_TEST_VERBOSE=1 "$BUILD/tests/bsk_test_integration" "$HOSTIP" relay 2> "$BUILD/integration-relay.err"; then
-  grep -vE "aucodec|aufilt|mediaenc|medianat:|ausrc|auplay" "$BUILD/integration-relay.err" | grep -E "CHECK failed|integration: call|ice|turn|TURN|stream|rtp|RTP|audio|SIP/2.0|^(INVITE|ACK|BYE) |c=IN|a=candidate|m=audio" | tail -90 || true
-  docker compose -f "$HERE/docker-compose.yml" logs --tail 60 coturn || true
-  exit 1
-fi
+for tp in udp tcp tls; do
+  if ! BSK_TEST_VERBOSE=1 "$BUILD/tests/bsk_test_integration" "$HOSTIP" relay "$tp" 2> "$BUILD/integration-relay-$tp.err"; then
+    grep -vE "aucodec|aufilt|mediaenc|medianat:|ausrc|auplay" "$BUILD/integration-relay-$tp.err" | grep -E "CHECK failed|integration: call|ice|turn|TURN|stream|rtp|RTP|audio|tls|TLS|SIP/2.0|^(INVITE|ACK|BYE) |c=IN|a=candidate|m=audio" | tail -90 || true
+    docker compose -f "$HERE/docker-compose.yml" logs --tail 60 coturn || true
+    exit 1
+  fi
+done

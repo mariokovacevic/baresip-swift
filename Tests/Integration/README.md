@@ -9,7 +9,7 @@
 5. hold/resume on an established call;
 6. an ICE call with the TURN relay forced (`turn:HOSTIP:3478`);
 7. a second call to `bob` from a second account while the first is held, and swapping;
-8. a separate engine with the relay-only ICE policy (`ice_relay_only`), which must select a relay candidate and receive RTP through coturn.
+8. a separate engine with the relay-only ICE policy (`ice_relay_only`), run three times with the TURN server reached over UDP (`turn:...?transport=udp`), TCP (`turn:...?transport=tcp`) and TLS (`turns:...:5349`); each must select a relay candidate and send and receive RTP through coturn.
 
 The suite needs Docker and a host-network capable engine (Linux, or Docker Desktop on macOS with the Asterisk ports mapped). It runs in CI as the `integration` job on an Ubuntu runner; to run it locally:
 

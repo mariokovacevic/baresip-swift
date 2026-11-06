@@ -12,4 +12,5 @@ services:
     network_mode: host
     volumes:
       - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - ./asterisk/keys:/etc/coturn/keys:ro
     command: ["-c", "/etc/coturn/turnserver.conf"]
