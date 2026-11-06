@@ -32,7 +32,12 @@ cmake -S "$ROOT/Core" -B "$BUILD" -DCMAKE_BUILD_TYPE=Debug \
 cmake --build "$BUILD" -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)" >/dev/null
 
 if [[ "$(uname -s)" == Darwin ]]; then
-  export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0}"
+  if [[ -n "${BUILD_ONLY:-}" ]]; then
+  echo "built test binaries in $BUILD/tests"
+  exit 0
+fi
+
+export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0}"
 else
   export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=1}"
 fi

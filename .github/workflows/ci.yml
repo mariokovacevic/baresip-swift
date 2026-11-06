@@ -104,3 +104,30 @@ jobs:
             Build/out/BaresipKitCore.xcframework.zip
             Build/out/checksum.txt
             Build/out/sizes.txt
+
+  integration:
+    name: Integration against Asterisk and coturn (Docker)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libssl-dev zlib1g-dev yasm python3
+      - name: Cache pinned sources and built prefix
+        uses: actions/cache@v4
+        with:
+          path: |
+            Build/.deps
+            Build/out/host/prefix
+          key: linux-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Patches/*.patch') }}
+      - name: Build host prefix and test binaries
+        run: |
+          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+          BUILD_ONLY=1 HOSTIP=$(hostname -I | awk '{print $1}') PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Run integration suite
+        run: |
+          HOSTIP=$(hostname -I | awk '{print $1}')
+          echo "HOSTIP=$HOSTIP"
+          PREFIX=Build/out/host/prefix HOSTIP=$HOSTIP Tests/Integration/run_integration.sh
+
