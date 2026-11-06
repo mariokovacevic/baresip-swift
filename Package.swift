@@ -1,5 +1,18 @@
 // swift-tools-version: 5.9
+import Foundation
 import PackageDescription
+
+let coreReleaseURL = ""
+let coreReleaseChecksum = ""
+
+let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+let localCorePath = "Build/out/BaresipKitCore.xcframework"
+let useLocalCore = FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(localCorePath).path)
+    || coreReleaseURL.isEmpty
+
+let coreTarget: Target = useLocalCore
+    ? .binaryTarget(name: "BaresipKitCore", path: localCorePath)
+    : .binaryTarget(name: "BaresipKitCore", url: coreReleaseURL, checksum: coreReleaseChecksum)
 
 let package = Package(
     name: "BaresipKit",
@@ -14,10 +27,7 @@ let package = Package(
         .library(name: "BaresipKitPushKit", targets: ["BaresipKitPushKit"]),
     ],
     targets: [
-        .binaryTarget(
-            name: "BaresipKitCore",
-            path: "Build/out/BaresipKitCore.xcframework"
-        ),
+        coreTarget,
         .target(
             name: "BaresipKitBridge",
             dependencies: ["BaresipKitCore"],

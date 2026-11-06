@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
+jobs:
+  release:
+    name: Build XCFramework and publish the release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate version
+        run: |
+          [[ "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]
+          ! git rev-parse "v${{ inputs.version }}" >/dev/null 2>&1
+      - name: Install CMake
+        run: cmake --version || brew install cmake
+      - name: Build XCFramework (default module set)
+        run: MODULE_SET=default JOBS=4 Build/build-xcframework.sh
+      - name: Collect license texts
+        run: |
+          mkdir -p Build/out/licenses
+          cp LICENSE Build/out/licenses/BaresipKit-LICENSE
+          cp Build/.deps/re/LICENSE Build/out/licenses/libre-LICENSE
+          cp Build/.deps/baresip/LICENSE Build/out/licenses/baresip-LICENSE
+          cp Build/.deps/openssl/LICENSE.txt Build/out/licenses/OpenSSL-LICENSE.txt
+          cp Build/.deps/opus/COPYING Build/out/licenses/Opus-COPYING
+          cp THIRD_PARTY_NOTICES.md Build/out/licenses/
+          (cd Build/out && zip -qr BaresipKitCore-licenses.zip licenses)
+      - name: Point Package.swift at the release asset
+        run: |
+          VERSION="${{ inputs.version }}"
+          CHECKSUM="$(cat Build/out/checksum.txt)"
+          URL="https://github.com/${{ github.repository }}/releases/download/v${VERSION}/BaresipKitCore.xcframework.zip"
+          sed -i '' "s|^let coreReleaseURL = \".*\"|let coreReleaseURL = \"${URL}\"|" Package.swift
+          sed -i '' "s|^let coreReleaseChecksum = \".*\"|let coreReleaseChecksum = \"${CHECKSUM}\"|" Package.swift
+          grep -n "coreRelease" Package.swift
+      - name: Commit, tag and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Release v${{ inputs.version }}: point BaresipKitCore at the release asset"
+          git tag "v${{ inputs.version }}"
+          git push origin "HEAD:${{ github.ref_name }}" "v${{ inputs.version }}"
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ inputs.version }}" \
+            Build/out/BaresipKitCore.xcframework.zip \
+            Build/out/BaresipKitCore-licenses.zip \
+            --title "BaresipKit ${{ inputs.version }}" \
+            --notes "BaresipKitCore XCFramework (iOS device arm64, simulator arm64). SPM checksum: $(cat Build/out/checksum.txt). Pinned upstream versions: see Build/versions.env."

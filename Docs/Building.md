@@ -24,7 +24,20 @@ The script clones each pinned source (`Build/versions.env`), verifies the commit
 
 ## Using the package
 
-`Package.swift` points the binary target at `Build/out/BaresipKitCore.xcframework`. For a release, upload the zip and switch the target to `url:` + `checksum:` from `Build/out/checksum.txt`. The checksum changes with every rebuild because the archives carry timestamps, so compute it from the exact zip you publish.
+`Package.swift` resolves the `BaresipKitCore` binary target in two ways:
+
+- **Local build**: when `Build/out/BaresipKitCore.xcframework` exists (after running the build script), or when no release has been made yet, the target uses that path.
+- **Release**: otherwise it downloads the zip from the GitHub release named in `coreReleaseURL` and verifies `coreReleaseChecksum`.
+
+Consumers add the package by URL in Xcode (File > Add Package Dependencies) once a release exists:
+
+```swift
+.package(url: "https://github.com/mariokovacevic/baresip-swift.git", from: "0.1.0")
+```
+
+## Releasing
+
+Run the **Release** workflow from the Actions tab with a version such as `0.1.0`. It builds the XCFramework on a macOS runner, writes the release URL and checksum into `Package.swift`, commits and tags `v<version>`, and creates a GitHub release with the XCFramework zip and a zip of the license texts. The checksum changes with every rebuild because the archives carry timestamps, so it is always computed from the exact zip that is published.
 
 ## Host build and core tests
 
