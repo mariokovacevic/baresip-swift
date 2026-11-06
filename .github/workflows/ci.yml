@@ -15,6 +15,29 @@ defaults:
     shell: bash -eo pipefail {0}
 
 jobs:
+  lint:
+    name: Lint and format check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install linters
+        run: |
+          brew install swiftformat swiftlint >/dev/null
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet clang-format==18.1.3
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+      - name: Run Scripts/lint.sh
+        run: |
+          swiftformat --version
+          swiftlint version
+          clang-format --version
+          if ! Scripts/lint.sh; then
+            Scripts/format.sh
+            echo "--- diff produced by Scripts/format.sh"
+            git diff
+            exit 1
+          fi
+
   linux-core:
     name: Linux host build, sanitizers, core tests
     runs-on: ubuntu-24.04
@@ -65,14 +88,24 @@ jobs:
           key: macos-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Patches/*.patch') }}
       - name: Build XCFramework (default module set)
         run: MODULE_SET=default JOBS=4 Build/build-xcframework.sh
+      - name: Build Swift package for the simulator and a device, warnings as errors
+        run: |
+          for destination in 'generic/platform=iOS Simulator' 'generic/platform=iOS'; do
+            xcodebuild build -scheme BaresipKit-Package -destination "$destination" \
+              SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 \
+              | tee package.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
+            grep -q "BUILD SUCCEEDED" package.log
+          done
+      - name: Build documentation, warnings as errors
+        run: |
+          xcodebuild docbuild -scheme BaresipKit-Package -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath Build/out/docc OTHER_DOCC_FLAGS="--warnings-as-errors" 2>&1 \
+            | tee docc.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" docc.log
       - name: Host build and core tests
         run: |
           PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
           HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1) PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
-      - name: Build Swift package for the simulator
-        run: |
-          xcodebuild build -scheme BaresipKit-Package -destination 'generic/platform=iOS Simulator' ARCHS=arm64 2>&1 | tee package.log | grep -E "error:|warning: .*\.swift|BUILD (SUCCEEDED|FAILED)" || true
-          grep -q "BUILD SUCCEEDED" package.log
       - name: Run XCTest on a simulator
         run: |
           xcrun simctl list runtimes
@@ -92,16 +125,19 @@ jobs:
           echo "Using simulator: $UDID"
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID" || true
-          xcodebuild test -scheme BaresipKit-Package -destination "id=${UDID}" 2>&1 | tee xctest.log | grep -E "Test Suite|Executed|error:|Test Case .*failed|TEST (SUCCEEDED|FAILED)" || true
+          xcodebuild test -scheme BaresipKit-Package -destination "id=${UDID}" SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 | tee xctest.log | grep -E "Test Suite|Executed|error:|Test Case .*failed|TEST (SUCCEEDED|FAILED)" || true
           grep -q "TEST SUCCEEDED" xctest.log
       - name: Build the sample app for the simulator
         run: |
           brew install xcodegen >/dev/null
           cd Examples/SampleApp
           xcodegen generate
-          xcodebuild build -project BaresipKitSample.xcodeproj -scheme BaresipKitSample \
-            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO 2>&1 | tee sample.log | grep -E "error:|warning: .*\.swift|BUILD (SUCCEEDED|FAILED)" || true
-          grep -q "BUILD SUCCEEDED" sample.log
+          for destination in 'generic/platform=iOS Simulator' 'generic/platform=iOS'; do
+            xcodebuild build -project BaresipKitSample.xcodeproj -scheme BaresipKitSample \
+              -destination "$destination" CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 \
+              | tee sample.log | grep -E "error:|warning: .*\.swift|BUILD (SUCCEEDED|FAILED)" || true
+            grep -q "BUILD SUCCEEDED" sample.log
+          done
       - name: Sample app UI test (TLS registration with a private CA, pinning, call to a host peer)
         run: |
           HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1)
@@ -122,6 +158,7 @@ jobs:
             -destination "id=${SIM_UDID}" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= 2>&1 \
             | tee "$OUT/uitest.log" | grep -E "Test Case|error:|XCTAssert|failed|TEST (SUCCEEDED|FAILED)" || true
           if ! grep -q "TEST SUCCEEDED" "$OUT/uitest.log"; then
+            grep -A120 "not found in:" "$OUT/uitest.log" | head -150 || true
             tail -60 "$OUT/uitest.log"
             echo "--- registrar trace"; tail -60 "$OUT/registrar-trace.txt" || true
             echo "--- peer"; cat "$OUT/peer.out"; grep -E "CHECK|call|SIP/2.0|INVITE" "$OUT/peer.err" | tail -40 || true
