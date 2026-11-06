@@ -36,9 +36,11 @@ extension CallModel {
                                             configuration: BaresipCallKitConfiguration(supportsVideo: true))
             push = BaresipPushKitAdapter(engine: engine, appID: "com.example.BaresipKitSample") { [weak self] payload in
                 guard let self else { throw CancellationError() }
-                try await self.pushArrived(payload)
+                try await pushArrived(payload)
             }
-            append("engine started, core \(BaresipEngine.coreVersion), CA \(tls.ca == nil ? "system" : "custom"), client certificate \(tls.client == nil ? "none" : "set"), pins \(tls.pins.count)")
+            append(
+                "engine started, core \(BaresipEngine.coreVersion), CA \(tls.ca == nil ? "system" : "custom"), client certificate \(tls.client == nil ? "none" : "set"), pins \(tls.pins.count)"
+            )
         } catch {
             append("engine start failed: \(error)")
         }

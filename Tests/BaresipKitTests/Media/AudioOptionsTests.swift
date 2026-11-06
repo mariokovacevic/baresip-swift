@@ -11,11 +11,11 @@ final class AudioOptionsTests: XCTestCase {
         XCTAssertFalse(off.contains(.allowBluetoothA2DP))
         XCTAssertTrue(off.contains(.defaultToSpeaker))
         #if compiler(>=6.2)
-        XCTAssertTrue(on.contains(.allowBluetoothHFP))
-        XCTAssertFalse(off.contains(.allowBluetoothHFP))
+            XCTAssertTrue(on.contains(.allowBluetoothHFP))
+            XCTAssertFalse(off.contains(.allowBluetoothHFP))
         #else
-        XCTAssertTrue(on.contains(.allowBluetooth))
-        XCTAssertFalse(off.contains(.allowBluetooth))
+            XCTAssertTrue(on.contains(.allowBluetooth))
+            XCTAssertFalse(off.contains(.allowBluetooth))
         #endif
     }
 }

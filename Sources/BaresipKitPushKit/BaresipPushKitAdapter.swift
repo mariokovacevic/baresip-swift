@@ -6,7 +6,8 @@ import BaresipKit
 /// Registers for VoIP pushes and keeps the account's push `Contact` parameters current.
 ///
 /// When a VoIP push arrives, the adapter calls your handler, which must report the call to
-/// CallKit (for example with `BaresipCallKitAdapter.reportIncomingCallFromPush(uuid:remoteURI:displayName:hasVideo:)`), and then
+/// CallKit (for example with `BaresipCallKitAdapter.reportIncomingCallFromPush(uuid:remoteURI:displayName:hasVideo:)`),
+/// and then
 /// wakes the engine so the INVITE can arrive. If the handler throws, the adapter reports and
 /// ends a placeholder call, because iOS terminates apps that receive a VoIP push without
 /// reporting a call.
@@ -43,10 +44,10 @@ public final class BaresipPushKitAdapter: NSObject, PKPushRegistryDelegate, @unc
     public init(engine: BaresipEngine, appID: String, accountID: BaresipAccountID? = nil,
                 onIncomingPush: @escaping IncomingPushHandler) {
         self.engine = engine
-        self.tokens = BaresipPushTokens(appID: appID)
+        tokens = BaresipPushTokens(appID: appID)
         self.accountID = accountID
         self.onIncomingPush = onIncomingPush
-        self.registry = PKPushRegistry(queue: nil)
+        registry = PKPushRegistry(queue: nil)
         super.init()
         registry.delegate = self
         registry.desiredPushTypes = [.voIP]

@@ -29,7 +29,7 @@ public struct BaresipVideoFrame: @unchecked Sendable {
         self.pixelBuffer = pixelBuffer
         self.timestamp = timestamp
         self.rotationDegrees = rotationDegrees
-        self.width = CVPixelBufferGetWidth(pixelBuffer)
-        self.height = CVPixelBufferGetHeight(pixelBuffer)
+        width = CVPixelBufferGetWidth(pixelBuffer)
+        height = CVPixelBufferGetHeight(pixelBuffer)
     }
 }

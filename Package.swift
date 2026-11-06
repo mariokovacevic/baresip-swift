@@ -17,7 +17,7 @@ let coreTarget: Target = useLocalCore
 let package = Package(
     name: "BaresipKit",
     platforms: [
-        .iOS(.v17)
+        .iOS(.v17),
     ],
     products: [
         .library(name: "BaresipKit", targets: ["BaresipKit"]),

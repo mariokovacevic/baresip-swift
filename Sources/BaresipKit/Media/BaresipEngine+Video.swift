@@ -41,7 +41,7 @@ extension BaresipEngine {
     ///
     /// - Returns: Device names for ``setCamera(_:callID:)`` and ``startVideoPreview(device:renderer:)``.
     public func videoDevices() async -> [String] {
-        (try? await run { $0.videoDevices() }) ?? []
+        await (try? run { $0.videoDevices() }) ?? []
     }
 
     func clearVideoSinks(callID: BaresipCallID) {

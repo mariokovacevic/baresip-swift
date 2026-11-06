@@ -83,14 +83,13 @@ extension CallModel {
         try? await engine.unregister(accountID: accountID)
     }
 
-
     var savedTLS: TLSSnapshot {
         TLSSnapshot(ca: SettingsStore.caCertificates, client: SettingsStore.clientCertificate,
                     pins: SettingsStore.load().pinList)
     }
 
     func accountConfiguration(_ settings: SIPSettings, password: String,
-                                      turnPassword: String) -> BaresipAccountConfiguration {
+                              turnPassword: String) -> BaresipAccountConfiguration {
         var nat = BaresipNATConfiguration()
         if settings.useICE {
             nat.mode = .ice
@@ -99,13 +98,15 @@ extension CallModel {
             }
             if !settings.turnURI.trimmed.isEmpty {
                 nat.turnServers = [BaresipTURNServer(uri: settings.turnURI.trimmed,
-                                              username: settings.turnUser.trimmed.isEmpty ? nil : settings.turnUser.trimmed,
-                                              password: turnPassword.isEmpty ? nil : turnPassword)]
+                                                     username: settings.turnUser.trimmed.isEmpty ? nil : settings
+                                                         .turnUser.trimmed,
+                                                     password: turnPassword.isEmpty ? nil : turnPassword)]
             }
         }
         let authUser = settings.authUser.trimmed.isEmpty ? settings.username.trimmed : settings.authUser.trimmed
         return BaresipAccountConfiguration(aor: settings.aor,
-                                           displayName: settings.displayName.trimmed.isEmpty ? nil : settings.displayName.trimmed,
+                                           displayName: settings.displayName.trimmed.isEmpty ? nil : settings
+                                               .displayName.trimmed,
                                            registrar: settings.registrar,
                                            outboundProxy: settings.proxy,
                                            transport: settings.transport,

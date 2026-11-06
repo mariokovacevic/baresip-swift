@@ -10,9 +10,17 @@ struct CallRow: Identifiable, Equatable {
     var codec: String = ""
     var connectedAt: Date?
 
-    var title: String { CallRow.displayName(remote) }
-    var initials: String { CallRow.initials(title) }
-    var isHeld: Bool { state == .paused || state == .pausing }
+    var title: String {
+        CallRow.displayName(remote)
+    }
+
+    var initials: String {
+        CallRow.initials(title)
+    }
+
+    var isHeld: Bool {
+        state == .paused || state == .pausing
+    }
 
     static func displayName(_ remote: String) -> String {
         var value = remote
@@ -30,7 +38,7 @@ struct CallRow: Identifiable, Equatable {
 
     static func initials(_ name: String) -> String {
         let words = name.split(whereSeparator: { $0 == " " || $0 == "." || $0 == "-" }).prefix(2)
-        let letters = words.compactMap { $0.first }.map { String($0).uppercased() }.joined()
+        let letters = words.compactMap(\.first).map { String($0).uppercased() }.joined()
         return letters.isEmpty ? String(name.prefix(2)).uppercased() : letters
     }
 }

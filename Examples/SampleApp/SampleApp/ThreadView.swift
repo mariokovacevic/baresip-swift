@@ -28,7 +28,7 @@ struct ThreadView: View {
             Divider()
             HStack(spacing: 8) {
                 TextField("SIP message", text: $draft, axis: .vertical)
-                    .lineLimit(1...4)
+                    .lineLimit(1 ... 4)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .overlay(RoundedRectangle(cornerRadius: 19).stroke(Color(.systemGray4)))

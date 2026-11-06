@@ -89,7 +89,12 @@ struct InCallView: View {
     private var header: some View {
         VStack(spacing: 8) {
             if !model.videoEnabled {
-                Avatar(initials: model.currentRow?.initials ?? "", size: 96, tint: .white, background: Palette.darkButton)
+                Avatar(
+                    initials: model.currentRow?.initials ?? "",
+                    size: 96,
+                    tint: .white,
+                    background: Palette.darkButton
+                )
             }
             Text(model.currentRow?.title ?? "Call")
                 .font(.system(size: 30, weight: .semibold))
@@ -128,7 +133,11 @@ struct InCallView: View {
 
     private var controls: some View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 28), count: 3), spacing: 22) {
-            CircleButton(title: model.muted ? "unmute" : "mute", systemImage: model.muted ? "mic.slash.fill" : "mic.fill", active: model.muted) {
+            CircleButton(
+                title: model.muted ? "unmute" : "mute",
+                systemImage: model.muted ? "mic.slash.fill" : "mic.fill",
+                active: model.muted
+            ) {
                 Task { await model.toggleMute() }
             }
             CircleButton(title: "keypad", systemImage: "circle.grid.3x3.fill") {
@@ -141,7 +150,11 @@ struct InCallView: View {
             CircleButton(title: model.onHold ? "resume" : "hold", systemImage: "pause.fill", active: model.onHold) {
                 Task { await model.toggleHold() }
             }
-            CircleButton(title: "video", systemImage: model.videoEnabled ? "video.fill" : "video.slash.fill", active: model.videoEnabled) {
+            CircleButton(
+                title: "video",
+                systemImage: model.videoEnabled ? "video.fill" : "video.slash.fill",
+                active: model.videoEnabled
+            ) {
                 Task { await model.toggleVideo() }
             }
             CircleButton(title: "transfer", systemImage: "arrow.left.arrow.right") {

@@ -3,7 +3,11 @@ import Foundation
 /// Settings for the CallKit provider created by ``BaresipCallKitAdapter``.
 public struct BaresipCallKitConfiguration: Sendable {
     /// Has no effect: current SDKs show the app name from the Info.plist.
-    @available(*, deprecated, message: "CXProviderConfiguration.localizedName is read-only in current SDKs; CallKit shows the app name from the Info.plist.")
+    @available(
+        *,
+        deprecated,
+        message: "CXProviderConfiguration.localizedName is read-only in current SDKs; CallKit shows the app name from the Info.plist."
+    )
     public var localizedName: String = ""
     /// Whether calls may have video.
     public var supportsVideo: Bool
@@ -32,7 +36,11 @@ public struct BaresipCallKitConfiguration: Sendable {
     }
 
     /// Creates CallKit settings with a localized name, which has no effect.
-    @available(*, deprecated, message: "localizedName has no effect; use init(supportsVideo:maximumCallsPerCallGroup:iconTemplateImageData:ringtoneSound:)")
+    @available(
+        *,
+        deprecated,
+        message: "localizedName has no effect; use init(supportsVideo:maximumCallsPerCallGroup:iconTemplateImageData:ringtoneSound:)"
+    )
     public init(localizedName: String, supportsVideo: Bool = true, maximumCallsPerCallGroup: Int = 1,
                 iconTemplateImageData: Data? = nil, ringtoneSound: String? = nil) {
         self.init(supportsVideo: supportsVideo, maximumCallsPerCallGroup: maximumCallsPerCallGroup,

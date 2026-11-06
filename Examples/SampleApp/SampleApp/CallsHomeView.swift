@@ -7,7 +7,7 @@ struct CallsHomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                if model.currentCall != nil && model.callMinimized {
+                if model.currentCall != nil, model.callMinimized {
                     Button {
                         model.callMinimized = false
                     } label: {

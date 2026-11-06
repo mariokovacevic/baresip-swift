@@ -74,7 +74,7 @@ public struct BaresipAccountConfiguration: Sendable, Equatable {
                 outboundProxy: String? = nil, transport: BaresipTransport = .tls,
                 authUser: String? = nil, authPassword: String? = nil,
                 registerExpires: Duration = .seconds(600),
-                registerRetry: ClosedRange<Duration> = .seconds(2)...(.seconds(120)),
+                registerRetry: ClosedRange<Duration> = .seconds(2) ... .seconds(120),
                 sipOutbound: Bool = false, keepAlive: Bool = true,
                 mediaEncryption: BaresipMediaEncryption = .srtpOptional,
                 nat: BaresipNATConfiguration = BaresipNATConfiguration(),

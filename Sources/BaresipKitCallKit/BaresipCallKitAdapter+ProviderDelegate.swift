@@ -67,7 +67,7 @@ extension BaresipCallKitAdapter: CXProviderDelegate {
         let box = UncheckedSendable(value: action)
         Task {
             do {
-                let video = (try? await engine.callInfo(callID: call))?.hasVideo ?? false
+                let video = await (try? engine.callInfo(callID: call))?.hasVideo ?? false
                 try await engine.answer(callID: call, video: video)
                 box.value.fulfill()
             } catch {

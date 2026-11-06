@@ -59,8 +59,13 @@ final class CallModel: ObservableObject {
     var previewAudioActive = false
     let uiTest = ProcessInfo.processInfo.environment["BSK_UITEST"] == "1"
 
-    var caSummaries: [String] { PEM.summaries(caCertificates) }
-    var clientSummaries: [String] { PEM.summaries(clientCertificate) }
+    var caSummaries: [String] {
+        PEM.summaries(caCertificates)
+    }
+
+    var clientSummaries: [String] {
+        PEM.summaries(clientCertificate)
+    }
 
     func start() async {
         guard engine == nil else { return }
@@ -69,7 +74,7 @@ final class CallModel: ObservableObject {
         }
         startPathMonitor()
         await startEngine()
-        if settings.isComplete && !password.isEmpty {
+        if settings.isComplete, !password.isEmpty {
             await register()
         }
     }
@@ -89,7 +94,6 @@ final class CallModel: ObservableObject {
         SettingsStore.caCertificates = caCertificates
         SettingsStore.clientCertificate = nil
     }
-
 
     func append(_ line: String) {
         log.append(line)

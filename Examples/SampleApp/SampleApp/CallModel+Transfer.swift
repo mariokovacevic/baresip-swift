@@ -7,7 +7,6 @@ extension CallModel {
         try? await engine?.hangup(callID: currentCall)
     }
 
-
     func blindTransfer() async {
         guard let engine, let currentCall else { return }
         let target = normalizedDestination(transferTarget)

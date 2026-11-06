@@ -21,7 +21,8 @@ struct CallListRow: View {
                         .lineLimit(1)
                 }
                 TimelineView(.periodic(from: .now, by: 1)) { context in
-                    Text((isCurrent ? "Current · " : "") + callStatusText(row, now: context.date) + (row.codec.isEmpty ? "" : " · \(row.codec)"))
+                    Text((isCurrent ? "Current · " : "") + callStatusText(row, now: context.date) +
+                        (row.codec.isEmpty ? "" : " · \(row.codec)"))
                         .font(.footnote)
                         .monospacedDigit()
                         .foregroundStyle(isCurrent ? Palette.green : Palette.secondaryText)
@@ -49,5 +50,7 @@ struct CallListRow: View {
         .accessibilityIdentifier("calls.row")
     }
 
-    private var isCurrent: Bool { row.id == model.currentCall }
+    private var isCurrent: Bool {
+        row.id == model.currentCall
+    }
 }

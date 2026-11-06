@@ -63,7 +63,7 @@ extension BaresipCallKitAdapter {
     static func normalizedSIPIdentity(_ uri: String) -> (user: String, host: String) {
         var value = uri.trimmingCharacters(in: .whitespaces).lowercased()
         if let open = value.firstIndex(of: "<"), let close = value.lastIndex(of: ">"), open < close {
-            value = String(value[value.index(after: open)..<close])
+            value = String(value[value.index(after: open) ..< close])
         }
         for scheme in ["sips:", "sip:", "tel:"] where value.hasPrefix(scheme) {
             value = String(value.dropFirst(scheme.count))

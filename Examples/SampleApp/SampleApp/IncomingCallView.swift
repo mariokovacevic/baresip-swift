@@ -8,7 +8,7 @@ struct IncomingCallView: View {
         VStack(spacing: 0) {
             ZStack(alignment: .bottomLeading) {
                 Color(red: 0.173, green: 0.173, blue: 0.18)
-                if model.previewing && model.previewVideo, let incoming = model.incoming {
+                if model.previewing, model.previewVideo, let incoming = model.incoming {
                     VideoPane(callID: incoming.id, local: false)
                         .accessibilityLabel("Caller's video")
                 } else {
@@ -63,8 +63,8 @@ struct IncomingCallView: View {
             VStack(spacing: 28) {
                 Spacer()
                 Text(model.previewing
-                     ? "You hear the caller\(model.previewVideo ? " and see their video" : ""). Your microphone and camera turn on when you answer."
-                     : "Answer, decline, or preview the call first without being heard or seen.")
+                    ? "You hear the caller\(model.previewVideo ? " and see their video" : ""). Your microphone and camera turn on when you answer."
+                    : "Answer, decline, or preview the call first without being heard or seen.")
                     .font(.subheadline)
                     .foregroundStyle(Color(white: 0.78))
                     .multilineTextAlignment(.center)

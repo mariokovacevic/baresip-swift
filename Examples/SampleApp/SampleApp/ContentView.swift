@@ -5,7 +5,9 @@ enum CallScreen: String, Identifiable {
     case incoming
     case inCall
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 }
 
 struct ContentView: View {
@@ -34,13 +36,13 @@ struct ContentView: View {
                 if model.incoming != nil {
                     return .incoming
                 }
-                if model.currentCall != nil && !model.callMinimized {
+                if model.currentCall != nil, !model.callMinimized {
                     return .inCall
                 }
                 return nil
             },
             set: { value in
-                if value == nil && model.incoming == nil && model.currentCall != nil {
+                if value == nil, model.incoming == nil, model.currentCall != nil {
                     model.callMinimized = true
                 }
             }

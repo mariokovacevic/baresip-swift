@@ -43,17 +43,17 @@ public struct BaresipTLSConfiguration: Sendable, Equatable {
         self.pinnedSPKISHA256 = pinnedSPKISHA256
         self.cipherList = cipherList
         self.minimumVersion = minimumVersion
-        self.verifyServer = true
+        verifyServer = true
     }
 
     #if DEBUG
-    /// Settings that accept any server certificate. Only available in debug builds.
-    ///
-    /// - Returns: TLS settings with verification turned off.
-    public static func insecureSkippingServerVerification() -> BaresipTLSConfiguration {
-        var configuration = BaresipTLSConfiguration()
-        configuration.verifyServer = false
-        return configuration
-    }
+        /// Settings that accept any server certificate. Only available in debug builds.
+        ///
+        /// - Returns: TLS settings with verification turned off.
+        public static func insecureSkippingServerVerification() -> BaresipTLSConfiguration {
+            var configuration = BaresipTLSConfiguration()
+            configuration.verifyServer = false
+            return configuration
+        }
     #endif
 }

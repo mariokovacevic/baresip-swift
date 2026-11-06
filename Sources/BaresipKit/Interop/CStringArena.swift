@@ -67,11 +67,11 @@ final class CStringArena {
     }
 }
 
-func string<T>(fromCArray tuple: T) -> String {
+func string(fromCArray tuple: some Any) -> String {
     // SAFETY: the C ABI declares these fields as fixed-size char arrays that the core always NUL-terminates.
     withUnsafeBytes(of: tuple) { raw in
         let length = raw.firstIndex(of: 0) ?? raw.count
-        return String(decoding: UnsafeRawBufferPointer(rebasing: raw[0..<length]), as: UTF8.self)
+        return String(decoding: UnsafeRawBufferPointer(rebasing: raw[0 ..< length]), as: UTF8.self)
     }
 }
 

@@ -107,7 +107,7 @@ extension CallModel {
     func updateRow(_ call: BaresipCallID, state: BaresipCallState) {
         if let index = calls.firstIndex(where: { $0.id == call }) {
             calls[index].state = state
-            if calls[index].connectedAt == nil && (state == .connected || state == .streamsRunning) {
+            if calls[index].connectedAt == nil, state == .connected || state == .streamsRunning {
                 calls[index].connectedAt = Date()
                 refreshInfo(call)
             }
@@ -125,13 +125,13 @@ extension CallModel {
 
     func refreshInfo(_ call: BaresipCallID) {
         Task { [weak self] in
-            guard let self, let engine = self.engine,
+            guard let self, let engine,
                   let info = try? await engine.callInfo(callID: call) else { return }
-            if let index = self.calls.firstIndex(where: { $0.id == call }) {
-                self.calls[index].remote = info.remoteDisplayName.isEmpty ? info.remoteURI : info.remoteDisplayName
-                self.calls[index].outgoing = info.isOutgoing
-                self.calls[index].codec = info.audioCodec
-                self.calls[index].hasVideo = info.hasVideo
+            if let index = calls.firstIndex(where: { $0.id == call }) {
+                calls[index].remote = info.remoteDisplayName.isEmpty ? info.remoteURI : info.remoteDisplayName
+                calls[index].outgoing = info.isOutgoing
+                calls[index].codec = info.audioCodec
+                calls[index].hasVideo = info.hasVideo
             }
         }
     }
@@ -153,7 +153,6 @@ extension CallModel {
         calls.first { $0.id == heldCall }
     }
 
-
     func showIncoming(_ call: BaresipCallID) async {
         guard incoming?.id != call, let engine,
               let info = try? await engine.callInfo(callID: call) else { return }
@@ -162,7 +161,6 @@ extension CallModel {
         previewing = false
         previewVideo = false
     }
-
 
     func callReleased(_ call: BaresipCallID) async {
         calls.removeAll { $0.id == call }
@@ -212,7 +210,6 @@ extension CallModel {
         previewVideo = false
         self.incoming = nil
     }
-
 
     func hangup() async {
         guard let engine, let currentCall else { return }
@@ -269,7 +266,6 @@ extension CallModel {
     func toggleSpeaker(_ on: Bool) {
         try? audio?.setSpeakerEnabled(on)
     }
-
 
     func normalizedDestination(_ raw: String) -> String {
         let value = raw.trimmed

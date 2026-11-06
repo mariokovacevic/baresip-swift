@@ -16,7 +16,6 @@ extension CallModel {
         messages.filter { CallRow.displayName($0.peer) == peer }
     }
 
-
     func sendMessage() async {
         guard let engine else { return }
         let to = normalizedDestination(messageTo)
@@ -25,7 +24,14 @@ extension CallModel {
         do {
             let id = try await engine.sendMessage(to: to, text: text, accountID: accountID)
             let status = earlyStatuses.removeValue(forKey: id) ?? .sending
-            messages.append(ChatMessage(id: UUID(), messageID: id, peer: to, text: text, outgoing: true, status: status))
+            messages.append(ChatMessage(
+                id: UUID(),
+                messageID: id,
+                peer: to,
+                text: text,
+                outgoing: true,
+                status: status
+            ))
             messageText = ""
         } catch {
             messages.append(ChatMessage(id: UUID(), messageID: nil, peer: to, text: text, outgoing: true,

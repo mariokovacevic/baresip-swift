@@ -23,17 +23,23 @@ struct Bubble: View {
     }
 
     private var isFailed: Bool {
-        if case .failed = message.status { return true }
+        if case .failed = message.status {
+            return true
+        }
         return false
     }
 
     private var foreground: Color {
-        if isFailed { return Palette.secondaryText }
+        if isFailed {
+            return Palette.secondaryText
+        }
         return message.outgoing ? .white : .primary
     }
 
     private var background: Color {
-        if isFailed { return Color(.systemGray6) }
+        if isFailed {
+            return Color(.systemGray6)
+        }
         return message.outgoing ? Palette.blue : Color(.systemGray5)
     }
 

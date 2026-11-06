@@ -18,10 +18,14 @@ final class VideoSinkTests: XCTestCase {
                 lastHeight = frame.height
             }
         }
+
         func didChangeSize(width: Int, height: Int) {
             lock.withLock { sizes += 1 }
         }
-        var frameCount: Int { lock.withLock { frames } }
+
+        var frameCount: Int {
+            lock.withLock { frames }
+        }
     }
 
     private func makeEngine() throws -> BaresipEngine {
@@ -44,7 +48,7 @@ final class VideoSinkTests: XCTestCase {
         let recorder = Recorder()
         try await engine.startVideoPreview(renderer: recorder)
         let deadline = Date().addingTimeInterval(3)
-        while recorder.frameCount < 3 && Date() < deadline {
+        while recorder.frameCount < 3, Date() < deadline {
             try await Task.sleep(for: .milliseconds(50))
         }
         XCTAssertGreaterThanOrEqual(recorder.frameCount, 3)

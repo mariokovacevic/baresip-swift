@@ -64,7 +64,7 @@ public final class BaresipEngine: @unchecked Sendable {
             }
             continuation.onTermination = { [weak self] _ in
                 guard let self else { return }
-                self.lock.withLock {
+                lock.withLock {
                     self.continuations[id] = nil
                 }
             }
@@ -116,7 +116,7 @@ public final class BaresipEngine: @unchecked Sendable {
     }
 
     func run<T: Sendable>(_ body: @escaping @Sendable (CoreEngine) throws -> T) async throws -> T {
-        let core = self.core
+        let core = core
         return try await withCheckedThrowingContinuation { continuation in
             workQueue.async {
                 continuation.resume(with: Result { try body(core) })

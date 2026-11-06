@@ -77,7 +77,9 @@ struct AccountView: View {
             } header: {
                 Text("Server certificate")
             } footer: {
-                Text("PEM (one or more certificates) or DER (.cer/.crt). Needed for a private CA or a self-signed server.")
+                Text(
+                    "PEM (one or more certificates) or DER (.cer/.crt). Needed for a private CA or a self-signed server."
+                )
             }
 
             Section {
@@ -100,7 +102,7 @@ struct AccountView: View {
             Section {
                 TextField("SPKI SHA-256 pins (base64)", text: $model.settings.pins, axis: .vertical)
                     .accessibilityIdentifier("account.pins")
-                    .lineLimit(1...4)
+                    .lineLimit(1 ... 4)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .font(.caption.monospaced())
@@ -111,7 +113,9 @@ struct AccountView: View {
             } header: {
                 Text("Certificate pinning (optional)")
             } footer: {
-                Text("One pin per line. With pins set, the connection is accepted only if the chain verifies and a certificate matches a pin.")
+                Text(
+                    "One pin per line. With pins set, the connection is accepted only if the chain verifies and a certificate matches a pin."
+                )
             }
 
             Section {
@@ -119,7 +123,9 @@ struct AccountView: View {
             } header: {
                 Text("Incoming calls")
             } footer: {
-                Text("Sends 183 Session Progress so you hear and see the caller before answering, for example at a door intercom. Your microphone and camera stay off until you answer.")
+                Text(
+                    "Sends 183 Session Progress so you hear and see the caller before answering, for example at a door intercom. Your microphone and camera stay off until you answer."
+                )
             }
 
             Section("Media") {
@@ -134,12 +140,20 @@ struct AccountView: View {
             Section("NAT") {
                 Toggle("ICE", isOn: $model.settings.useICE)
                 if model.settings.useICE {
-                    TextField("STUN URI (optional)", text: $model.settings.stunURI, prompt: Text("stun:stun.example.com"))
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    TextField("TURN URI (optional)", text: $model.settings.turnURI, prompt: Text("turns:turn.example.com:5349"))
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    TextField(
+                        "STUN URI (optional)",
+                        text: $model.settings.stunURI,
+                        prompt: Text("stun:stun.example.com")
+                    )
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    TextField(
+                        "TURN URI (optional)",
+                        text: $model.settings.turnURI,
+                        prompt: Text("turns:turn.example.com:5349")
+                    )
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
                     TextField("TURN user", text: $model.settings.turnUser)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -157,7 +171,9 @@ struct AccountView: View {
                 .disabled(!model.settings.isComplete || model.password.isEmpty)
                 .accessibilityIdentifier("account.save")
             } footer: {
-                Text("The password is stored in the Keychain and certificates in the app's protected storage. Changing certificates restarts the SIP engine.")
+                Text(
+                    "The password is stored in the Keychain and certificates in the app's protected storage. Changing certificates restarts the SIP engine."
+                )
             }
         }
         .navigationTitle("Account")

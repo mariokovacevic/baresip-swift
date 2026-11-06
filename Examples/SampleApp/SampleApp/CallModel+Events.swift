@@ -23,7 +23,7 @@ extension CallModel {
             if currentCall == nil {
                 currentCall = info.id
             }
-            if registeredSettings?.autoPreview == true && !calls.contains(where: { $0.id != info.id }) {
+            if registeredSettings?.autoPreview == true, !calls.contains(where: { $0.id != info.id }) {
                 previewing = true
                 previewVideo = info.hasVideo || earlyVideo
                 await activatePreviewAudio()
@@ -32,7 +32,7 @@ extension CallModel {
         case .call(let call, let state, let error):
             append("call \(call) \(state) \(error.map { "\($0)" } ?? "")")
             updateRow(call, state: state)
-            if state == .outgoingInit && (currentCall == nil || heldCall != nil || currentCallOnHold) {
+            if state == .outgoingInit, currentCall == nil || heldCall != nil || currentCallOnHold {
                 currentCall = call
             }
             if call == currentCall {

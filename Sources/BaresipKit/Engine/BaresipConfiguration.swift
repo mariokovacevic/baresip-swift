@@ -68,7 +68,7 @@ public struct BaresipConfiguration: Sendable, Equatable {
                 networkInterface: String? = nil,
                 modules: [String] = BaresipConfiguration.defaultModules,
                 extraConfiguration: String? = nil, ipv6: Bool = true,
-                rtpPortRange: ClosedRange<UInt16> = 10000...20000, maxCalls: Int = 4,
+                rtpPortRange: ClosedRange<UInt16> = 10000 ... 20000, maxCalls: Int = 4,
                 audio: BaresipAudioConfiguration = BaresipAudioConfiguration(),
                 video: BaresipVideoConfiguration = BaresipVideoConfiguration(),
                 tls: BaresipTLSConfiguration = BaresipTLSConfiguration(),

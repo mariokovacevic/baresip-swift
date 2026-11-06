@@ -35,7 +35,7 @@ extension BaresipVideoFrame {
             (frame.planes.2, frame.strides.2),
         ]
         let planeCount = max(1, CVPixelBufferGetPlaneCount(buffer))
-        for index in 0..<min(planeCount, planes.count) {
+        for index in 0 ..< min(planeCount, planes.count) {
             copy(plane: planes[index], into: buffer, at: index)
         }
         return buffer
@@ -50,7 +50,7 @@ extension BaresipVideoFrame {
         let sourceStride = Int(plane.stride)
         let rowBytes = min(sourceStride, destinationStride)
         // SAFETY: both planes have at least `rows` rows of their own stride; rowBytes fits in either.
-        for row in 0..<CVPixelBufferGetHeightOfPlane(buffer, index) {
+        for row in 0 ..< CVPixelBufferGetHeightOfPlane(buffer, index) {
             memcpy(destination + row * destinationStride, source + row * sourceStride, rowBytes)
         }
     }

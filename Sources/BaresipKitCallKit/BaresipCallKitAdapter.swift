@@ -35,7 +35,7 @@ public final class BaresipCallKitAdapter: NSObject, @unchecked Sendable {
     ///   - configuration: CallKit settings.
     public init(engine: BaresipEngine, configuration: BaresipCallKitConfiguration) {
         self.engine = engine
-        self.pushInviteTimeout = configuration.pushInviteTimeout
+        pushInviteTimeout = configuration.pushInviteTimeout
         let providerConfiguration = CXProviderConfiguration()
         providerConfiguration.supportsVideo = configuration.supportsVideo
         providerConfiguration.maximumCallsPerCallGroup = configuration.maximumCallsPerCallGroup

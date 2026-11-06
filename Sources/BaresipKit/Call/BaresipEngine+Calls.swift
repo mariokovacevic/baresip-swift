@@ -139,6 +139,6 @@ extension BaresipEngine {
     ///
     /// - Returns: The calls, oldest first.
     public func activeCalls() async -> [BaresipCallID] {
-        (try? await run { $0.activeCalls() }) ?? []
+        await (try? run { $0.activeCalls() }) ?? []
     }
 }

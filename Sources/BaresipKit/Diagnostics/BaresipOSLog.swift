@@ -17,11 +17,10 @@ public enum BaresipOSLog {
         let sip = Logger(subsystem: subsystem, category: "sip")
         let media = Logger(subsystem: subsystem, category: "media")
         return { entry in
-            let logger: Logger
-            switch entry.domain {
-            case .core: logger = core
-            case .sip: logger = sip
-            case .media: logger = media
+            let logger: Logger = switch entry.domain {
+            case .core: core
+            case .sip: sip
+            case .media: media
             }
             switch entry.level {
             case .debug: logger.debug("\(entry.message, privacy: .public)")

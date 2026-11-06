@@ -53,13 +53,14 @@ public final class BaresipAudioSessionController {
     ///   - allowBluetooth: Whether Bluetooth HFP and A2DP routes are allowed.
     ///   - defaultToSpeaker: Whether audio starts on the loudspeaker.
     /// - Returns: The options for `setCategory(_:mode:options:)`.
-    nonisolated public static func voipCategoryOptions(allowBluetooth: Bool, defaultToSpeaker: Bool) -> AVAudioSession.CategoryOptions {
+    public nonisolated static func voipCategoryOptions(allowBluetooth: Bool, defaultToSpeaker: Bool) -> AVAudioSession
+        .CategoryOptions {
         var options: AVAudioSession.CategoryOptions = []
         if allowBluetooth {
             #if compiler(>=6.2)
-            options.insert(.allowBluetoothHFP)
+                options.insert(.allowBluetoothHFP)
             #else
-            options.insert(.allowBluetooth)
+                options.insert(.allowBluetooth)
             #endif
             options.insert(.allowBluetoothA2DP)
         }
@@ -127,22 +128,22 @@ public final class BaresipAudioSessionController {
     private func observe() {
         let center = NotificationCenter.default
         observers.add(center.addObserver(forName: AVAudioSession.routeChangeNotification,
-                                            object: session, queue: .main) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.engine.audioRouteDidChange()
-                self.onRouteChange?(self.currentRoute)
-            }
-        })
+                                         object: session, queue: .main) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    await engine.audioRouteDidChange()
+                    onRouteChange?(currentRoute)
+                }
+            })
         observers.add(center.addObserver(forName: AVAudioSession.interruptionNotification,
-                                            object: session, queue: .main) { [weak self] note in
-            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                await self.engine.audioInterruption(began: type == .began)
-            }
-        })
+                                         object: session, queue: .main) { [weak self] note in
+                guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    await engine.audioInterruption(began: type == .began)
+                }
+            })
     }
 }
 

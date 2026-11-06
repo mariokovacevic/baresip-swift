@@ -30,7 +30,8 @@ struct SIPSettings: Codable, Equatable {
         authUser = try c.decodeIfPresent(String.self, forKey: .authUser) ?? d.authUser
         displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? d.displayName
         outboundProxy = try c.decodeIfPresent(String.self, forKey: .outboundProxy) ?? d.outboundProxy
-        mediaEncryption = try c.decodeIfPresent(BaresipMediaEncryption.self, forKey: .mediaEncryption) ?? d.mediaEncryption
+        mediaEncryption = try c.decodeIfPresent(BaresipMediaEncryption.self, forKey: .mediaEncryption) ?? d
+            .mediaEncryption
         pins = try c.decodeIfPresent(String.self, forKey: .pins) ?? d.pins
         useICE = try c.decodeIfPresent(Bool.self, forKey: .useICE) ?? d.useICE
         stunURI = try c.decodeIfPresent(String.self, forKey: .stunURI) ?? d.stunURI
@@ -81,7 +82,9 @@ struct SIPSettings: Codable, Equatable {
 }
 
 extension String {
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
+    var trimmed: String {
+        trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 }
 
 enum SettingsStore {

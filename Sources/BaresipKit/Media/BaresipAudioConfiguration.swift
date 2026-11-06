@@ -44,7 +44,7 @@ public struct BaresipAudioConfiguration: Sendable, Equatable {
                 playerModule: String = "audiounit", playerDevice: String? = nil,
                 sampleRate: Int? = nil, channels: Int? = nil,
                 packetTime: Duration = .milliseconds(20),
-                jitterBufferRange: ClosedRange<Int> = 40...200,
+                jitterBufferRange: ClosedRange<Int> = 40 ... 200,
                 adaptiveJitterBuffer: Bool = true, voiceProcessing: Bool = true,
                 codecs: [String] = BaresipAudioConfiguration.defaultCodecs) {
         self.sourceModule = sourceModule

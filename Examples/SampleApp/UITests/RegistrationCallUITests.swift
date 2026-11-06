@@ -83,7 +83,7 @@ final class RegistrationCallUITests: XCTestCase {
 
     private func scrollTo(_ element: XCUIElement) {
         var attempts = 0
-        while !element.isHittable && attempts < 8 {
+        while !element.isHittable, attempts < 8 {
             app.swipeUp()
             attempts += 1
         }
