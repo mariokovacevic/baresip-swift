@@ -82,10 +82,26 @@ final class RegistrationCallUITests: XCTestCase {
     }
 
     private func scrollTo(_ element: XCUIElement) {
-        var attempts = 0
-        while !element.isHittable, attempts < 8 {
-            app.swipeUp()
-            attempts += 1
+        let maximumSteps = 30
+        var steps = 0
+        while !element.exists, steps < maximumSteps {
+            drag(towardsTop: true)
+            steps += 1
+        }
+        steps = 0
+        while !(element.exists && element.isHittable), steps < maximumSteps {
+            drag(towardsTop: false)
+            steps += 1
+        }
+    }
+
+    private func drag(towardsTop: Bool) {
+        let upper = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+        let lower = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.45))
+        if towardsTop {
+            upper.press(forDuration: 0.05, thenDragTo: lower)
+        } else {
+            lower.press(forDuration: 0.05, thenDragTo: upper)
         }
     }
 
