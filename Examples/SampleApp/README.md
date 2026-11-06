@@ -3,7 +3,7 @@
 A SwiftUI app built on the SDK, laid out like the system Phone and Settings apps:
 
 - **Calls**: account status, a dial card (audio, video, message), the list of calls (direction, peer, duration, codec; switch, hold or resume, hang up from the context menu) and the latest message.
-- **In call** (full screen): caller, duration, encryption, codec and ICE path, live loss, jitter, RTT and MOS, then mute, keypad, speaker, hold, video and transfer, switch camera and restart ICE when they apply, and hang up; the chevron returns to the call list while the call goes on.
+- **In call** (full screen): caller, duration, encryption, codec and ICE path, live loss, jitter, RTT and MOS, then mute, keypad, speaker, hold, video and transfer, record (stereo WAV in Documents/Recordings, visible in the Files app), switch camera and restart ICE when they apply, and hang up; the chevron returns to the call list while the call goes on.
 - **Incoming call**: Preview hears (and sees) the caller before answering without sending your audio or video, then Answer or Decline; an automatic preview can be turned on in Account.
 - **Transfer**: consult first (the call goes on hold, the target is called) and complete the attended transfer, end the consultation, or transfer blind.
 - **Messages**: conversations and a thread view with delivery status for SIP messages.

@@ -77,6 +77,8 @@ public enum BaresipMediaEvent: Int, Sendable, Codable {
     case rtpTimeout = 7
     case keyframeRequested = 8
     case earlyVideoAvailable = 9
+    case recordingStarted = 10
+    case recordingStopped = 11
 
     init(_ c: bsk_media_event) {
         self = BaresipMediaEvent(rawValue: Int(c.rawValue)) ?? .audioStarted

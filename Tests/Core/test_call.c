@@ -264,6 +264,45 @@ static int run_peer(const char *host)
 }
 
 
+static uint32_t le32(const unsigned char *p)
+{
+	return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 |
+		(uint32_t)p[3] << 24;
+}
+
+
+static void check_recording(const char *path)
+{
+	FILE *f = fopen(path, "rb");
+	unsigned char h[44];
+	uint32_t srate, data;
+	double energy[2] = { 0, 0 };
+	int16_t frame[2];
+	size_t frames = 0;
+
+	CHECK(f != NULL);
+	CHECK(fread(h, 1, sizeof(h), f) == sizeof(h));
+	CHECK(0 == memcmp(h, "RIFF", 4) && 0 == memcmp(h + 8, "WAVE", 4));
+	CHECK(h[22] == 2 && h[23] == 0);
+	CHECK(h[34] == 16);
+	srate = le32(h + 24);
+	data = le32(h + 40);
+	CHECK(srate == 8000);
+	CHECK(data >= srate * 4 * 2);
+
+	while (fread(frame, sizeof(int16_t), 2, f) == 2) {
+		energy[0] += (double)frame[0] * frame[0];
+		energy[1] += (double)frame[1] * frame[1];
+		frames++;
+	}
+	fclose(f);
+
+	CHECK(frames * 4 == data);
+	CHECK(energy[0] / (double)frames > 1000.0);
+	CHECK(energy[1] / (double)frames > 1000.0);
+}
+
+
 static int run_caller(const char *host)
 {
 	bsk_engine *e;
@@ -274,6 +313,7 @@ static int run_caller(const char *host)
 	bsk_call_statistics st;
 	uint32_t rx_before = 0;
 	char dest[128];
+	char rec_path[512];
 
 	tag = "caller";
 	e = start_engine(caller_port);
@@ -311,6 +351,15 @@ static int run_caller(const char *host)
 		fflush(stdout);
 	}
 
+	if (!use_ice) {
+		snprintf(rec_path, sizeof(rec_path), "%s/bsk_rec_%d.wav",
+			 getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp",
+			 (int)getpid());
+		CHECK_OK(bsk_call_record_start(e, call, rec_path, &err), &err);
+		CHECK(BSK_ERR_INVALID_STATE ==
+		      bsk_call_record_start(e, call, rec_path, &err));
+	}
+
 	sleep(1);
 	CHECK_OK(bsk_call_hold(e, call, true, &err), &err);
 	CHECK(wait_until(&w, paused, 10000));
@@ -333,6 +382,14 @@ static int run_caller(const char *host)
 
 	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
 	CHECK(st.audio.tx_packets > 0);
+
+	if (!use_ice) {
+		CHECK_OK(bsk_call_record_stop(e, call, &err), &err);
+		check_recording(rec_path);
+		printf("caller: recording: PASS (%s)\n", rec_path);
+		fflush(stdout);
+		unlink(rec_path);
+	}
 
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
 	CHECK(wait_until(&w, released, 10000));

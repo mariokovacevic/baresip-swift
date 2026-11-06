@@ -35,6 +35,8 @@ final class CallModel: ObservableObject {
     @Published var stats: BaresipCallStatistics?
     @Published var heldCall: BaresipCallID?
     @Published var callMinimized = false
+    @Published var recordingCall: BaresipCallID?
+    @Published var lastRecording: URL?
     @Published var calls: [CallRow] = []
     @Published var transferTarget = ""
     @Published var messages: [ChatMessage] = []
@@ -298,6 +300,28 @@ final class CallModel: ObservableObject {
 
     var heldRow: CallRow? {
         calls.first { $0.id == heldCall }
+    }
+
+    func toggleRecording() async {
+        guard let engine, let currentCall else { return }
+        do {
+            if recordingCall == currentCall {
+                try await engine.stopRecording(callID: currentCall)
+            } else {
+                let folder = try FileManager.default.url(for: .documentDirectory, in: .userDomainMask,
+                                                         appropriateFor: nil, create: true)
+                    .appendingPathComponent("Recordings", isDirectory: true)
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+                let name = CallRow.displayName(currentRow?.remote ?? "call")
+                    .replacingOccurrences(of: "/", with: "-")
+                let url = folder.appendingPathComponent("\(stamp) \(name).wav")
+                try await engine.startRecording(callID: currentCall, to: url)
+                lastRecording = url
+            }
+        } catch {
+            append("recording failed: \(error)")
+        }
     }
 
     func endConsultation() async {
@@ -671,6 +695,19 @@ final class CallModel: ObservableObject {
                 messages[index].status = result
             } else {
                 earlyStatuses[status.id] = result
+            }
+        case .media(let call, let info):
+            switch info.event {
+            case .recordingStarted:
+                recordingCall = call
+                append("recording \(call) to \(lastRecording?.lastPathComponent ?? "file")")
+            case .recordingStopped:
+                if recordingCall == call {
+                    recordingCall = nil
+                }
+                append("recording of \(call) saved")
+            default:
+                break
             }
         case .transfer(let call, let event):
             append("transfer \(call): \(event.failed ? "failed" : "requested") \(event.targetURI)")

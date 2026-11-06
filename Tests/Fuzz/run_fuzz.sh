@@ -11,7 +11,7 @@ CC="${CC:-clang}"
 
 MODE="${FUZZ_MODE:-libfuzzer}"
 SRCS=("$HERE/fuzz_parsers.c" "$ROOT/Core/src/bsk_account.c" "$ROOT/Core/src/bsk_log.c"
-      "$ROOT/Core/src/bsk_call.c" "$ROOT/Core/src/bsk_engine.c" "$ROOT/Core/src/bsk_video.c" "$ROOT/Core/src/bsk_tls.c" "$ROOT/Core/src/bsk_rate.c" "$ROOT/Core/src/bsk_message.c")
+      "$ROOT/Core/src/bsk_call.c" "$ROOT/Core/src/bsk_engine.c" "$ROOT/Core/src/bsk_video.c" "$ROOT/Core/src/bsk_tls.c" "$ROOT/Core/src/bsk_rate.c" "$ROOT/Core/src/bsk_message.c" "$ROOT/Core/src/bsk_record.c")
 LIBS=("$PREFIX/lib/libbaresip.a" "$PREFIX/lib/libre.a")
 [ -f "$PREFIX/lib/libvpx.a" ] && LIBS+=("$PREFIX/lib/libvpx.a")
 LIBS+=("$PREFIX/lib/libopus.a" "$PREFIX/lib/libssl.a" "$PREFIX/lib/libcrypto.a" -lz -lresolv -lpthread -lm -ldl)

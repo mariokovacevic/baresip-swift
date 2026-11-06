@@ -3,6 +3,7 @@
 | Area | Status | Plan |
 |---|---|---|
 | ICE restart with Asterisk | Asterisk 23 regenerates its credentials on a restart offer but keeps its old ICE session when the candidates are unchanged, so an explicit `restartICE` without a network change loses media with Asterisk; restarts after an address change work | report upstream to Asterisk |
+| Call recording | WAV only, 16-bit; a direction whose sample rate differs from the other (rare, asymmetric codecs) is recorded as silence; video is not recorded | compressed formats on request |
 | Trickle ICE | not supported (full candidate exchange in SDP) | none planned |
 | Video bitrate adaptation | loss-based only: the encoder target follows RTCP receiver reports (cut on more than 10 % loss, slow increase below 2 %); no REMB/TWCC bandwidth estimation, so congestion without loss is not detected. With VP8 every change re-creates the encoder context (H.264 via VideoToolbox changes in place) | delay-based estimation if needed |
 | External audio injection | not exposed in ABI 0.1 | `ausrc`/`auplay` style callbacks in a later ABI revision |

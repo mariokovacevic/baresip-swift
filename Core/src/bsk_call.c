@@ -37,6 +37,8 @@ static void call_ctx_destructor(void *arg)
 	bsk_engine *e = bsk_global_engine();
 
 	tmr_cancel(&c->tmr_dtmf);
+	if (c->recording)
+		(void)bsk_record_stop(&c->recording);
 	if (e)
 		mtx_lock(&e->video_mtx);
 	list_unlink(&c->le);
@@ -414,6 +416,10 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 		      (failed ? BSK_ERR_NETWORK : BSK_OK), 0, scode,
 		      NULL, "%s", text ? text : "");
 
+	if (c->recording) {
+		(void)bsk_record_stop(&c->recording);
+		emit_media(e, c, BSK_MEDIA_RECORDING_STOPPED, NULL);
+	}
 	emit_state(e, c, failed ? BSK_CALL_FAILED : BSK_CALL_ENDED, &error);
 	c->call = NULL;
 	emit_state(e, c, BSK_CALL_RELEASED, NULL);
@@ -1223,6 +1229,31 @@ static int ice_restart_op(bsk_engine *e, void *arg)
 }
 
 
+static int record_op(bsk_engine *e, void *arg)
+{
+	struct call_arg *ca = arg;
+	int err;
+	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
+
+	if (!c)
+		return err;
+	if (!call_audio(c->call))
+		return ENOSYS;
+
+	if (ca->flag)
+		err = bsk_record_start(call_audio(c->call), ca->str,
+				       &c->recording);
+	else
+		err = bsk_record_stop(&c->recording);
+	if (err)
+		return err;
+
+	emit_media(e, c, ca->flag ? BSK_MEDIA_RECORDING_STARTED :
+		   BSK_MEDIA_RECORDING_STOPPED, NULL);
+	return 0;
+}
+
+
 struct attended_arg {
 	bsk_call_id call;
 	bsk_call_id target;
@@ -1423,6 +1454,29 @@ bsk_status bsk_call_restart_ice(bsk_engine *engine, bsk_call_id call,
 {
 	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
 	return run_call(engine, ice_restart_op, &ca, err, "ICE restart");
+}
+
+
+bsk_status bsk_call_record_start(bsk_engine *engine, bsk_call_id call,
+				 const char *path, bsk_error *err)
+{
+	struct call_arg ca = { call, true, 0, path, 0, 0, 0 };
+
+	if (!str_isset(path)) {
+		bsk_error_clear(err);
+		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
+				     NULL, "path required");
+	}
+
+	return run_call(engine, record_op, &ca, err, "record start");
+}
+
+
+bsk_status bsk_call_record_stop(bsk_engine *engine, bsk_call_id call,
+				bsk_error *err)
+{
+	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
+	return run_call(engine, record_op, &ca, err, "record stop");
 }
 
 

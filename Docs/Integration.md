@@ -121,6 +121,15 @@ for await event in engine.events {
 
 `sendMessage` sends a SIP MESSAGE (RFC 3428) with `text/plain` from the given or default account; `.messageStatus` reports the final response (delivered on 2xx, otherwise the SIP status or transport error). Incoming `text/plain` and `application/json` messages arrive as `.message` with the raw body; other content types are answered with 415 by baresip.
 
+## Recording
+
+```swift
+try await engine.startRecording(callID: call, to: fileURL)
+try await engine.stopRecording(callID: call)
+```
+
+Writes a 16-bit PCM stereo WAV: left is your microphone as sent, right is the other party as played, at the call's audio sample rate. Recording survives hold, resume and re-INVITEs, and the file is finished when you stop or when the call ends; `.media(.recordingStarted)` and `.media(.recordingStopped)` report it. Tell the other party that the call is recorded where the law requires it.
+
 ## Transfers
 
 `transfer(callID:to:)` is a blind transfer (REFER). For an attended transfer put the first call on hold, call the target, talk to it, then call `transferAttended(callID: firstCall, to: consultationCall)`: the first party receives a REFER with `Replaces` and calls the target, the target's call is replaced without ringing, and both of your calls end. When the other side transfers you, the SDK follows the REFER automatically (a new outgoing call appears as `.call(newID, .outgoingInit)` and the old call ends when the transfer succeeds); set `acceptTransfers: false` on the account to decline transfers with 603.

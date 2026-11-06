@@ -150,10 +150,17 @@ struct InCallView: View {
         }
     }
 
-    @ViewBuilder
     private var secondaryActions: some View {
-        if model.videoEnabled || model.settings.useICE {
-            HStack(spacing: 12) {
+        HStack(spacing: 12) {
+            Button {
+                Task { await model.toggleRecording() }
+            } label: {
+                Label(isRecording ? "Stop recording" : "Record",
+                      systemImage: isRecording ? "stop.circle.fill" : "record.circle")
+            }
+            .tint(isRecording ? Color(red: 1.0, green: 0.27, blue: 0.23) : .white)
+            .accessibilityIdentifier("call.record")
+            if model.videoEnabled || model.settings.useICE {
                 if model.videoEnabled {
                     Button("Switch camera") { Task { await model.switchCamera() } }
                 }
@@ -161,10 +168,13 @@ struct InCallView: View {
                     Button("Restart ICE") { Task { await model.restartICE() } }
                 }
             }
-            .font(.footnote.weight(.semibold))
-            .buttonStyle(.bordered)
-            .tint(.white)
         }
+        .font(.footnote.weight(.semibold))
+        .buttonStyle(.bordered)
+    }
+
+    private var isRecording: Bool {
+        model.recordingCall != nil && model.recordingCall == model.currentCall
     }
 
     private var securityLine: String? {

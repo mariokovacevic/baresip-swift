@@ -533,6 +533,23 @@ public final class BaresipEngine: @unchecked Sendable {
         }
     }
 
+    public func startRecording(callID: BaresipCallID, to fileURL: URL) async throws {
+        let path = fileURL.path
+        try await run { h in
+            let arena = CStringArena()
+            var err = bsk_error()
+            try BaresipEngine.check(bsk_call_record_start(h, callID.rawValue, arena.cString(path), &err), err)
+            withExtendedLifetime(arena) {}
+        }
+    }
+
+    public func stopRecording(callID: BaresipCallID) async throws {
+        try await run { h in
+            var err = bsk_error()
+            try BaresipEngine.check(bsk_call_record_stop(h, callID.rawValue, &err), err)
+        }
+    }
+
     public func transferAttended(callID: BaresipCallID, to targetCallID: BaresipCallID) async throws {
         try await run { h in
             var err = bsk_error()

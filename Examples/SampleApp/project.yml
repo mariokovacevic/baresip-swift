@@ -29,6 +29,8 @@ targets:
         NSMicrophoneUsageDescription: "Needed for SIP calls."
         NSCameraUsageDescription: "Needed for video calls."
         UIBackgroundModes: [audio, voip]
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
     settings:
       base:
         SWIFT_VERSION: "5.9"

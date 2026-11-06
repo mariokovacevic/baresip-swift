@@ -24,6 +24,7 @@ set(BSK_SOURCES
   src/bsk_tls.c
   src/bsk_rate.c
   src/bsk_message.c
+  src/bsk_record.c
 )
 
 if(APPLE)

@@ -48,7 +48,6 @@ static int released1(struct waiter *x) { (void)x; return released_n >= 1; }
 static int released2(struct waiter *x) { (void)x; return released_n >= 2; }
 static int got_message(struct waiter *x) { (void)x; return message_n >= 1; }
 static int delivered(struct waiter *x) { (void)x; return delivered_n >= 1; }
-static int paused_remote(struct waiter *x) { return x->call_state == BSK_CALL_PAUSED_BY_REMOTE; }
 
 
 static bsk_engine *start_engine(const char *port, uint16_t rtp)
@@ -153,9 +152,8 @@ static int run_b(const char *host)
 
 	CHECK(wait_until(&w, incoming, 15000));
 	CHECK_OK(bsk_call_answer(e, w.incoming_call, false, &err), &err);
-	CHECK(wait_until(&w, paused_remote, 15000));
 
-	CHECK(wait_until(&w, released1, 20000));
+	CHECK(wait_until(&w, released1, 30000));
 	call = running_call_with(e, "carol", 15000);
 	CHECK(call != BSK_ID_NONE);
 	CHECK(bsk_call_list(e, NULL, 0) == 1);

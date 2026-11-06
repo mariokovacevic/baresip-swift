@@ -49,6 +49,7 @@ struct bsk_call_ctx {
 	bool rtp_established;
 	bool early_preview;
 	bool preview_video;
+	void *recording;
 	bool muted;
 	char dtmf_queue[BSK_MAX_DTMF];
 	size_t dtmf_pos;
@@ -217,6 +218,10 @@ void bsk_calls_flush(bsk_engine *engine);
 void bsk_calls_audio_changed(bsk_engine *engine);
 void bsk_calls_rate_tick(bsk_engine *engine);
 int bsk_message_init(bsk_engine *engine);
+int bsk_record_init(void);
+void bsk_record_close(void);
+int bsk_record_start(const struct audio *au, const char *path, void **handle);
+int bsk_record_stop(void **handle);
 void bsk_message_close(bsk_engine *engine);
 
 bsk_engine *bsk_global_engine(void);
