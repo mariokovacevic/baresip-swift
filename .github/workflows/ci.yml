@@ -5,6 +5,10 @@ on:
     branches: [main, "claude/**"]
   pull_request:
 
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
 jobs:
   linux-core:
     name: Linux host build, sanitizers, core tests
@@ -64,8 +68,11 @@ jobs:
         run: xcodebuild build -scheme BaresipKit-Package -destination 'generic/platform=iOS Simulator' | tail -20
       - name: Run XCTest on a simulator
         run: |
-          DEVICE=$(xcrun simctl list devices available iPhone | grep -m1 -o 'iPhone [0-9A-Za-z ]*' | head -1)
-          xcodebuild test -scheme BaresipKit-Package -destination "platform=iOS Simulator,name=${DEVICE}" | tail -40
+          DEVICE=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for k,v in d.items() if "iOS" in k for x in v if x["isAvailable"] and x["name"].startswith("iPhone")]; print(names[-1] if names else "")')
+          test -n "$DEVICE"
+          echo "Using simulator: $DEVICE"
+          xcodebuild test -scheme BaresipKit-Package -destination "platform=iOS Simulator,name=${DEVICE}" 2>&1 | tee xctest.log | grep -E "Test Suite|Executed|error:|TEST (SUCCEEDED|FAILED)" || true
+          grep -q "TEST SUCCEEDED" xctest.log
       - name: Build the sample app for the simulator
         run: |
           brew install xcodegen >/dev/null
