@@ -146,9 +146,41 @@ static inline bsk_bridge_ice_event bsk_bridge_event_ice(const bsk_event *ev)
 	return out;
 }
 
+typedef struct bsk_bridge_network_event {
+	bool transports_reset;
+	char local_address[64];
+} bsk_bridge_network_event;
+
 static inline bool bsk_bridge_event_network_reset(const bsk_event *ev)
 {
 	return ev->u.network.transports_reset;
+}
+
+static inline bsk_bridge_network_event
+bsk_bridge_event_network(const bsk_event *ev)
+{
+	bsk_bridge_network_event out;
+	out.transports_reset = ev->u.network.transports_reset;
+	__builtin_memcpy(out.local_address, ev->u.network.local_address,
+			 sizeof(out.local_address));
+	return out;
+}
+
+static inline void bsk_bridge_make_network_event(bsk_event *ev,
+						 bool transports_reset,
+						 const char *local_address)
+{
+	__builtin_memset(ev, 0, sizeof(*ev));
+	ev->type = BSK_EVENT_NETWORK;
+	ev->u.network.transports_reset = transports_reset;
+	if (local_address) {
+		size_t i = 0;
+		while (local_address[i] &&
+		       i + 1 < sizeof(ev->u.network.local_address)) {
+			ev->u.network.local_address[i] = local_address[i];
+			i++;
+		}
+	}
 }
 
 static inline bsk_bridge_audio_event bsk_bridge_event_audio(const bsk_event *ev)

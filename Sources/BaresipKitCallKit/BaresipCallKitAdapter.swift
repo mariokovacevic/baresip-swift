@@ -4,19 +4,27 @@ import CallKit
 import BaresipKit
 
 public struct BaresipCallKitConfiguration: Sendable {
-    public var localizedName: String
+    @available(*, deprecated, message: "CXProviderConfiguration.localizedName is read-only in current SDKs; CallKit shows the app name from the Info.plist.")
+    public var localizedName: String = ""
     public var supportsVideo: Bool
     public var maximumCallsPerCallGroup: Int
     public var iconTemplateImageData: Data?
     public var ringtoneSound: String?
 
-    public init(localizedName: String, supportsVideo: Bool = true, maximumCallsPerCallGroup: Int = 1,
+    public init(supportsVideo: Bool = true, maximumCallsPerCallGroup: Int = 1,
                 iconTemplateImageData: Data? = nil, ringtoneSound: String? = nil) {
-        self.localizedName = localizedName
         self.supportsVideo = supportsVideo
         self.maximumCallsPerCallGroup = maximumCallsPerCallGroup
         self.iconTemplateImageData = iconTemplateImageData
         self.ringtoneSound = ringtoneSound
+    }
+
+    @available(*, deprecated, message: "localizedName has no effect; use init(supportsVideo:maximumCallsPerCallGroup:iconTemplateImageData:ringtoneSound:)")
+    public init(localizedName: String, supportsVideo: Bool = true, maximumCallsPerCallGroup: Int = 1,
+                iconTemplateImageData: Data? = nil, ringtoneSound: String? = nil) {
+        self.init(supportsVideo: supportsVideo, maximumCallsPerCallGroup: maximumCallsPerCallGroup,
+                  iconTemplateImageData: iconTemplateImageData, ringtoneSound: ringtoneSound)
+        self.localizedName = localizedName
     }
 }
 

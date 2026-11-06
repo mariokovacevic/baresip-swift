@@ -12,6 +12,7 @@ public final class BaresipEngine: @unchecked Sendable {
     private var logHandler: BaresipLogHandler?
     private let workQueue = DispatchQueue(label: "baresipkit.engine", qos: .userInitiated)
     private var defaultAccount: BaresipAccountID?
+    private var videoSinks: [VideoSinkKey: VideoSinkBox] = [:]
 
     public let configuration: BaresipConfiguration
 
@@ -119,6 +120,9 @@ public final class BaresipEngine: @unchecked Sendable {
 
     fileprivate func deliver(_ ev: UnsafePointer<bsk_event>) {
         guard let event = BaresipEvent(ev) else { return }
+        if case .call(let callID, .released, _) = event {
+            clearVideoSinks(callID: callID)
+        }
         lock.lock()
         let conts = Array(continuations.values)
         lock.unlock()
@@ -287,6 +291,19 @@ public final class BaresipEngine: @unchecked Sendable {
             }
         }
         return accountID
+    }
+
+    func clearVideoSinks(callID: BaresipCallID) {
+        let removed = lock.withLock { () -> [VideoSinkBox] in
+            var out: [VideoSinkBox] = []
+            for local in [true, false] {
+                if let box = videoSinks.removeValue(forKey: VideoSinkKey(callID: callID, local: local)) {
+                    out.append(box)
+                }
+            }
+            return out
+        }
+        withExtendedLifetime(removed) {}
     }
 
     public func removeAccount(_ id: BaresipAccountID) async throws {
@@ -531,6 +548,92 @@ public final class BaresipEngine: @unchecked Sendable {
             var ids = [UInt64](repeating: 0, count: count)
             let n = bsk_call_list(h, &ids, ids.count)
             return ids.prefix(min(n, ids.count)).map { BaresipCallID(rawValue: $0) }
+        }) ?? []
+    }
+
+    public var isEngineThread: Bool {
+        bsk_engine_is_engine_thread(handle)
+    }
+
+    public static var abiVersion: (major: Int, minor: Int) {
+        let v = bsk_abi_version()
+        return (Int(v >> 16), Int(v & 0xFFFF))
+    }
+
+    public func setVideoRenderer(_ renderer: BaresipVideoRenderer?, callID: BaresipCallID,
+                                 local: Bool = false) async throws {
+        let key = VideoSinkKey(callID: callID, local: local)
+        let box = renderer.map { VideoSinkBox(renderer: $0, callID: callID, local: local) }
+        let previous = lock.withLock { () -> VideoSinkBox? in
+            let old = videoSinks[key]
+            videoSinks[key] = box
+            return old
+        }
+        do {
+            try await run { h in
+                var err = bsk_error()
+                if let box {
+                    var sink = box.makeSink()
+                    try BaresipEngine.check(bsk_call_set_video_sink(h, callID.rawValue, local, &sink, &err), err)
+                } else {
+                    try BaresipEngine.check(bsk_call_set_video_sink(h, callID.rawValue, local, nil, &err), err)
+                }
+            }
+        } catch {
+            lock.withLock {
+                if videoSinks[key] === box {
+                    videoSinks[key] = previous
+                }
+            }
+            throw error
+        }
+        withExtendedLifetime(previous) {}
+    }
+
+    public func startVideoPreview(device: String? = nil, renderer: BaresipVideoRenderer) async throws {
+        let key = VideoSinkKey(callID: nil, local: true)
+        let box = VideoSinkBox(renderer: renderer, callID: nil, local: true)
+        let previous = lock.withLock { () -> VideoSinkBox? in
+            let old = videoSinks[key]
+            videoSinks[key] = box
+            return old
+        }
+        do {
+            try await run { h in
+                let arena = CStringArena()
+                var sink = box.makeSink()
+                var err = bsk_error()
+                try BaresipEngine.check(bsk_video_preview_start(h, arena.cString(device), &sink, &err), err)
+                withExtendedLifetime(arena) {}
+            }
+        } catch {
+            lock.withLock {
+                if videoSinks[key] === box {
+                    videoSinks[key] = previous
+                }
+            }
+            throw error
+        }
+        withExtendedLifetime(previous) {}
+    }
+
+    public func stopVideoPreview() async throws {
+        let key = VideoSinkKey(callID: nil, local: true)
+        try await run { h in
+            var err = bsk_error()
+            try BaresipEngine.check(bsk_video_preview_stop(h, &err), err)
+        }
+        let previous = lock.withLock { videoSinks.removeValue(forKey: key) }
+        withExtendedLifetime(previous) {}
+    }
+
+    public func videoDevices() async -> [String] {
+        (try? await run { h -> [String] in
+            let needed = bsk_video_list_devices(h, nil, 0)
+            guard needed > 0 else { return [] }
+            var buffer = [CChar](repeating: 0, count: needed + 1)
+            _ = bsk_video_list_devices(h, &buffer, buffer.count)
+            return String(cString: buffer).split(separator: "\n").map(String.init).filter { !$0.isEmpty }
         }) ?? []
     }
 

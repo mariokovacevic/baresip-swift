@@ -32,18 +32,24 @@ public final class BaresipAudioSessionController {
         }
     }
 
-    public func configureForVoIP(allowBluetooth: Bool = true, defaultToSpeaker: Bool = false) throws {
-        #if compiler(>=6.2)
-        var options: AVAudioSession.CategoryOptions = [.allowBluetoothHFP]
-        #else
-        var options: AVAudioSession.CategoryOptions = [.allowBluetooth]
-        #endif
+    public static func voipCategoryOptions(allowBluetooth: Bool, defaultToSpeaker: Bool) -> AVAudioSession.CategoryOptions {
+        var options: AVAudioSession.CategoryOptions = []
         if allowBluetooth {
+            #if compiler(>=6.2)
+            options.insert(.allowBluetoothHFP)
+            #else
+            options.insert(.allowBluetooth)
+            #endif
             options.insert(.allowBluetoothA2DP)
         }
         if defaultToSpeaker {
             options.insert(.defaultToSpeaker)
         }
+        return options
+    }
+
+    public func configureForVoIP(allowBluetooth: Bool = true, defaultToSpeaker: Bool = false) throws {
+        let options = Self.voipCategoryOptions(allowBluetooth: allowBluetooth, defaultToSpeaker: defaultToSpeaker)
         try session.setCategory(.playAndRecord, mode: .voiceChat, options: options)
     }
 

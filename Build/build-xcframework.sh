@@ -215,7 +215,7 @@ merge_slice() {
               "$prefix/lib/libre.a" "$prefix/lib/libopus.a"
               "$prefix/lib/libssl.a" "$prefix/lib/libcrypto.a")
   [[ -f "$prefix/lib/libvpx.a" ]] && libs+=("$prefix/lib/libvpx.a")
-  if [[ "$PLATFORM" == "ios" ]]; then
+  if [[ "$PLATFORM" == "ios" || "$(uname -s)" == Darwin ]]; then
     xcrun libtool -static -no_warning_for_no_symbols -o "$out/libBaresipKitCore.a" "${libs[@]}"
   else
     rm -f "$out/libBaresipKitCore.a"
@@ -250,6 +250,9 @@ MM
       printf '%s %s %s bytes=%s text+data=%s\n' "$MODULE_SET" "$slice" "$(basename "$a")" \
         "$(stat -f%z "$a")" "$(text_data "$a")" >> "$OUT_DIR/sizes.txt"
     done
+  elif [[ "$(uname -s)" == Darwin ]]; then
+    printf '%s %s %s bytes=%s\n' "$MODULE_SET" "$slice" libBaresipKitCore.a \
+      "$(stat -f%z "$out/libBaresipKitCore.a")" >> "$OUT_DIR/sizes.txt"
   else
     printf '%s %s %s bytes=%s\n' "$MODULE_SET" "$slice" libBaresipKitCore.a \
       "$(stat -c%s "$out/libBaresipKitCore.a")" >> "$OUT_DIR/sizes.txt"

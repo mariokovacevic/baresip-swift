@@ -875,6 +875,15 @@ static int network_op(bsk_engine *e, void *arg)
 
 	bsk_event_init(&ev, BSK_EVENT_NETWORK);
 	ev.u.network.transports_reset = (err == 0);
+	{
+		const struct sa *laddr = net_laddr_af(baresip_network(), AF_INET);
+		if (!laddr || !sa_isset(laddr, SA_ADDR))
+			laddr = net_laddr_af(baresip_network(), AF_INET6);
+		if (laddr && sa_isset(laddr, SA_ADDR))
+			(void)re_snprintf(ev.u.network.local_address,
+					  sizeof(ev.u.network.local_address),
+					  "%j", laddr);
+	}
 	bsk_emit(e, &ev);
 
 	return err;

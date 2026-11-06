@@ -70,3 +70,108 @@ final class EngineLifecycleTests: XCTestCase {
         XCTAssertFalse(BaresipEngine.coreVersion.isEmpty)
     }
 }
+
+import BaresipKitBridge
+import BaresipKitVideo
+import BaresipKitAudio
+import AVFoundation
+
+final class VideoSinkTests: XCTestCase {
+    final class Recorder: BaresipVideoRenderer, @unchecked Sendable {
+        var frames = 0
+        func render(_ frame: BaresipVideoFrame) { frames += 1 }
+        func didChangeSize(width: Int, height: Int) {}
+    }
+
+    func testRegisterAndRemoveSinkDoesNotCrash() async throws {
+        var cfg = BaresipConfiguration()
+        cfg.modules = ["g711", "l16", "auconv", "auresamp"]
+        cfg.audio.sourceModule = "ausine"
+        cfg.audio.playerModule = "aufile"
+        cfg.audio.playerDevice = "/dev/null"
+        cfg.extraConfiguration = "sip_listen\t\t0.0.0.0:0"
+        let engine = try BaresipEngine(configuration: cfg)
+        try await engine.start()
+        let recorder = Recorder()
+        let bogus = BaresipCallID(rawValue: 42)
+        do {
+            try await engine.setVideoRenderer(recorder, callID: bogus)
+            XCTFail("expected unsupported or not found")
+        } catch let error as BaresipError {
+            XCTAssertTrue(error.status == .unsupported || error.status == .notFound)
+        }
+        do {
+            try await engine.setVideoRenderer(nil, callID: bogus)
+        } catch let error as BaresipError {
+            XCTAssertTrue(error.status == .unsupported || error.status == .notFound)
+        }
+        do {
+            try await engine.startVideoPreview(renderer: recorder)
+        } catch let error as BaresipError {
+            XCTAssertEqual(error.status, .unsupported)
+        }
+        let devices = await engine.videoDevices()
+        XCTAssertTrue(devices.isEmpty)
+        await engine.stop()
+        XCTAssertEqual(recorder.frames, 0)
+    }
+
+    func testFrameFromNativeBuffer() throws {
+        var pb: CVPixelBuffer?
+        XCTAssertEqual(CVPixelBufferCreate(kCFAllocatorDefault, 16, 8,
+                                           kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, nil, &pb),
+                       kCVReturnSuccess)
+        let buffer = try XCTUnwrap(pb)
+        var c = bsk_video_frame()
+        c.format = BSK_PIX_NV12
+        c.width = 16
+        c.height = 8
+        c.timestamp_us = 1_500_000
+        c.rotation_degrees = 90
+        c.native_buffer = Unmanaged.passUnretained(buffer).toOpaque()
+        let frame = try XCTUnwrap(BaresipVideoFrame(c))
+        XCTAssertEqual(frame.width, 16)
+        XCTAssertEqual(frame.height, 8)
+        XCTAssertEqual(frame.rotationDegrees, 90)
+        XCTAssertEqual(frame.timestamp, .microseconds(1_500_000))
+        XCTAssertTrue(frame.pixelBuffer === buffer)
+    }
+}
+
+final class NetworkEventTests: XCTestCase {
+    func testNetworkEventMapping() {
+        var ev = bsk_event()
+        bsk_bridge_make_network_event(&ev, true, "192.0.2.10")
+        let mapped = withUnsafePointer(to: &ev) { BaresipEvent($0) }
+        guard case .network(let net)? = mapped else {
+            return XCTFail("expected network event, got \(String(describing: mapped))")
+        }
+        XCTAssertTrue(net.transportsReset)
+        XCTAssertEqual(net.localAddress, "192.0.2.10")
+    }
+
+    func testEngineThreadAndABI() throws {
+        let engine = try BaresipEngine(configuration: BaresipConfiguration())
+        XCTAssertFalse(engine.isEngineThread)
+        XCTAssertEqual(BaresipEngine.abiVersion.major, 0)
+        XCTAssertEqual(BaresipEngine.abiVersion.minor, 1)
+    }
+}
+
+final class AudioOptionsTests: XCTestCase {
+    func testBluetoothFlagControlsBothProfiles() {
+        let on = BaresipAudioSessionController.voipCategoryOptions(allowBluetooth: true, defaultToSpeaker: false)
+        let off = BaresipAudioSessionController.voipCategoryOptions(allowBluetooth: false, defaultToSpeaker: true)
+        XCTAssertTrue(on.contains(.allowBluetoothA2DP))
+        XCTAssertFalse(on.contains(.defaultToSpeaker))
+        XCTAssertFalse(off.contains(.allowBluetoothA2DP))
+        XCTAssertTrue(off.contains(.defaultToSpeaker))
+        #if compiler(>=6.2)
+        XCTAssertTrue(on.contains(.allowBluetoothHFP))
+        XCTAssertFalse(off.contains(.allowBluetoothHFP))
+        #else
+        XCTAssertTrue(on.contains(.allowBluetooth))
+        XCTAssertFalse(off.contains(.allowBluetooth))
+        #endif
+    }
+}

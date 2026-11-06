@@ -225,6 +225,16 @@ public struct BaresipDiagnosticEvent: Sendable, Equatable {
     public let message: String
 }
 
+public struct BaresipNetworkEvent: Sendable, Equatable {
+    public let transportsReset: Bool
+    public let localAddress: String
+
+    public init(transportsReset: Bool, localAddress: String) {
+        self.transportsReset = transportsReset
+        self.localAddress = localAddress
+    }
+}
+
 public struct BaresipMediaEventInfo: Sendable, Equatable {
     public let event: BaresipMediaEvent
     public let audioDirection: BaresipMediaDirection
@@ -242,7 +252,7 @@ public enum BaresipEvent: Sendable {
     case transfer(BaresipCallID, BaresipTransferEvent)
     case statistics(BaresipCallID, BaresipCallStatistics)
     case ice(BaresipCallID, BaresipICEEvent)
-    case network(transportsReset: Bool)
+    case network(BaresipNetworkEvent)
     case audio(BaresipCallID?, BaresipAudioEvent)
     case diagnostic(BaresipDiagnosticEvent)
 
@@ -295,7 +305,9 @@ public enum BaresipEvent: Sendable {
                                               localAddress: stringFromCArray(x.local_address),
                                               remoteAddress: stringFromCArray(x.remote_address)))
         case BSK_EVENT_NETWORK:
-            self = .network(transportsReset: bsk_bridge_event_network_reset(ev))
+            let x = bsk_bridge_event_network(ev)
+            self = .network(BaresipNetworkEvent(transportsReset: x.transports_reset,
+                                                localAddress: stringFromCArray(x.local_address)))
         case BSK_EVENT_AUDIO:
             let x = bsk_bridge_event_audio(ev)
             self = .audio(e.call == 0 ? nil : call,

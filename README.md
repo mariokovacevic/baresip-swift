@@ -41,3 +41,8 @@ Produces `Build/out/BaresipKitCore.xcframework` (iOS device arm64 + iOS simulato
 ## Pinned upstream versions
 
 libre v4.9.0, baresip v4.9.0, OpenSSL 3.5.9, Opus 1.6.1. See `Build/versions.env` and `DEPENDENCIES.md`.
+
+
+## CallKit note
+
+`BaresipCallKitConfiguration.localizedName` is deprecated and has no effect. `CXProviderConfiguration.localizedName` is read-only in current SDKs, so CallKit shows the application name from the app's `Info.plist`.
