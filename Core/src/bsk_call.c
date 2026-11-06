@@ -34,9 +34,14 @@ struct bsk_call_ctx *bsk_call_find_call(bsk_engine *engine,
 static void call_ctx_destructor(void *arg)
 {
 	struct bsk_call_ctx *c = arg;
+	bsk_engine *e = bsk_global_engine();
 
 	tmr_cancel(&c->tmr_dtmf);
+	if (e)
+		mtx_lock(&e->video_mtx);
 	list_unlink(&c->le);
+	if (e)
+		mtx_unlock(&e->video_mtx);
 }
 
 
@@ -64,7 +69,10 @@ static struct bsk_call_ctx *call_ctx_alloc(bsk_engine *e, struct call *call,
 	c->steady_state = c->state;
 	c->created_ms = bsk_now_ms();
 	tmr_init(&c->tmr_dtmf);
+	mtx_lock(&e->video_mtx);
 	list_append(&e->calls, &c->le, c);
+	mtx_unlock(&e->video_mtx);
+	bsk_video_bind_call(c);
 
 	return c;
 }
@@ -1085,47 +1093,4 @@ size_t bsk_call_list(const bsk_engine *engine, bsk_call_id *ids,
 
 	(void)bsk_run((bsk_engine *)engine, list_op, &la);
 	return la.count;
-}
-
-
-bsk_status bsk_call_set_video_sink(bsk_engine *engine, bsk_call_id call,
-				   bool local, const bsk_video_sink *sink,
-				   bsk_error *err)
-{
-	(void)engine;
-	(void)call;
-	(void)local;
-	(void)sink;
-	return bsk_error_set(err, BSK_ERR_UNSUPPORTED, ENOSYS, 0, NULL,
-			     "video sinks arrive with the BaresipKitVideo "
-			     "module");
-}
-
-
-bsk_status bsk_video_preview_start(bsk_engine *engine, const char *device,
-				   const bsk_video_sink *sink, bsk_error *err)
-{
-	(void)engine;
-	(void)device;
-	(void)sink;
-	return bsk_error_set(err, BSK_ERR_UNSUPPORTED, ENOSYS, 0, NULL,
-			     "video preview arrives with the BaresipKitVideo "
-			     "module");
-}
-
-
-bsk_status bsk_video_preview_stop(bsk_engine *engine, bsk_error *err)
-{
-	(void)engine;
-	return bsk_error_set(err, BSK_ERR_UNSUPPORTED, ENOSYS, 0, NULL, NULL);
-}
-
-
-size_t bsk_video_list_devices(const bsk_engine *engine, char *buf,
-			      size_t buf_len)
-{
-	(void)engine;
-	if (buf && buf_len)
-		buf[0] = '\0';
-	return 0;
 }

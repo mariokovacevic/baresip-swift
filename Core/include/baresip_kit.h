@@ -205,6 +205,8 @@ typedef struct bsk_audio_config {
 } bsk_audio_config;
 
 typedef struct bsk_video_config {
+	const char *source_module;
+	const char *source_device;
 	uint32_t width;
 	uint32_t height;
 	uint32_t fps;

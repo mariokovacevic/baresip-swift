@@ -14,6 +14,9 @@ fi
 HOSTIP="${HOSTIP:-127.0.0.1}"
 
 EXTRA="$PREFIX/lib/libopus.a;$PREFIX/lib/libssl.a;$PREFIX/lib/libcrypto.a;z;resolv;pthread;m;dl"
+if [[ -f "$PREFIX/lib/libvpx.a" ]]; then
+  EXTRA="$PREFIX/lib/libvpx.a;$EXTRA"
+fi
 FLAGS=""
 if [[ -n "$SANITIZE" ]]; then
   FLAGS="-fsanitize=$SANITIZE -fno-omit-frame-pointer"
@@ -64,5 +67,22 @@ done
 "$BUILD/tests/bsk_test_call" caller "$HOSTIP" 2> "$BUILD/caller.err"
 wait "$CALLEE_PID"
 cat "$BUILD/callee.out"
+
+if [[ -f "$PREFIX/lib/libvpx.a" ]]; then
+  echo "== video preview (fakevideo)"
+  "$BUILD/tests/bsk_test_video" preview
+  echo "== two-process video call (VP8, local and remote frame sinks)"
+  "$BUILD/tests/bsk_test_video" callee "$HOSTIP" > "$BUILD/vcallee.out" 2> "$BUILD/vcallee.err" &
+  VCALLEE_PID=$!
+  for i in $(seq 1 50); do
+    grep -q READY "$BUILD/vcallee.out" 2>/dev/null && break
+    sleep 0.1
+  done
+  "$BUILD/tests/bsk_test_video" caller "$HOSTIP" 2> "$BUILD/vcaller.err"
+  wait "$VCALLEE_PID"
+  cat "$BUILD/vcallee.out"
+else
+  echo "== video stages skipped (no libvpx in prefix; build with MODULE_SET=full)"
+fi
 
 echo "ALL CORE TESTS PASSED"

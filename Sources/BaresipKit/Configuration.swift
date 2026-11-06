@@ -147,6 +147,8 @@ public struct BaresipAudioConfiguration: Sendable, Equatable {
 }
 
 public struct BaresipVideoConfiguration: Sendable, Equatable {
+    public var sourceModule: String
+    public var sourceDevice: String?
     public var width: Int
     public var height: Int
     public var framesPerSecond: Int
@@ -154,9 +156,12 @@ public struct BaresipVideoConfiguration: Sendable, Equatable {
     public var codecs: [String]
     public var hardwareAcceleration: Bool
 
-    public init(width: Int = 640, height: Int = 480, framesPerSecond: Int = 30,
+    public init(sourceModule: String = "avcapture", sourceDevice: String? = nil,
+                width: Int = 640, height: Int = 480, framesPerSecond: Int = 30,
                 bitrate: Int = 800_000, codecs: [String] = ["H264"],
                 hardwareAcceleration: Bool = true) {
+        self.sourceModule = sourceModule
+        self.sourceDevice = sourceDevice
         self.width = width
         self.height = height
         self.framesPerSecond = framesPerSecond

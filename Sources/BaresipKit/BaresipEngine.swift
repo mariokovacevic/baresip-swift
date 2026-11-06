@@ -49,6 +49,8 @@ public final class BaresipEngine: @unchecked Sendable {
         cfg.audio.codec_count = a.codecs.count
 
         let v = configuration.video
+        cfg.video.source_module = arena.cString(v.sourceModule)
+        cfg.video.source_device = arena.cString(v.sourceDevice)
         cfg.video.width = UInt32(v.width)
         cfg.video.height = UInt32(v.height)
         cfg.video.fps = UInt32(v.framesPerSecond)

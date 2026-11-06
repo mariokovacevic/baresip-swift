@@ -119,6 +119,11 @@ struct bsk_engine {
 	bool suspended;
 	bool stop_requested;
 	uint64_t t0_ms;
+	mtx_t video_mtx;
+	struct vidsrc_st *preview_src;
+	struct bsk_video_sink preview_sink;
+	unsigned preview_w;
+	unsigned preview_h;
 };
 
 struct bsk_op {
@@ -168,5 +173,9 @@ void bsk_calls_flush(bsk_engine *engine);
 void bsk_calls_audio_changed(bsk_engine *engine);
 
 bsk_engine *bsk_global_engine(void);
+
+int bsk_video_init(bsk_engine *engine);
+void bsk_video_close(bsk_engine *engine);
+void bsk_video_bind_call(struct bsk_call_ctx *c);
 
 #endif

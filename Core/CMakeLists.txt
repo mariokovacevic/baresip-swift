@@ -20,6 +20,7 @@ add_library(baresipkitcore STATIC
   src/bsk_log.c
   src/bsk_account.c
   src/bsk_call.c
+  src/bsk_video.c
 )
 
 target_include_directories(baresipkitcore

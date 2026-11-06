@@ -300,6 +300,10 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 	e->jb_adaptive = c->audio.jitter_buffer_adaptive;
 	e->voice_processing = c->audio.voice_processing;
 
+	str_ncpy(e->video_src_mod, str_isset(c->video.source_module) ?
+		 c->video.source_module : "avcapture", sizeof(e->video_src_mod));
+	str_ncpy(e->video_src_dev, c->video.source_device ?
+		 c->video.source_device : "", sizeof(e->video_src_dev));
 	e->video_width = c->video.width ? c->video.width : 640;
 	e->video_height = c->video.height ? c->video.height : 480;
 	e->video_fps = c->video.fps ? c->video.fps : 30;
@@ -329,6 +333,8 @@ static int build_config(bsk_engine *e, struct mbuf *mb)
 		"rtp_timeout\t\t30\n"
 		"net_af\t\t\t%s\n"
 		"dns_getaddrinfo\t\tyes\n"
+		"video_source\t\t%s,%s\n"
+		"video_display\t\tbsk,\n"
 		"video_size\t\t%ux%u\n"
 		"video_fps\t\t%u\n"
 		"video_bitrate\t\t%u\n",
@@ -340,6 +346,7 @@ static int build_config(bsk_engine *e, struct mbuf *mb)
 		e->jb_min_ms, e->jb_max_ms,
 		(unsigned)e->rtp_port_min, (unsigned)e->rtp_port_max,
 		e->ipv6 ? "unspecified" : "ipv4",
+		e->video_src_mod, e->video_src_dev,
 		e->video_width, e->video_height, e->video_fps,
 		e->video_bitrate);
 
@@ -534,6 +541,10 @@ static int engine_thread(void *arg)
 	if (err)
 		goto fail;
 
+	err = bsk_video_init(e);
+	if (err)
+		goto fail;
+
 	uag_set_exit_handler(exit_handler, e);
 	if (e->log_sip_trace)
 		sip_set_trace_handler(uag_sip(), bsk_sip_trace_handler);
@@ -548,6 +559,7 @@ static int engine_thread(void *arg)
 	tmr_cancel(&e->tmr_stop);
 	tmr_cancel(&e->tmr_running);
 	bevent_unregister(bevent_handler);
+	bsk_video_close(e);
 	bsk_calls_flush(e);
 	bsk_accounts_flush(e);
 	e->mq = mem_deref(e->mq);
@@ -568,6 +580,7 @@ static int engine_thread(void *arg)
 
  fail:
 	bevent_unregister(bevent_handler);
+	bsk_video_close(e);
 	e->mq = mem_deref(e->mq);
 	ua_close();
 	baresip_close();
@@ -612,6 +625,7 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 	list_init(&e->accounts);
 	list_init(&e->calls);
 	mtx_init(&e->mtx, mtx_plain);
+	mtx_init(&e->video_mtx, mtx_plain);
 	cnd_init(&e->cnd);
 
 	ret = copy_config(e, config);
@@ -793,6 +807,7 @@ void bsk_engine_destroy(bsk_engine *engine)
 		mem_deref(engine->client_cert_pem);
 	}
 	cnd_destroy(&engine->cnd);
+	mtx_destroy(&engine->video_mtx);
 	mtx_destroy(&engine->mtx);
 	free(engine);
 }
