@@ -185,6 +185,7 @@ public struct BaresipConfiguration: Sendable, Equatable {
     public var tls: BaresipTLSConfiguration
     public var logLevel: BaresipLogLevel
     public var logSIPTrace: Bool
+    public var iceRelayOnly: Bool
 
     public static let defaultModules: [String] = [
         "g711", "opus", "l16", "auconv", "auresamp",
@@ -200,7 +201,8 @@ public struct BaresipConfiguration: Sendable, Equatable {
                 audio: BaresipAudioConfiguration = BaresipAudioConfiguration(),
                 video: BaresipVideoConfiguration = BaresipVideoConfiguration(),
                 tls: BaresipTLSConfiguration = BaresipTLSConfiguration(),
-                logLevel: BaresipLogLevel = .info, logSIPTrace: Bool = false) {
+                logLevel: BaresipLogLevel = .info, logSIPTrace: Bool = false,
+                iceRelayOnly: Bool = false) {
         self.userAgent = userAgent
         self.instanceUUID = instanceUUID
         self.networkInterface = networkInterface
@@ -214,6 +216,7 @@ public struct BaresipConfiguration: Sendable, Equatable {
         self.tls = tls
         self.logLevel = logLevel
         self.logSIPTrace = logSIPTrace
+        self.iceRelayOnly = iceRelayOnly
     }
 }
 

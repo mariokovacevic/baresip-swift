@@ -99,6 +99,58 @@ static void reset_call_state(void)
 }
 
 
+static int run_relay(const char *host, const char *ca, size_t ca_len)
+{
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+	bsk_account_id alice;
+	bsk_call_id call = BSK_ID_NONE;
+	bsk_call_statistics st;
+	char dest[128];
+
+	memset(&cfg, 0, sizeof(cfg));
+	cfg.modules = test_modules;
+	cfg.module_count = sizeof(test_modules) / sizeof(test_modules[0]);
+	cfg.audio.source_module = "ausine";
+	cfg.audio.player_module = "aufile";
+	cfg.audio.player_device = "/dev/null";
+	cfg.tls.verify_server = true;
+	cfg.tls.ca_pem = ca;
+	cfg.tls.ca_pem_len = ca_len;
+	cfg.log_level = BSK_LOG_INFO;
+	cfg.ice_relay_only = true;
+
+	CHECK_OK(bsk_engine_create(&cfg, on_event, NULL, &e, &err), &err);
+	bsk_engine_set_log_handler(e, test_log, "relay ");
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+	CHECK(wait_until(&w, running, 2000));
+	CHECK_OK(bsk_engine_audio_session_activated(e, &err), &err);
+
+	printf("9. ICE relay-only policy: media must flow through TURN\n");
+	alice = add_account(e, host, "alice", "alicepass", true, BSK_DTMF_AUTO);
+	CHECK_OK(bsk_account_register(e, alice, &err), &err);
+	CHECK(wait_until(&w, registered, 10000));
+	snprintf(dest, sizeof(dest), "sip:echo@%s", host);
+	CHECK_OK(bsk_call_make(e, alice, dest, false, &call, &err), &err);
+	CHECK(wait_until(&w, streams, 20000));
+	CHECK(wait_until(&w, ice_connected, 20000));
+	sleep(3);
+	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+	printf("   ice local=%d remote=%d %s -> %s rx=%u\n", st.local_candidate,
+	       st.remote_candidate, st.local_address, st.remote_address,
+	       st.audio.rx_packets);
+	CHECK(st.local_candidate == BSK_CAND_RELAY);
+	CHECK(st.audio.rx_packets > 0);
+	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
+	CHECK(wait_until(&w, released, 10000));
+	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
+	bsk_engine_destroy(e);
+	printf("integration relay: PASS\n");
+	return 0;
+}
+
+
 int main(int argc, char **argv)
 {
 	const char *host = argc > 1 ? argv[1] : "127.0.0.1";
@@ -117,6 +169,12 @@ int main(int argc, char **argv)
 
 	ca = read_file(getenv("BSK_TEST_CA_PEM") ? getenv("BSK_TEST_CA_PEM") : "", &ca_len);
 	CHECK(ca != NULL);
+
+	if (argc > 2 && 0 == strcmp(argv[2], "relay")) {
+		int ret = run_relay(host, ca, ca_len);
+		free(ca);
+		return ret;
+	}
 
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.modules = test_modules;

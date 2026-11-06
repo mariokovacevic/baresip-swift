@@ -88,6 +88,7 @@ struct bsk_engine {
 	uint32_t max_calls;
 	bsk_log_level log_level;
 	bool log_sip_trace;
+	bool ice_relay_only;
 	char *modules[BSK_MAX_MODULES];
 	size_t module_count;
 	char audio_src_mod[32];

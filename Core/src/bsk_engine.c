@@ -276,6 +276,7 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 	e->max_calls = c->max_calls ? c->max_calls : 4;
 	e->log_level = c->log_level;
 	e->log_sip_trace = c->log_sip_trace;
+	e->ice_relay_only = c->ice_relay_only;
 
 	if (c->modules && c->module_count) {
 		if (c->module_count > BSK_MAX_MODULES)
@@ -367,6 +368,8 @@ static int build_config(bsk_engine *e, struct mbuf *mb)
 		err |= mbuf_printf(mb,
 				   "ausrc_channels\t\t%u\nauplay_channels\t\t%u\n",
 				   e->audio_channels, e->audio_channels);
+	err |= mbuf_printf(mb, "ice_policy\t\t%s\n",
+			   e->ice_relay_only ? "relay" : "all");
 	if (str_isset(e->network_interface))
 		err |= mbuf_printf(mb, "net_interface\t\t%s\n",
 				   e->network_interface);

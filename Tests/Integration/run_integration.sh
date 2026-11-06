@@ -45,3 +45,9 @@ if ! BSK_TEST_VERBOSE=1 "$BUILD/tests/bsk_test_integration" "$HOSTIP" 2> "$BUILD
   exit 1
 fi
 grep -E "integration: call" "$BUILD/integration.err" | tail -40 || true
+
+if ! BSK_TEST_VERBOSE=1 "$BUILD/tests/bsk_test_integration" "$HOSTIP" relay 2> "$BUILD/integration-relay.err"; then
+  grep -E "CHECK failed|integration: call|ice|turn|TURN" "$BUILD/integration-relay.err" | tail -60 || true
+  docker compose -f "$HERE/docker-compose.yml" logs --tail 60 coturn || true
+  exit 1
+fi

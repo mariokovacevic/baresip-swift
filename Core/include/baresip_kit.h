@@ -232,6 +232,7 @@ typedef struct bsk_engine_config {
 	bsk_tls_config tls;
 	bsk_log_level log_level;
 	bool log_sip_trace;
+	bool ice_relay_only;
 } bsk_engine_config;
 
 typedef struct bsk_contact_param {

@@ -32,6 +32,7 @@ public final class BaresipEngine: @unchecked Sendable {
         cfg.max_calls = UInt32(configuration.maxCalls)
         cfg.log_level = configuration.logLevel.c
         cfg.log_sip_trace = configuration.logSIPTrace
+        cfg.ice_relay_only = configuration.iceRelayOnly
 
         let a = configuration.audio
         cfg.audio.source_module = arena.cString(a.sourceModule)

@@ -139,7 +139,7 @@ openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | op
 
 ## ICE, STUN, TURN
 
-`nat.mode` selects `.none` (symmetric RTP/latching, for deployments with a server-side media relay), `.stun` or `.ice`. TURN over UDP is supported inside ICE; TURN over TCP/TLS is not yet (see Limitations). `.ice(...)` events report gathering, checking, connected (with local and remote candidate types and addresses) and failed; `callStatistics` carries the same selected pair.
+`nat.mode` selects `.none` (symmetric RTP/latching, for deployments with a server-side media relay), `.stun` or `.ice`. `BaresipConfiguration.iceRelayOnly` restricts ICE to relayed candidates for every call (useful to hide the device address or to force a known media path); it is an engine-wide setting because baresip applies the ICE policy globally. TURN over UDP is supported inside ICE; TURN over TCP/TLS is not yet (see Limitations). `.ice(...)` events report gathering, checking, connected (with local and remote candidate types and addresses) and failed; `callStatistics` carries the same selected pair.
 
 ## Logging
 
