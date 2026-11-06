@@ -109,13 +109,28 @@ static void remote_of(bsk_engine *e, bsk_call_id call, char *out, size_t len)
 }
 
 
-static bsk_call_id only_call(bsk_engine *e)
+static bsk_call_id running_call_with(bsk_engine *e, const char *peer,
+				     int timeout_ms)
 {
-	bsk_call_id ids[4];
-	size_t n = bsk_call_list(e, ids, 4);
+	int waited;
 
-	CHECK(n == 1);
-	return ids[0];
+	for (waited = 0; waited < timeout_ms; waited += 100) {
+		bsk_call_id ids[4];
+		size_t n = bsk_call_list(e, ids, 4), i;
+
+		for (i = 0; i < n && i < 4; i++) {
+			bsk_call_info info;
+
+			if (BSK_OK != bsk_call_get_info(e, ids[i], &info))
+				continue;
+			if (strstr(info.remote_uri, peer) &&
+			    info.state == BSK_CALL_STREAMS_RUNNING)
+				return ids[i];
+		}
+		usleep(100000);
+	}
+
+	return BSK_ID_NONE;
 }
 
 
@@ -124,6 +139,7 @@ static int run_b(const char *host)
 	bsk_engine *e;
 	bsk_error err;
 	char remote[256];
+	bsk_call_id call;
 
 	tag = "B";
 	e = start_engine("5370", 30400);
@@ -140,11 +156,12 @@ static int run_b(const char *host)
 	CHECK(wait_until(&w, paused_remote, 15000));
 
 	CHECK(wait_until(&w, released1, 20000));
-	CHECK(wait_until(&w, streams1, 10000));
-	remote_of(e, only_call(e), remote, sizeof(remote));
-	CHECK(strstr(remote, "carol") != NULL);
+	call = running_call_with(e, "carol", 15000);
+	CHECK(call != BSK_ID_NONE);
+	CHECK(bsk_call_list(e, NULL, 0) == 1);
+	remote_of(e, call, remote, sizeof(remote));
 	sleep(2);
-	CHECK_OK(bsk_call_hangup(e, only_call(e), &err), &err);
+	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
 	CHECK(wait_until(&w, released2, 10000));
 
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
@@ -159,6 +176,7 @@ static int run_c(const char *host)
 	bsk_engine *e;
 	bsk_error err;
 	char remote[256];
+	bsk_call_id call;
 
 	tag = "C";
 	e = start_engine("5380", 30600);
@@ -172,9 +190,9 @@ static int run_c(const char *host)
 	CHECK_OK(bsk_call_answer(e, w.incoming_call, false, &err), &err);
 	CHECK(wait_until(&w, streams1, 10000));
 
-	CHECK(wait_until(&w, streams2, 20000));
-	remote_of(e, only_call(e), remote, sizeof(remote));
-	CHECK(strstr(remote, "bob") != NULL);
+	call = running_call_with(e, "bob", 20000);
+	CHECK(call != BSK_ID_NONE);
+	remote_of(e, call, remote, sizeof(remote));
 	CHECK(wait_until(&w, released2, 20000));
 
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);

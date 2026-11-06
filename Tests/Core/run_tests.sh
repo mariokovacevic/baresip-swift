@@ -120,9 +120,15 @@ if ! "$BUILD/tests/bsk_test_transfer" a "$HOSTIP" 2> "$BUILD/xfer-a.err"; then
   grep -E "CHECK|state" "$BUILD/xfer-b.err" "$BUILD/xfer-c.err" | tail -30 || true
   exit 1
 fi
-wait "$XB_PID"
-wait "$XC_PID"
-cat "$BUILD/xfer-b.out" "$BUILD/xfer-c.out" | grep -v READY
+XB_RC=0
+XC_RC=0
+wait "$XB_PID" || XB_RC=$?
+wait "$XC_PID" || XC_RC=$?
+cat "$BUILD/xfer-b.out" "$BUILD/xfer-c.out" | grep -v READY || true
+if [[ "$XB_RC" != 0 || "$XC_RC" != 0 ]]; then
+  grep -E "CHECK|state" "$BUILD/xfer-b.err" "$BUILD/xfer-c.err" | tail -40 || true
+  exit 1
+fi
 
 if [[ -f "$PREFIX/lib/libvpx.a" ]]; then
   echo "== video preview (fakevideo)"
