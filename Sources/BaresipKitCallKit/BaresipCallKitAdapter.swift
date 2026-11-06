@@ -10,6 +10,7 @@ public struct BaresipCallKitConfiguration: Sendable {
     public var maximumCallsPerCallGroup: Int
     public var iconTemplateImageData: Data?
     public var ringtoneSound: String?
+    public var pushInviteTimeout: Duration = .seconds(30)
 
     public init(supportsVideo: Bool = true, maximumCallsPerCallGroup: Int = 1,
                 iconTemplateImageData: Data? = nil, ringtoneSound: String? = nil) {
@@ -32,6 +33,7 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
     private let engine: BaresipEngine
     private let provider: CXProvider
     private let controller = CXCallController()
+    private let pushInviteTimeout: Duration
     private let lock = NSLock()
     private var uuidByCall: [BaresipCallID: UUID] = [:]
     private var callByUUID: [UUID: BaresipCallID] = [:]
@@ -42,6 +44,7 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
 
     public init(engine: BaresipEngine, configuration: BaresipCallKitConfiguration) {
         self.engine = engine
+        self.pushInviteTimeout = configuration.pushInviteTimeout
         let cxConfig = CXProviderConfiguration()
         cxConfig.supportsVideo = configuration.supportsVideo
         cxConfig.maximumCallsPerCallGroup = configuration.maximumCallsPerCallGroup
@@ -79,6 +82,48 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
         update.localizedCallerName = displayName
         update.hasVideo = hasVideo
         try await provider.reportNewIncomingCall(with: uuid, update: update)
+        let timeout = pushInviteTimeout
+        Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            self?.expirePushCall(uuid)
+        }
+    }
+
+    private func expirePushCall(_ uuid: UUID) {
+        let expired: Bool = lock.withLock {
+            guard pendingIncoming.removeValue(forKey: uuid) != nil else { return false }
+            pendingAnswers.remove(uuid)
+            return true
+        }
+        if expired {
+            provider.reportCall(with: uuid, endedAt: Date(), reason: .failed)
+        }
+    }
+
+    static func normalizedSIPIdentity(_ uri: String) -> (user: String, host: String) {
+        var value = uri.trimmingCharacters(in: .whitespaces).lowercased()
+        if let open = value.firstIndex(of: "<"), let close = value.lastIndex(of: ">"), open < close {
+            value = String(value[value.index(after: open)..<close])
+        }
+        for scheme in ["sips:", "sip:", "tel:"] where value.hasPrefix(scheme) {
+            value = String(value.dropFirst(scheme.count))
+        }
+        if let semicolon = value.firstIndex(of: ";") {
+            value = String(value[..<semicolon])
+        }
+        let parts = value.split(separator: "@", maxSplits: 1).map(String.init)
+        if parts.count == 2 {
+            return (parts[0], parts[1].split(separator: ":").first.map(String.init) ?? parts[1])
+        }
+        return (value, "")
+    }
+
+    static func pushMatches(_ pushURI: String?, invite: String) -> Bool {
+        guard let pushURI, !pushURI.trimmingCharacters(in: .whitespaces).isEmpty else { return true }
+        let push = normalizedSIPIdentity(pushURI)
+        let call = normalizedSIPIdentity(invite)
+        guard push.user == call.user else { return false }
+        return push.host.isEmpty || call.host.isEmpty || push.host == call.host
     }
 
     public func startOutgoingCall(to destination: String, displayName: String? = nil,
@@ -116,9 +161,14 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
         switch event {
         case .incomingCall(let info, _):
             let matched: UUID? = lock.withLock {
-                guard let (uuid, _) = pendingIncoming.first(where: { pair in
-                    pair.value.remoteURI == nil || info.remoteURI.contains(pair.value.remoteURI ?? "")
-                }) else { return nil }
+                let exact = pendingIncoming.first { pair in
+                    pair.value.remoteURI.map { !$0.isEmpty } == true
+                        && Self.pushMatches(pair.value.remoteURI, invite: info.remoteURI)
+                }
+                let wildcard = pendingIncoming.first { pair in
+                    (pair.value.remoteURI ?? "").isEmpty
+                }
+                guard let (uuid, _) = exact ?? wildcard else { return nil }
                 pendingIncoming[uuid] = nil
                 return uuid
             }
@@ -195,8 +245,29 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
                 lock.withLock { _ = outgoing.insert(action.callUUID) }
                 bind(id, action.callUUID)
                 action.fulfill()
+                await reconcileOutgoing(id, uuid: action.callUUID)
             } catch {
                 action.fail()
+            }
+        }
+    }
+
+    private func reconcileOutgoing(_ call: BaresipCallID, uuid: UUID) async {
+        do {
+            let info = try await engine.callInfo(callID: call)
+            switch info.state {
+            case .outgoingRinging, .earlyMedia:
+                provider.reportOutgoingCall(with: uuid, startedConnectingAt: Date())
+            case .connected, .streamsRunning:
+                provider.reportOutgoingCall(with: uuid, connectedAt: Date())
+            case .ended, .failed, .released:
+                provider.reportCall(with: uuid, endedAt: Date(), reason: .failed)
+            default:
+                break
+            }
+        } catch {
+            if unbind(call) != nil {
+                provider.reportCall(with: uuid, endedAt: Date(), reason: .failed)
             }
         }
     }
@@ -214,7 +285,8 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
         }
         Task {
             do {
-                try await engine.answer(callID: call, video: false)
+                let video = (try? await engine.callInfo(callID: call))?.hasVideo ?? false
+                try await engine.answer(callID: call, video: video)
                 action.fulfill()
             } catch {
                 action.fail()

@@ -142,10 +142,13 @@ void bsk_event_init(bsk_event *ev, bsk_event_type type)
 
 void bsk_emit(bsk_engine *engine, bsk_event *ev)
 {
-	if (!engine || !ev || !engine->handler)
+	if (!engine || !ev)
 		return;
 
-	engine->handler(engine, ev, engine->user);
+	mtx_lock(&engine->cb_mtx);
+	if (engine->handler)
+		engine->handler(engine, ev, engine->user);
+	mtx_unlock(&engine->cb_mtx);
 }
 
 
@@ -171,12 +174,36 @@ static void mq_handler(int id, void *data, void *arg)
 	struct bsk_op *op = data;
 	(void)id;
 
+	mtx_lock(&engine->mtx);
+	list_unlink(&op->le);
+	mtx_unlock(&engine->mtx);
+
 	op->ret = op->fn(engine, op->arg);
 
 	mtx_lock(&op->mtx);
 	op->done = true;
 	cnd_signal(&op->cnd);
 	mtx_unlock(&op->mtx);
+}
+
+
+static void close_ops(bsk_engine *e)
+{
+	struct le *le;
+
+	mtx_lock(&e->mtx);
+	e->mq_open = false;
+	while ((le = list_head(&e->pending_ops))) {
+		struct bsk_op *op = le->data;
+
+		list_unlink(&op->le);
+		mtx_lock(&op->mtx);
+		op->ret = ECANCELED;
+		op->done = true;
+		cnd_signal(&op->cnd);
+		mtx_unlock(&op->mtx);
+	}
+	mtx_unlock(&e->mtx);
 }
 
 
@@ -191,19 +218,23 @@ int bsk_run(bsk_engine *engine, bsk_op_fn *fn, void *arg)
 	if (bsk_on_engine_thread(engine))
 		return fn(engine, arg);
 
-	if (!engine->mq || (engine->state != BSK_ENGINE_READY &&
-			    engine->state != BSK_ENGINE_RUNNING &&
-			    engine->state != BSK_ENGINE_STOPPING))
-		return EALREADY;
-
+	memset(&op, 0, sizeof(op));
 	op.fn = fn;
 	op.arg = arg;
-	op.ret = 0;
-	op.done = false;
 	mtx_init(&op.mtx, mtx_plain);
 	cnd_init(&op.cnd);
 
+	mtx_lock(&engine->mtx);
+	if (!engine->mq_open || !engine->mq) {
+		mtx_unlock(&engine->mtx);
+		err = EALREADY;
+		goto out;
+	}
+	list_append(&engine->pending_ops, &op.le, &op);
 	err = mqueue_push(engine->mq, 0, &op);
+	if (err)
+		list_unlink(&op.le);
+	mtx_unlock(&engine->mtx);
 	if (err)
 		goto out;
 
@@ -570,6 +601,10 @@ static int engine_thread(void *arg)
 	if (err)
 		goto fail;
 
+	mtx_lock(&e->mtx);
+	e->mq_open = true;
+	mtx_unlock(&e->mtx);
+
 	err = bevent_register(bevent_handler, e);
 	if (err)
 		goto fail;
@@ -597,6 +632,7 @@ static int engine_thread(void *arg)
 	bsk_video_close(e);
 	bsk_calls_flush(e);
 	bsk_accounts_flush(e);
+	close_ops(e);
 	e->mq = mem_deref(e->mq);
 	ua_close();
 	baresip_close();
@@ -616,6 +652,7 @@ static int engine_thread(void *arg)
  fail:
 	bevent_unregister(bevent_handler);
 	bsk_video_close(e);
+	close_ops(e);
 	e->mq = mem_deref(e->mq);
 	ua_close();
 	baresip_close();
@@ -660,6 +697,7 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 	list_init(&e->accounts);
 	list_init(&e->calls);
 	mtx_init(&e->mtx, mtx_plain);
+	mtx_init(&e->cb_mtx, mtx_recursive);
 	mtx_init(&e->video_mtx, mtx_plain);
 	cnd_init(&e->cnd);
 
@@ -691,8 +729,10 @@ void bsk_engine_set_log_handler(bsk_engine *engine, bsk_log_handler handler,
 	if (!engine)
 		return;
 
+	mtx_lock(&engine->cb_mtx);
 	engine->logh = handler;
 	engine->log_user = user;
+	mtx_unlock(&engine->cb_mtx);
 }
 
 
@@ -702,8 +742,10 @@ void bsk_engine_set_event_handler(bsk_engine *engine,
 	if (!engine)
 		return;
 
+	mtx_lock(&engine->cb_mtx);
 	engine->handler = handler;
 	engine->user = user;
+	mtx_unlock(&engine->cb_mtx);
 }
 
 
@@ -855,6 +897,7 @@ void bsk_engine_destroy(bsk_engine *engine)
 	}
 	cnd_destroy(&engine->cnd);
 	mtx_destroy(&engine->video_mtx);
+	mtx_destroy(&engine->cb_mtx);
 	mtx_destroy(&engine->mtx);
 	free(engine);
 }

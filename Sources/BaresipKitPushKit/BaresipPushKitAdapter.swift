@@ -1,5 +1,6 @@
 import Foundation
 import PushKit
+import CallKit
 import BaresipKit
 
 public struct BaresipPushTokens: Sendable, Equatable {
@@ -57,7 +58,7 @@ public struct BaresipPushTokens: Sendable, Equatable {
 }
 
 public final class BaresipPushKitAdapter: NSObject, PKPushRegistryDelegate, @unchecked Sendable {
-    public typealias IncomingPushHandler = @Sendable (_ payload: [AnyHashable: Any]) async -> Void
+    public typealias IncomingPushHandler = @Sendable (_ payload: [AnyHashable: Any]) async throws -> Void
 
     private let engine: BaresipEngine
     private let registry: PKPushRegistry
@@ -65,6 +66,7 @@ public final class BaresipPushKitAdapter: NSObject, PKPushRegistryDelegate, @unc
     private var tokens: BaresipPushTokens
     private var accountID: BaresipAccountID?
     private let onIncomingPush: IncomingPushHandler
+    private lazy var fallbackProvider = CXProvider(configuration: CXProviderConfiguration())
 
     public init(engine: BaresipEngine, appID: String, accountID: BaresipAccountID? = nil,
                 onIncomingPush: @escaping IncomingPushHandler) {
@@ -120,6 +122,15 @@ public final class BaresipPushKitAdapter: NSObject, PKPushRegistryDelegate, @unc
         Task { await pushTokensToEngine() }
     }
 
+    private func reportFailedPushCall() async {
+        let uuid = UUID()
+        let provider = lock.withLock { fallbackProvider }
+        let update = CXCallUpdate()
+        update.remoteHandle = CXHandle(type: .generic, value: "unknown")
+        try? await provider.reportNewIncomingCall(with: uuid, update: update)
+        provider.reportCall(with: uuid, endedAt: Date(), reason: .failed)
+    }
+
     public func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload,
                              for type: PKPushType, completion: @escaping () -> Void) {
         guard type == .voIP else {
@@ -128,7 +139,11 @@ public final class BaresipPushKitAdapter: NSObject, PKPushRegistryDelegate, @unc
         }
         let dictionary = payload.dictionaryPayload
         Task {
-            await onIncomingPush(dictionary)
+            do {
+                try await onIncomingPush(dictionary)
+            } catch {
+                await reportFailedPushCall()
+            }
             try? await engine.prepareForPushWakeUp()
             completion()
         }

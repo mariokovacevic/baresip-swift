@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <unistd.h>
 #include "test_common.h"
 #include "../../Core/src/bsk_rate.h"
 
@@ -88,6 +89,27 @@ static void test_status_strings(void)
 }
 
 
+struct hammer_arg {
+	bsk_engine *e;
+	int calls;
+	int stop;
+};
+
+
+static void *hammer(void *arg)
+{
+	struct hammer_arg *ha = arg;
+	bsk_error err;
+
+	while (!__atomic_load_n(&ha->stop, __ATOMIC_SEQ_CST)) {
+		(void)bsk_account_register(ha->e, 999, &err);
+		__atomic_add_fetch(&ha->calls, 1, __ATOMIC_SEQ_CST);
+	}
+
+	return NULL;
+}
+
+
 static void test_engine_lifecycle_without_network(void)
 {
 	bsk_engine_config cfg;
@@ -134,6 +156,17 @@ static void test_engine_lifecycle_without_network(void)
 		      bsk_account_get_registration_state(e, 999, &rs));
 		CHECK_OK(bsk_account_remove(e, acc, &err), &err);
 		CHECK(BSK_ERR_NOT_FOUND == bsk_account_remove(e, acc, &err));
+
+		ac.aor = "sip:alice@example.invalid>;answermode=auto";
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_account_add(e, &ac, &acc, &err));
+		ac.aor = "sip:alice@example.invalid";
+		ac.display_name = "x\" <sip:a@b>;answermode=auto";
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_account_add(e, &ac, &acc, &err));
+		ac.display_name = "Alice Example";
+		CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
+		CHECK_OK(bsk_account_remove(e, acc, &err), &err);
 	}
 
 	CHECK(bsk_call_list(e, NULL, 0) == 0);
@@ -143,7 +176,18 @@ static void test_engine_lifecycle_without_network(void)
 	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
 
 	CHECK_OK(bsk_engine_start(e, &err), &err);
-	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	{
+		pthread_t t;
+		struct hammer_arg ha = { e, 0, 0 };
+
+		CHECK(0 == pthread_create(&t, NULL, hammer, &ha));
+		while (!__atomic_load_n(&ha.calls, __ATOMIC_SEQ_CST))
+			usleep(1000);
+		CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+		__atomic_store_n(&ha.stop, 1, __ATOMIC_SEQ_CST);
+		CHECK(0 == pthread_join(t, NULL));
+		CHECK(BSK_OK != bsk_call_hangup(e, 1, &err));
+	}
 
 	bsk_engine_destroy(e);
 	bsk_engine_destroy(NULL);

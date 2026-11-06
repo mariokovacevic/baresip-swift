@@ -73,7 +73,7 @@ let package = Package(
         ),
         .testTarget(
             name: "BaresipKitTests",
-            dependencies: ["BaresipKit", "BaresipKitVideo", "BaresipKitAudio"],
+            dependencies: ["BaresipKit", "BaresipKitVideo", "BaresipKitAudio", "BaresipKitCallKit"],
             path: "Tests/BaresipKitTests"
         ),
     ]

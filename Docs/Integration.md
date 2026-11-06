@@ -102,18 +102,18 @@ let uuid = try await callKit.startOutgoingCall(to: "sip:door@192.0.2.10", video:
 
 Incoming early media (preview before answering, for example at a door intercom): `sendProgress(callID:earlyVideo:)` answers the INVITE with 183 Session Progress and receives the caller's audio, and video when `earlyVideo` is true, while the call is still ringing. During the preview the local direction is receive-only, so the caller does not hear or see you; answering switches both directions back to send and receive. `answerEarlyMedia: true` on the account does the same automatically for incoming calls, except while another call is active (a waiting call is not previewed over the current conversation). If answering fails, the preview directions are restored, so nothing is sent before the call is really answered. CallKit activates the audio session only after the user answers, so to hear the caller during a preview the app activates the session itself (`BaresipAudioSessionController.activate()`), as the sample app does; video preview needs no audio session. The `.incomingCall` event tells whether the caller offered early video. The call state is `earlyMedia` until you answer or reject.
 
-Incoming calls are reported to CallKit when the INVITE arrives. After a VoIP push, report the call first with `reportIncomingCallFromPush(uuid:remoteURI:displayName:hasVideo:)`; when the INVITE arrives it is matched to that UUID and, if the user already answered, answered immediately. Hold, mute, DTMF and end actions are forwarded to the engine. Outgoing progress is reported from `outgoingRinging`/`earlyMedia` (connecting) and `connected` (connected).
+Incoming calls are reported to CallKit when the INVITE arrives. After a VoIP push, report the call first with `reportIncomingCallFromPush(uuid:remoteURI:displayName:hasVideo:)`; when the INVITE arrives it is matched to that UUID by caller user and host (a push without a caller matches the next INVITE) and, if the user already answered, answered immediately; if no INVITE arrives within `pushInviteTimeout` (30 s by default) the CallKit call is ended. Answering from the CallKit UI keeps video when the call offers it. Hold, mute, DTMF and end actions are forwarded to the engine. Outgoing progress is reported from `outgoingRinging`/`earlyMedia` (connecting) and `connected` (connected).
 
 ## PushKit
 
 ```swift
 let push = BaresipPushKitAdapter(engine: engine, appID: "com.example.myapp", accountID: id) { payload in
-    try? await callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: payload["from"] as? String, displayName: nil, hasVideo: false)
+    try await callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: payload["from"] as? String, displayName: nil, hasVideo: false)
 }
 push.updateRemoteToken(apnsToken)
 ```
 
-The adapter only transports token information into SIP; it never sends pushes.
+The adapter only transports token information into SIP; it never sends pushes. iOS requires every VoIP push to be reported to CallKit: let the handler throw when it cannot report the call, and the adapter then reports and immediately ends a placeholder call so the system does not terminate the app.
 
 ## Video
 

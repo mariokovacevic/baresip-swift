@@ -9,6 +9,8 @@ static const struct {
 } redactions[] = {
 	{ "response=\"", 0, "\"" },
 	{ "pn-tok=", 8, ";>, \r\n" },
+	{ "pn-prid=", 8, ";>, \r\n" },
+	{ "pn-voip-tok=", 8, ";>, \r\n" },
 	{ "auth_pass=", 0, ";>, \r\n" },
 	{ "stunpass=", 0, ";>, \r\n" },
 	{ "password=", 0, ";>&, \r\n" },
@@ -81,14 +83,18 @@ void bsk_log_emit(bsk_engine *engine, bsk_log_level level,
 	char buf[2048];
 	size_t n;
 
-	if (!engine || !engine->logh || level < engine->log_level)
+	if (!engine || level < engine->log_level)
 		return;
 
 	while (len && (line[len - 1] == '\n' || line[len - 1] == '\r'))
 		len--;
 
 	n = bsk_redact(line, len, buf, sizeof(buf));
-	engine->logh(level, domain, buf, n, engine->log_user);
+
+	mtx_lock(&engine->cb_mtx);
+	if (engine->logh)
+		engine->logh(level, domain, buf, n, engine->log_user);
+	mtx_unlock(&engine->cb_mtx);
 }
 
 

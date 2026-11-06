@@ -87,6 +87,7 @@ struct bsk_engine {
 	char *pins[16];
 	size_t pin_count;
 	bool pin_depth_seen;
+	int pin_last_depth;
 	int tls_min_version;
 	bool verify_server;
 	bool ipv6;
@@ -125,6 +126,10 @@ struct bsk_engine {
 	bool stop_done;
 	volatile int state;
 	struct mqueue *mq;
+	bool mq_open;
+	struct list pending_ops;
+	mtx_t cb_mtx;
+	bool pin_matched;
 	struct list accounts;
 	struct list calls;
 	uint64_t next_account_id;
@@ -147,6 +152,7 @@ struct bsk_engine {
 };
 
 struct bsk_op {
+	struct le le;
 	bsk_op_fn *fn;
 	void *arg;
 	int ret;

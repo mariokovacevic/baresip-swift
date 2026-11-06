@@ -3,8 +3,6 @@
 #include <openssl/sha.h>
 #include "bsk_internal.h"
 
-static _Thread_local bool pin_matched;
-
 
 static bool spki_sha256_base64(const uint8_t *der, size_t der_len,
 			       char *out, size_t out_len)
@@ -38,56 +36,68 @@ static bool spki_sha256_base64(const uint8_t *der, size_t der_len,
 }
 
 
+static void tls_warn(bsk_engine *e, const char *msg)
+{
+	bsk_log_emit(e, BSK_LOG_WARNING, BSK_LOG_DOMAIN_CORE, msg, strlen(msg));
+}
+
+
+static void pin_reset(bsk_engine *e)
+{
+	e->pin_matched = false;
+	e->pin_depth_seen = false;
+}
+
+
+static void pin_check(bsk_engine *e, const uint8_t *der, size_t der_len)
+{
+	char b64[64];
+	size_t i;
+
+	if (!der || !spki_sha256_base64(der, der_len, b64, sizeof(b64)))
+		return;
+
+	for (i = 0; i < e->pin_count; i++) {
+		if (0 == strcmp(e->pins[i], b64))
+			e->pin_matched = true;
+	}
+}
+
+
 static int verify_handler(int preverify_ok, int depth, const uint8_t *der,
 			  size_t der_len, void *arg)
 {
 	bsk_engine *e = arg;
-	char b64[64];
-	size_t i;
+	bool matched;
 
 	if (!e)
 		return preverify_ok;
 
-	if (depth > 0 && !e->pin_depth_seen) {
-		pin_matched = false;
+	if (!e->pin_depth_seen || depth >= e->pin_last_depth) {
+		e->pin_matched = false;
 		e->pin_depth_seen = true;
 	}
-	if (depth > 0 && der && spki_sha256_base64(der, der_len, b64,
-						   sizeof(b64))) {
-		for (i = 0; i < e->pin_count; i++) {
-			if (0 == strcmp(e->pins[i], b64))
-				pin_matched = true;
-		}
+	e->pin_last_depth = depth;
+
+	pin_check(e, der, der_len);
+
+	if (!preverify_ok) {
+		pin_reset(e);
+		tls_warn(e, "bsk: tls: certificate chain verification failed");
+		return 0;
 	}
 
 	if (depth > 0)
-		return preverify_ok;
+		return 1;
 
-	if (der && spki_sha256_base64(der, der_len, b64, sizeof(b64))) {
-		for (i = 0; i < e->pin_count; i++) {
-			if (0 == strcmp(e->pins[i], b64))
-				pin_matched = true;
-		}
-	}
+	matched = e->pin_matched;
+	pin_reset(e);
 
-	e->pin_depth_seen = false;
-
-	if (!preverify_ok) {
-		bsk_log_emit(e, BSK_LOG_WARNING, BSK_LOG_DOMAIN_CORE,
-			     "bsk: tls: certificate chain verification failed",
-			     48);
+	if (!matched) {
+		tls_warn(e, "bsk: tls: no certificate matched a pinned key");
 		return 0;
 	}
 
-	if (!pin_matched) {
-		bsk_log_emit(e, BSK_LOG_WARNING, BSK_LOG_DOMAIN_CORE,
-			     "bsk: tls: no certificate matched a pinned key",
-			     46);
-		pin_matched = false;
-		return 0;
-	}
-
-	pin_matched = false;
 	return 1;
 }
 

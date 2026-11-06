@@ -348,7 +348,8 @@ final class CallModel: ObservableObject {
             callKit = BaresipCallKitAdapter(engine: engine,
                                             configuration: BaresipCallKitConfiguration(supportsVideo: true))
             push = BaresipPushKitAdapter(engine: engine, appID: "com.example.BaresipKitSample") { [weak self] payload in
-                await self?.pushArrived(payload)
+                guard let self else { throw CancellationError() }
+                try await self.pushArrived(payload)
             }
             append("engine started, core \(BaresipEngine.coreVersion), CA \(tls.ca == nil ? "system" : "custom"), client certificate \(tls.client == nil ? "none" : "set"), pins \(tls.pins.count)")
         } catch {
@@ -409,10 +410,11 @@ final class CallModel: ObservableObject {
         await engine.networkDidChange()
     }
 
-    private func pushArrived(_ payload: [AnyHashable: Any]) async {
+    private func pushArrived(_ payload: [AnyHashable: Any]) async throws {
+        guard let callKit else { throw CancellationError() }
         let from = payload["from"] as? String
-        try? await callKit?.reportIncomingCallFromPush(uuid: UUID(), remoteURI: from, displayName: from,
-                                                       hasVideo: payload["video"] as? Bool ?? false)
+        try await callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: from, displayName: from,
+                                                     hasVideo: payload["video"] as? Bool ?? false)
     }
 
     private func handle(_ event: BaresipEvent) async {

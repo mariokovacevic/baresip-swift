@@ -204,6 +204,20 @@ struct add_arg {
 };
 
 
+static bool account_text_safe(const char *s, const char *forbidden)
+{
+	if (!s)
+		return true;
+
+	for (; *s; s++) {
+		if ((unsigned char)*s < 0x20 || *s == 0x7f || strchr(forbidden, *s))
+			return false;
+	}
+
+	return true;
+}
+
+
 static int add_op(bsk_engine *e, void *arg)
 {
 	struct add_arg *aa = arg;
@@ -229,6 +243,10 @@ static int add_op(bsk_engine *e, void *arg)
 		memcpy(&local, aa->cfg, n);
 		local.size = (uint32_t)sizeof(local);
 	}
+
+	if (!account_text_safe(c->aor, "\"<>; \t") ||
+	    !account_text_safe(c->display_name, "\"\\<>"))
+		return EINVAL;
 
 	menc = mediaenc_name(c->media_encryption);
 	mnat = medianat_name(c->nat.mode);
@@ -364,6 +382,16 @@ bsk_status bsk_account_add(bsk_engine *engine, const bsk_account_config *config,
 	    0 != strncmp(config->aor, "sips:", 5))
 		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
 				     NULL, "aor must be a sip: or sips: URI");
+
+	if (!account_text_safe(config->aor, "\"<>; \t"))
+		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
+				     NULL, "aor must not contain quotes, "
+				     "angle brackets, ';' or whitespace");
+
+	if (!account_text_safe(config->display_name, "\"\\<>"))
+		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
+				     NULL, "display name must not contain "
+				     "quotes, backslashes or angle brackets");
 
 	ret = bsk_run(engine, add_op, &aa);
 	if (ret)
