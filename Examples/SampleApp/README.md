@@ -1,6 +1,6 @@
 # Sample app
 
-A minimal SwiftUI app showing registration over TLS, audio and video calls, hold/resume, mute, DTMF, the audio session helper, the CallKit adapter and the PushKit adapter.
+A minimal SwiftUI app showing registration over TLS, audio and video calls (remote and local video, front/back camera), hold/resume, mute, speaker, DTMF, optional ICE with a TURN server, ICE restart on demand and on network changes (via `NWPathMonitor` and `networkDidChange()`), live statistics (loss, jitter, RTT, MOS, video target bitrate, selected ICE candidates), the audio session helper, the CallKit adapter and the PushKit adapter.
 
 Generate the Xcode project with [xcodegen](https://github.com/yonaskolb/XcodeGen):
 

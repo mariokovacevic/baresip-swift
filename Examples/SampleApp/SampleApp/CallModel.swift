@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import SwiftUI
 import BaresipKit
 import BaresipKitAudio
@@ -21,6 +22,11 @@ final class CallModel: ObservableObject {
     @Published var videoEnabled = false
     @Published var log: [String] = []
     @Published var stats: BaresipCallStatistics?
+    @Published var useICE = false
+    @Published var turnURI = ""
+    @Published var turnUser = ""
+    @Published var turnPassword = ""
+    @Published var frontCamera = true
 
     private(set) var engine: BaresipEngine?
     private var accountID: BaresipAccountID?
@@ -28,6 +34,8 @@ final class CallModel: ObservableObject {
     private var callKit: BaresipCallKitAdapter?
     private var push: BaresipPushKitAdapter?
     private var eventTask: Task<Void, Never>?
+    private var pathMonitor: NWPathMonitor?
+    private var lastPath: String?
 
     func start() async {
         guard engine == nil else { return }
@@ -51,6 +59,7 @@ final class CallModel: ObservableObject {
             push = BaresipPushKitAdapter(engine: engine, appID: "com.example.BaresipKitSample") { [weak self] payload in
                 await self?.pushArrived(payload)
             }
+            startPathMonitor()
             append("engine started, core \(BaresipEngine.coreVersion)")
         } catch {
             append("start failed: \(error)")
@@ -63,9 +72,18 @@ final class CallModel: ObservableObject {
             if let accountID {
                 try await engine.removeAccount(accountID)
             }
+            var nat = BaresipNATConfiguration()
+            if useICE {
+                nat.mode = .ice
+                if !turnURI.isEmpty {
+                    nat.turnServers = [TURNServer(uri: turnURI,
+                                                  username: turnUser.isEmpty ? nil : turnUser,
+                                                  password: turnPassword.isEmpty ? nil : turnPassword)]
+                }
+            }
             let account = BaresipAccountConfiguration(aor: aor, registrar: registrar, transport: .tls,
                                                       authUser: authUser, authPassword: password,
-                                                      mediaEncryption: .srtpOptional)
+                                                      mediaEncryption: .srtpOptional, nat: nat)
             let id = try await engine.addAccount(account)
             accountID = id
             push?.bind(accountID: id)
@@ -128,6 +146,45 @@ final class CallModel: ObservableObject {
     func sendDTMF(_ digits: String) async {
         guard let engine, let currentCall else { return }
         try? await engine.sendDTMF(callID: currentCall, digits: digits)
+    }
+
+    func switchCamera() async {
+        guard let engine, let currentCall else { return }
+        frontCamera.toggle()
+        do {
+            try await engine.setCamera(frontCamera ? "front" : "back", callID: currentCall)
+        } catch {
+            append("camera switch failed: \(error)")
+        }
+    }
+
+    func restartICE() async {
+        guard let engine, let currentCall else { return }
+        do {
+            try await engine.restartICE(callID: currentCall)
+        } catch {
+            append("ICE restart failed: \(error)")
+        }
+    }
+
+    private func startPathMonitor() {
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] path in
+            let summary = path.availableInterfaces.map { "\($0.type)" }.joined(separator: ",")
+                + (path.status == .satisfied ? "" : " unsatisfied")
+            Task { @MainActor [weak self] in
+                await self?.pathChanged(summary, satisfied: path.status == .satisfied)
+            }
+        }
+        monitor.start(queue: DispatchQueue(label: "com.example.BaresipKitSample.path"))
+        pathMonitor = monitor
+    }
+
+    private func pathChanged(_ summary: String, satisfied: Bool) async {
+        defer { lastPath = summary }
+        guard let lastPath, lastPath != summary, satisfied, let engine else { return }
+        append("network path changed: \(summary)")
+        await engine.networkDidChange()
     }
 
     func toggleSpeaker(_ on: Bool) {

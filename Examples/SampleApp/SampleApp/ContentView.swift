@@ -20,6 +20,16 @@ struct ContentView: View {
                         Button("Register") { Task { await model.register() } }
                     }
                 }
+                Section("NAT") {
+                    Toggle("ICE", isOn: $model.useICE)
+                    if model.useICE {
+                        TextField("TURN URI (optional)", text: $model.turnURI)
+                            .textInputAutocapitalization(.never)
+                        TextField("TURN user", text: $model.turnUser)
+                            .textInputAutocapitalization(.never)
+                        SecureField("TURN password", text: $model.turnPassword)
+                    }
+                }
                 Section("Call") {
                     TextField("Destination", text: $model.destination)
                     HStack {
@@ -35,6 +45,15 @@ struct ContentView: View {
                             Button(model.videoEnabled ? "Video off" : "Video on") { Task { await model.toggleVideo() } }
                             Button("Hang up", role: .destructive) { Task { await model.hangup() } }
                         }
+                        HStack {
+                            if model.videoEnabled {
+                                Button("Switch camera") { Task { await model.switchCamera() } }
+                            }
+                            if model.useICE {
+                                Spacer()
+                                Button("Restart ICE") { Task { await model.restartICE() } }
+                            }
+                        }
                         Toggle("Speaker", isOn: $speaker).onChange(of: speaker) { _, on in model.toggleSpeaker(on) }
                         DTMFPad { digit in Task { await model.sendDTMF(digit) } }
                     }
@@ -44,12 +63,22 @@ struct ContentView: View {
                                     "\(stats.audio.receivedJitter)", "\(stats.audio.roundTripTime)",
                                     stats.mosEstimate))
                             .font(.caption)
+                        if model.videoEnabled {
+                            Text("video target \(stats.videoTargetBitrate / 1000) kbit/s, sent \(stats.video.transmitBitrate / 1000) kbit/s")
+                                .font(.caption)
+                        }
+                        if model.useICE {
+                            Text("ICE \(String(describing: stats.iceState)) \(String(describing: stats.localCandidate)) -> \(String(describing: stats.remoteCandidate))")
+                                .font(.caption)
+                        }
                     }
                 }
                 if model.videoEnabled, let call = model.currentCall {
                     Section("Video") {
-                        VideoPane(callID: call)
+                        VideoPane(callID: call, local: false)
                             .frame(height: 240)
+                        VideoPane(callID: call, local: true)
+                            .frame(height: 120)
                     }
                 }
                 Section("Log") {
@@ -92,12 +121,13 @@ struct DTMFPad: View {
 struct VideoPane: UIViewRepresentable {
     @EnvironmentObject private var model: CallModel
     let callID: BaresipCallID
+    let local: Bool
 
     func makeUIView(context: Context) -> BaresipVideoView {
         let view = BaresipVideoView()
         if let engine = model.engine {
             Task {
-                try? await engine.setVideoRenderer(view.renderer, callID: callID)
+                try? await engine.setVideoRenderer(view.renderer, callID: callID, local: local)
             }
         }
         return view

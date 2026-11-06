@@ -34,8 +34,8 @@ root cause, keep the fix minimal, and re-run that test.
    g. incoming call while the app is in the foreground (answer and reject);
    h. CallKit: the call appears on the lock screen / call UI and the
       audio session activates only after answering.
-   i. network change during a call: start an audio call on Wi-Fi with ICE
-      enabled, turn Wi-Fi off so the phone moves to cellular, and check
+   i. network change during a call: turn on ICE in the app's NAT section
+      (optionally with a TURN server), register, start an audio call on Wi-Fi, turn Wi-Fi off so the phone moves to cellular, and check
       that audio returns within a few seconds (the log shows "local ICE
       restart" and a new "connected" ICE event);
    j. video quality on a weak link: during a video call, check that
