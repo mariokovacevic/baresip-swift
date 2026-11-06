@@ -70,10 +70,23 @@ jobs:
           grep -q "BUILD SUCCEEDED" package.log
       - name: Run XCTest on a simulator
         run: |
-          DEVICE=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; names=[x["name"] for k,v in d.items() if "iOS" in k for x in v if x["isAvailable"] and x["name"].startswith("iPhone")]; print(names[-1] if names else "")')
-          test -n "$DEVICE"
-          echo "Using simulator: $DEVICE"
-          xcodebuild test -scheme BaresipKit-Package -destination "platform=iOS Simulator,name=${DEVICE}" 2>&1 | tee xctest.log | grep -E "Test Suite|Executed|error:|TEST (SUCCEEDED|FAILED)" || true
+          xcrun simctl list runtimes
+          UDID=$(xcrun simctl list devices available --json | python3 -c '
+          import json, re, sys
+          d = json.load(sys.stdin)["devices"]
+          def ver(k):
+              m = re.search(r"iOS-(\d+)-(\d+)", k)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          for key in sorted((k for k in d if "iOS" in k), key=ver, reverse=True):
+              phones = [x for x in d[key] if x.get("isAvailable") and x["name"].startswith("iPhone")]
+              if phones:
+                  print(phones[-1]["udid"])
+                  break
+          ')
+          test -n "$UDID"
+          echo "Using simulator: $UDID"
+          xcrun simctl boot "$UDID" || true
+          xcodebuild test -scheme BaresipKit-Package -destination "id=${UDID}" 2>&1 | tee xctest.log | grep -E "Test Suite|Executed|error:|Test Case .*failed|TEST (SUCCEEDED|FAILED)" || true
           grep -q "TEST SUCCEEDED" xctest.log
       - name: Build the sample app for the simulator
         run: |
