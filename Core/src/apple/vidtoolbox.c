@@ -1,4 +1,5 @@
 #include <string.h>
+#include <pthread.h>
 #include <re.h>
 #include <rem.h>
 #include <baresip.h>
@@ -445,6 +446,53 @@ static void dec_output(void *decompressionOutputRefCon,
 }
 
 
+static pthread_mutex_t native_mtx = PTHREAD_MUTEX_INITIALIZER;
+static CVPixelBufferRef native_buffer[BSK_NATIVE_SLOTS];
+static const uint8_t *native_plane[BSK_NATIVE_SLOTS];
+
+
+void vidtoolbox_native_publish(unsigned slot, void *buffer,
+			       const uint8_t *plane)
+{
+	CVPixelBufferRef pb = buffer;
+	CVPixelBufferRef old;
+
+	if (slot >= BSK_NATIVE_SLOTS)
+		return;
+
+	if (pb)
+		CFRetain(pb);
+
+	pthread_mutex_lock(&native_mtx);
+	old = native_buffer[slot];
+	native_buffer[slot] = pb;
+	native_plane[slot] = pb ? plane : NULL;
+	pthread_mutex_unlock(&native_mtx);
+
+	if (old)
+		CFRelease(old);
+}
+
+
+void *vidtoolbox_native_buffer(const uint8_t *plane)
+{
+	void *pb = NULL;
+	unsigned i;
+
+	if (!plane)
+		return NULL;
+
+	pthread_mutex_lock(&native_mtx);
+	for (i = 0; i < BSK_NATIVE_SLOTS && !pb; i++) {
+		if (native_buffer[i] && plane == native_plane[i])
+			pb = (void *)native_buffer[i];
+	}
+	pthread_mutex_unlock(&native_mtx);
+
+	return pb;
+}
+
+
 static void release_prev(struct viddec_state *st)
 {
 	if (st->prev) {
@@ -701,6 +749,8 @@ static int decode_access_unit(struct viddec_state *st, struct vidframe *frame,
 	frame->data[1] = CVPixelBufferGetBaseAddressOfPlane(st->prev, 1);
 	frame->linesize[0] = (uint16_t)CVPixelBufferGetBytesPerRowOfPlane(st->prev, 0);
 	frame->linesize[1] = (uint16_t)CVPixelBufferGetBytesPerRowOfPlane(st->prev, 1);
+	vidtoolbox_native_publish(BSK_NATIVE_DECODER, st->prev,
+				  frame->data[0]);
 
 	if (keyframe) {
 		*intra = true;
@@ -894,6 +944,8 @@ int vidtoolbox_init(void)
 
 void vidtoolbox_close(void)
 {
+	vidtoolbox_native_publish(BSK_NATIVE_DECODER, NULL, NULL);
+	vidtoolbox_native_publish(BSK_NATIVE_CAPTURE, NULL, NULL);
 	vidcodec_unregister(&h264_mode0);
 	vidcodec_unregister(&h264_mode1);
 }

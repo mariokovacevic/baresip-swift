@@ -49,7 +49,12 @@ static bool to_bsk_frame(const struct vidframe *vf, uint64_t timestamp,
 		out->strides[i] = vf->linesize[i];
 	}
 	out->timestamp_us = timestamp / (VIDEO_TIMEBASE / 1000000);
+#ifdef BSK_HAVE_APPLE_VIDEO
+	out->native_buffer = vf->fmt == VID_FMT_NV12 ?
+		vidtoolbox_native_buffer(vf->data[0]) : NULL;
+#else
 	out->native_buffer = NULL;
+#endif
 
 	return true;
 }

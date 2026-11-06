@@ -246,6 +246,7 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 	vf.linesize[1] = (uint16_t)CVPixelBufferGetBytesPerRowOfPlane(pb, 1);
 
 	ts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
+	vidtoolbox_native_publish(BSK_NATIVE_CAPTURE, pb, vf.data[0]);
 	st->frameh(&vf, (uint64_t)(CMTimeGetSeconds(ts) * VIDEO_TIMEBASE), st->arg);
 
 	CVPixelBufferUnlockBaseAddress(pb, kCVPixelBufferLock_ReadOnly);

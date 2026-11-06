@@ -9,7 +9,7 @@
 | G.722 | not in the default module set (needs spandsp or libg722) | add on request |
 | ZRTP | needs libzrtpcpp; capability check only | none planned |
 | Software AEC | not needed on iOS (VoiceProcessingIO); `webrtc_aec` module needs an external library | none planned |
-| Zero-copy decoded frames | the decoder's `CVPixelBuffer` is copied into the frame sink's buffer because baresip's `vidframe` has no native-buffer slot | small baresip extension or a side channel from `vidtoolbox` to the sink |
+| Zero-copy frames | H.264 frames decoded by VideoToolbox and camera frames reach the sink as the original `CVPixelBuffer`; VP8 frames, frames changed by a video filter and frames from other sources are copied into a new buffer | none planned |
 | Camera on the simulator | no camera; use `fakevideo`. `bskcapture` is compiled in CI but only exercised on a physical device | manual device test |
 | CallKit / PushKit end to end | adapters compile and the sample app builds in CI; reporting a call to CallKit and receiving VoIP pushes need a signed app on a device and a VoIP certificate | manual device test |
 | Intel simulators | the XCFramework ships an arm64 simulator slice only | build with `SLICES` including `ios-x86_64-simulator` |

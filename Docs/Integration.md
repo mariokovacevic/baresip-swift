@@ -125,7 +125,7 @@ try await engine.setCamera("back", callID: call)
 try await engine.setVideoEnabled(false, callID: call)
 ```
 
-H.264 (`packetization-mode=1`, baseline `42e01f`) is encoded and decoded by VideoToolbox; VP8 is available with `MODULE_SET=full`. Frames reach renderers on media threads as `CVPixelBuffer`s (NV12 from the decoder, I420 copied from software sources). RTCP NACK, PLI and FIR are handled by baresip.
+H.264 (`packetization-mode=1`, baseline `42e01f`) is encoded and decoded by VideoToolbox; VP8 is available with `MODULE_SET=full`. Frames reach renderers on media threads as `CVPixelBuffer`s. Frames decoded by VideoToolbox and camera frames are the original buffers, without a copy (retain one if you keep it past the callback); VP8 and other software frames are copied into a new buffer. RTCP NACK, PLI and FIR are handled by baresip.
 
 ## TLS
 

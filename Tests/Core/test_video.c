@@ -5,6 +5,7 @@ static struct waiter w;
 static const char *tag;
 static pthread_mutex_t frame_mtx = PTHREAD_MUTEX_INITIALIZER;
 static int remote_frames, local_frames, preview_frames, size_events;
+static int remote_native;
 static unsigned last_w, last_h;
 static int last_format = -1;
 
@@ -33,8 +34,11 @@ static void on_frame(bsk_engine *engine, bsk_call_id call, bool local,
 		preview_frames++;
 	else if (local)
 		local_frames++;
-	else
+	else {
 		remote_frames++;
+		if (frame->native_buffer)
+			remote_native++;
+	}
 	last_w = frame->width;
 	last_h = frame->height;
 	last_format = frame->format;
@@ -244,6 +248,12 @@ static int run_caller(const char *host)
 	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
 	CHECK(st.video_target_bitrate_bps == 200000);
 	CHECK(st.video.tx_packets > tx_before);
+	if (getenv("BSK_TEST_VCODEC") &&
+	    0 == strcmp(getenv("BSK_TEST_VCODEC"), "H264")) {
+		pthread_mutex_lock(&frame_mtx);
+		CHECK(remote_native > 0);
+		pthread_mutex_unlock(&frame_mtx);
+	}
 	CHECK_OK(bsk_call_set_video_max_bitrate(e, call, 0, &err), &err);
 	CHECK(BSK_ERR_NOT_FOUND ==
 	      bsk_call_set_video_max_bitrate(e, 9999, 100000, &err));
@@ -253,8 +263,8 @@ static int run_caller(const char *host)
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
 	printf("vcaller: PASS (local frames=%d, remote frames=%d, codec=%s,"
-	       " capped bitrate 200000)\n",
-	       local_frames, remote_frames, info.video_codec);
+	       " capped bitrate 200000, native remote frames=%d)\n",
+	       local_frames, remote_frames, info.video_codec, remote_native);
 	return 0;
 }
 

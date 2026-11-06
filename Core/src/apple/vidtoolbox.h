@@ -18,6 +18,15 @@ int vidtoolbox_decode(struct viddec_state *st, struct vidframe *frame,
 int vidtoolbox_fmtp_enc(struct mbuf *mb, const struct sdp_format *fmt,
 			bool offer, void *arg);
 bool vidtoolbox_fmtp_cmp(const char *lfmtp, const char *rfmtp, void *arg);
+enum {
+	BSK_NATIVE_DECODER = 0,
+	BSK_NATIVE_CAPTURE = 1,
+	BSK_NATIVE_SLOTS = 2
+};
+
+void vidtoolbox_native_publish(unsigned slot, void *buffer,
+			       const uint8_t *plane);
+void *vidtoolbox_native_buffer(const uint8_t *plane);
 
 int bskcapture_init(void);
 void bskcapture_close(void);
