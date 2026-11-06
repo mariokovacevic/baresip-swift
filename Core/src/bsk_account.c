@@ -226,6 +226,8 @@ static int add_op(bsk_engine *e, void *arg)
 	a->id = e->next_account_id++;
 	a->state = BSK_REG_NONE;
 	a->expires = expires;
+	a->tls = (c->transport == BSK_TRANSPORT_TLS ||
+		  c->transport == BSK_TRANSPORT_WSS);
 
 	err = re_snprintf(line, sizeof(line),
 			  "%s%s%s<%s;transport=%s>;regint=0;answermode=manual"
@@ -707,7 +709,12 @@ void bsk_account_handle_event(bsk_engine *e, enum bevent_ev ev,
 				if (sp)
 					str_ncpy(reason, sp + 1, sizeof(reason));
 			}
-			bsk_error_set(&error, status_from_sip(scode), 0, scode,
+			bsk_error_set(&error,
+				      (!scode && a->tls && text &&
+				       (strstr(text, "Protocol") ||
+					strstr(text, "certificate") ||
+					strstr(text, "TLS"))) ? BSK_ERR_TLS :
+				      status_from_sip(scode), 0, scode,
 				      reason, "%s",
 				      text ? text : "registration failed");
 		}

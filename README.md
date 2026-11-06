@@ -16,15 +16,20 @@ Phase 0 (feasibility) is complete and reviewed; Phase 1 (facade, bridge, Swift A
 | 4 | `BaresipKit` Swift API | written, awaiting first compile on macOS (`Docs/Phase1/macOS-verification-prompt.md`) |
 | 5 | `BaresipKitAudio`, `BaresipKitCallKit`, `BaresipKitPushKit` | compiled and tested on the simulator; `BaresipKitVideo` adds `BaresipVideoView` (AVSampleBufferDisplayLayer), awaiting first compile |
 
+## Documentation
+
+Start at [`Docs/README.md`](Docs/README.md): architecture, building, the integration guide (accounts, push Contact parameters, calls, audio session, CallKit, PushKit, video, TLS, ICE) and limitations. The sample app is in `Examples/SampleApp`.
+
 ## Repository layout
 
 ```
 Build/        versions.env (pins), module-sets.env, build-xcframework.sh, cmake/ios.toolchain.cmake
-Core/         BaresipKitCore: the C facade (include/baresip_kit.h, src/, CMakeLists.txt)
-Docs/         Phase0 feasibility set, Phase1 macOS verification prompt
+Core/         BaresipKitCore: the C facade (include/baresip_kit.h, src/, src/apple/, CMakeLists.txt)
+Docs/         guides, Phase 0 feasibility set, macOS verification prompts
+Examples/     SwiftUI sample app (xcodegen project)
 Patches/      small upstreamable diffs applied to the pinned baresip/libre sources
 Sources/      BaresipKitBridge (C helpers), BaresipKit (Swift API), adapters
-Tests/        Core (C tests, run_tests.sh), BaresipKitTests (XCTest)
+Tests/        Core (C tests, run_tests.sh), BaresipKitTests (XCTest), Integration (Asterisk + coturn)
 Tools/        ContactParameterProof: proof programs, fake registrar, trace verifier
 ```
 

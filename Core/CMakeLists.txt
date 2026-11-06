@@ -21,6 +21,7 @@ set(BSK_SOURCES
   src/bsk_account.c
   src/bsk_call.c
   src/bsk_video.c
+  src/bsk_tls.c
 )
 
 if(APPLE)
@@ -33,7 +34,7 @@ add_library(baresipkitcore STATIC ${BSK_SOURCES})
 
 target_include_directories(baresipkitcore
   PUBLIC include
-  PRIVATE ${BARESIP_INCLUDE_DIR} src/apple
+  PRIVATE ${BARESIP_INCLUDE_DIR} src/apple ${OPENSSL_INCLUDE_DIR}
 )
 if(APPLE)
   target_compile_definitions(baresipkitcore PRIVATE BSK_HAVE_APPLE_VIDEO=1)

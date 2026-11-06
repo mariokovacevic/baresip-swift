@@ -258,6 +258,15 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 		e->client_cert_pem_len = c->tls.client_cert_pem_len;
 	}
 
+	if (c->tls.pinned_count && c->tls.pinned_spki_sha256_base64) {
+		if (c->tls.pinned_count > RE_ARRAY_SIZE(e->pins))
+			return EINVAL;
+		for (i = 0; i < c->tls.pinned_count; i++)
+			err |= dup_str(&e->pins[i],
+				       c->tls.pinned_spki_sha256_base64[i]);
+		e->pin_count = c->tls.pinned_count;
+	}
+
 	e->tls_min_version = c->tls.min_version;
 	e->verify_server = c->tls.verify_server;
 	e->ipv6 = c->ipv6;
@@ -397,8 +406,10 @@ static int apply_tls(bsk_engine *e)
 		const char *cipherv[1] = { e->cipher_list };
 		err = tls_set_ciphers(tls, cipherv, 1);
 	}
+	if (err)
+		return err;
 
-	return err;
+	return bsk_tls_install_pins(e);
 }
 
 
@@ -455,6 +466,10 @@ static void bevent_handler(enum bevent_ev ev, struct bevent *event, void *arg)
 	case BEVENT_CALL_RESUME:
 	case BEVENT_AUDIO_ERROR:
 		bsk_call_handle_event(e, ev, event);
+		break;
+
+	case BEVENT_MODULE:
+		bsk_call_handle_module_event(e, bevent_get_text(event));
 		break;
 
 	default:
@@ -795,6 +810,8 @@ void bsk_engine_destroy(bsk_engine *engine)
 
 	for (i = 0; i < engine->module_count; i++)
 		mem_deref(engine->modules[i]);
+	for (i = 0; i < engine->pin_count; i++)
+		mem_deref(engine->pins[i]);
 	mem_deref(engine->user_agent);
 	mem_deref(engine->instance_uuid);
 	mem_deref(engine->network_interface);

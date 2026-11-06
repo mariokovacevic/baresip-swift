@@ -45,12 +45,12 @@ Everything below was verified by reading the pinned sources; items marked "host-
 
 | Requirement | Status | Evidence / notes |
 |---|---|---|
-| Camera capture on iOS | patch + facade | `modules/avcapture/avcapture.m` exists but: CMake gates on `CMAKE_SYSTEM_NAME MATCHES "Darwin"` (iOS cross-builds set `iOS`) → `Patches/0002`; it references `AVCaptureScreenInput` (macOS-only, fails to compile against the iOS SDK), uses manual reference counting, has no orientation, frame-rate or pixel-format control, and copies nothing but also offers no `CVPixelBuffer` pass-through. BaresipKit will ship its own `vidsrc` module in `BaresipKitVideo` (`vidsrc_register`, `baresip.h:1185`) that keeps `CVPixelBuffer`s zero-copy to the encoder. The upstream patch is still proposed so plain baresip builds for iOS. |
-| Remote rendering | facade | `vidisp_register()` (`baresip.h:1230`) with `vidisp_disp_h(st, title, const struct vidframe*, timestamp)`. The facade registers a `vidisp` that forwards frames to `bsk_video_sink` callbacks; `BaresipKitVideo` wraps them into `CVPixelBuffer`s for a `AVSampleBufferDisplayLayer`/Metal view. |
-| Local preview before answer | facade | `video_set_source()` / `vidsrc_alloc()` can run without a call; the facade exposes `bsk_video_preview_start()`. |
+| Camera capture on iOS | implemented (`Core/src/apple/bskcapture.m`, awaiting macOS verification) + patches 0002/0003 for upstream avcapture | `modules/avcapture/avcapture.m` exists but: CMake gates on `CMAKE_SYSTEM_NAME MATCHES "Darwin"` (iOS cross-builds set `iOS`) → `Patches/0002`; it references `AVCaptureScreenInput` (macOS-only, fails to compile against the iOS SDK), uses manual reference counting, has no orientation, frame-rate or pixel-format control, and copies nothing but also offers no `CVPixelBuffer` pass-through. BaresipKit will ship its own `vidsrc` module in `BaresipKitVideo` (`vidsrc_register`, `baresip.h:1185`) that keeps `CVPixelBuffer`s zero-copy to the encoder. The upstream patch is still proposed so plain baresip builds for iOS. |
+| Remote rendering | implemented (`Core/src/bsk_video.c`, host-verified with VP8) | `vidisp_register()` (`baresip.h:1230`) with `vidisp_disp_h(st, title, const struct vidframe*, timestamp)`. The facade registers a `vidisp` that forwards frames to `bsk_video_sink` callbacks; `BaresipKitVideo` wraps them into `CVPixelBuffer`s for a `AVSampleBufferDisplayLayer`/Metal view. |
+| Local preview before answer | implemented (host-verified with fakevideo) | `video_set_source()` / `vidsrc_alloc()` can run without a call; the facade exposes `bsk_video_preview_start()`. |
 | Front/back switching | as-is + facade | `video_vidsrc_set_device()` (`video.c:1708`), `vidsrc_update_h`. |
 | Orientation / resolution / frame rate | facade | `video_size`, `video_fps`, `video_bitrate` config keys; rotation metadata is handled in the BaresipKit capture module (upstream `avcapture` has none). |
-| H.264 encode/decode | facade (new module) | **No VideoToolbox module exists upstream.** The only H.264 path is `modules/avcodec` (FFmpeg, with a `videotoolbox` hwaccel hint in `config.c:791`). Linking FFmpeg into an iOS app is not acceptable for size and licensing. BaresipKit will add a `vidtoolbox` codec module implementing `struct vidcodec` (`baresip.h:1342-1355`) with `VTCompressionSession`/`VTDecompressionSession`, reusing libre's packetizer and parser (`re_h264.h`: `h264_packetize`, `h264_nal_send`, `h264_stap_*`, `h264_sps_decode`). SDP `packetization-mode=1` and `profile-level-id` handling is copied from `modules/avcodec/sdp.c`. Software fallback: none on iOS (VideoToolbox is always present); the module reports `BSK_ERR_UNSUPPORTED` if the session cannot be created. |
+| H.264 encode/decode | implemented (`Core/src/apple/vidtoolbox.c`, awaiting macOS verification) | **No VideoToolbox module exists upstream.** The only H.264 path is `modules/avcodec` (FFmpeg, with a `videotoolbox` hwaccel hint in `config.c:791`). Linking FFmpeg into an iOS app is not acceptable for size and licensing. BaresipKit will add a `vidtoolbox` codec module implementing `struct vidcodec` (`baresip.h:1342-1355`) with `VTCompressionSession`/`VTDecompressionSession`, reusing libre's packetizer and parser (`re_h264.h`: `h264_packetize`, `h264_nal_send`, `h264_stap_*`, `h264_sps_decode`). SDP `packetization-mode=1` and `profile-level-id` handling is copied from `modules/avcodec/sdp.c`. Software fallback: none on iOS (VideoToolbox is always present); the module reports `BSK_ERR_UNSUPPORTED` if the session cannot be created. |
 | VP8 | module (external) | `modules/vp8` with libvpx (cross-build target `arm64-darwin20-gcc`). Optional `MODULE_SET=full`. |
 | RTCP feedback NACK / PLI / FIR | as-is | `video.c:30-32` (`PICUP_INTERVAL`, `NACK_BLPSZ`), `rtcp_nack_handler` (`video.c:911`), `send_fir(strm, nack_pli)` (`video.c:699`); `video_req_keyframe()` (`video.c:1959`). |
 | Bitrate adaptation | partial | Fixed `video_bitrate`/`video_sendrate` with a token-bucket pacer (`video.c:521-575`). No REMB/TWCC-based adaptation. Reported as **not supported**; the facade can lower the encoder bitrate on RTCP loss reports (facade logic, later phase). |
@@ -109,10 +109,10 @@ Everything below was verified by reading the pinned sources; items marked "host-
 | ICE restart | not supported as-is | No `ice-restart`/ufrag regeneration in `modules/ice/ice.c` (searched). Network change today uses `uag_reset_transp(reg, reinvite)` (`uag.c:710`) → `call_reset_transp()` → re-INVITE with the new local address (`call.c:2834`), which works for non-ICE and symmetric-RTP deployments. Full ICE restart needs a patch to `modules/ice` (new ufrag/pwd + re-gather); proposed for Phase 1 as an upstreamable change. |
 | Trickle ICE | not supported | libre has a `trice` library but baresip's `ice` module uses full candidate exchange in SDP. Documented as unsupported. |
 | ICE disabled, symmetric RTP / latching | as-is | Omit `;medianat=`; baresip learns the remote address from incoming RTP (`stream.c` / `rtprecv.c` latching). |
-| Direct vs relay path visible | facade | `icem_selected_lcand()` type (`ICE_CAND_TYPE_RELAY` etc.) exposed in `bsk_call_statistics.local_candidate`. |
+| Direct vs relay path visible | patch (implemented) | `Patches/0005-baresip-ice-module-events.patch` emits ICE module events (gathering, checking, connected with candidate types and addresses, failed); the facade maps them to `BSK_EVENT_ICE` and `bsk_call_statistics`. Host-verified with host candidates. |
 | Network change detection | module (desktop) / facade (iOS) | `modules/netroam` polls interface addresses (netlink only on Linux). On iOS the app has `NWPathMonitor`; the facade exposes `bsk_engine_network_changed()` which calls `uag_reset_transp(true, true)`. |
 | IPv4/IPv6 dual stack, NAT64 | as-is | `net_af`, `sip_listen` per family; `dns_getaddrinfo` uses the system resolver, which on iOS performs NAT64 synthesis (`src/dns/darwin/srv.c` for SRV). |
-| Timeout callbacks, ICE state | facade | From `mnat` callbacks and `BEVENT_CALL_RTPESTAB`/`rtp_timeout`. |
+| Timeout callbacks, ICE state | implemented | ICE state from the module events above; RTP timeout from `rtp_timeout` (30 s). |
 
 ## 8. Security
 
@@ -120,7 +120,7 @@ Everything below was verified by reading the pinned sources; items marked "host-
 |---|---|---|
 | TLS 1.2/1.3, verification on by default | as-is | `tls.c:214-237` sets a minimum of TLS 1.2; `sip_verify_server` defaults to on; `tls_set_verify_server()` enforces hostname matching (`transp.c:875`). `tls_set_min_proto_version()` available. |
 | Private CA | as-is | `tls_add_capem()` (in memory, no file needed on iOS), `tls_add_cafile_path()`. |
-| Custom trust callback / pinning | patch (small) | libre only offers `tls_set_verify_client_handler()` for server-side connections. A client-side hook needs a ~30 line libre patch exposing `tls_set_verify_server_handler()` on `struct tls` (same `SSL_CTX_set_verify` + ex-data pattern as `tls_verify_handler_ud`). Planned as `Patches/0003-libre-*`. SPKI pinning is then implemented in the facade. |
+| Custom trust callback / pinning | patch (implemented) | `Patches/0004-re-tls-verify-server-handler.patch` adds `tls_set_verify_server_handler()`; `Core/src/bsk_tls.c` implements SPKI SHA-256 pinning on top of it. Host-verified: private CA in memory, correct pin accepted, wrong pin and missing CA rejected with `BSK_ERR_TLS`. |
 | No implicit accept-all | as-is | `tls_disable_verify_server()` exists but is only called when `sip_verify_server no` is configured. The facade exposes it only as `bsk_tls_config.verify_server=false` behind `BSK_ALLOW_INSECURE_TLS`, compiled out of release builds. |
 | Cipher configuration | as-is | `tls_set_ciphers()`. |
 | SRTP (SDES) | module | `modules/srtp`: `AES_CM_128_HMAC_SHA1_80/32`, `AEAD_AES_128_GCM`, `AEAD_AES_256_GCM` (`srtp.c:59-96`); `;mediaenc=srtp` optional, `srtp-mand` mandatory, `srtp-mandf` mandatory+forced. |
@@ -152,9 +152,11 @@ Everything below was verified by reading the pinned sources; items marked "host-
 |---|---|---|---|---|
 | 0001 | baresip | ~100 lines | Contact URI parameters API | written, host-verified |
 | 0002 | baresip | 1 line | avcapture CMake gate for iOS | written |
-| 0003 | libre | ~30 lines | client-side server-certificate verify hook (pinning) | planned |
-| 0004 | baresip | ~40 lines | TURN over TCP/TLS inside the ICE module | planned, optional |
-| 0005 | baresip | larger | ICE restart on network change | planned, Phase 1 design |
+| 0003 | baresip | ~50 lines | avcapture iOS guards for macOS-only API | written, macOS-verified |
+| 0004 | libre | ~80 lines | client-side server-certificate verify hook (pinning) | written, host-verified |
+| 0005 | baresip | ~60 lines | ICE module events (state, selected pair) | written, host-verified |
+| later | baresip | ~40 lines | TURN over TCP/TLS inside the ICE module | planned, optional |
+| later | baresip | larger | ICE restart on network change | planned |
 | — | libre | 2 lines | export `HAVE_UNIXSOCK` in the CMake package so consumers get the same `struct sa` layout (found during the proof build) | candidate |
 
 New BaresipKit-owned modules (no upstream change): `vidtoolbox` (H.264 via VideoToolbox), `bskcapture` (AVFoundation camera with `CVPixelBuffer` pass-through), `bskdisplay` (frame sink).

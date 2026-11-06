@@ -54,6 +54,9 @@ struct waiter {
 	bsk_call_id incoming_call;
 	bsk_call_id released_call;
 	int stats_count;
+	int ice_state;
+	int ice_local_type;
+	int ice_remote_type;
 	bsk_error last_error;
 };
 
@@ -66,6 +69,7 @@ static void waiter_init(struct waiter *w)
 	w->call_state = -1;
 	w->media_event = -1;
 	w->engine_state = -1;
+	w->ice_state = -1;
 }
 
 static void waiter_signal(struct waiter *w)
@@ -127,6 +131,11 @@ static void record_event(struct waiter *w, const bsk_event *ev)
 		break;
 	case BSK_EVENT_CALL_STATISTICS:
 		w->stats_count++;
+		break;
+	case BSK_EVENT_ICE:
+		w->ice_state = ev->u.ice.state;
+		w->ice_local_type = ev->u.ice.local_candidate;
+		w->ice_remote_type = ev->u.ice.remote_candidate;
 		break;
 	default:
 		break;

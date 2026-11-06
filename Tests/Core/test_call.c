@@ -25,6 +25,8 @@ static int paused_remote(struct waiter *x) { return x->call_state == BSK_CALL_PA
 static int released(struct waiter *x) { return x->released_call != BSK_ID_NONE; }
 static int dtmf3(struct waiter *x) { return x->dtmf_count >= 3; }
 static int ringing_or_later(struct waiter *x) { return x->call_state >= BSK_CALL_OUTGOING_RINGING; }
+static int ice_connected(struct waiter *x) { return x->ice_state == BSK_ICE_CONNECTED; }
+static bool use_ice;
 
 
 static bsk_engine *start_engine(const char *listen)
@@ -72,6 +74,8 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 	memset(&ac, 0, sizeof(ac));
 	ac.aor = aor;
 	ac.dtmf_mode = BSK_DTMF_RTP_EVENT;
+	if (use_ice)
+		ac.nat.mode = BSK_NAT_ICE;
 	ac.audio_codecs = codecs;
 	ac.audio_codec_count = 1;
 	CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
@@ -101,6 +105,13 @@ static int run_callee(const char *host)
 
 	CHECK_OK(bsk_call_answer(e, w.incoming_call, false, &err), &err);
 	CHECK(wait_until(&w, streams, 10000));
+	if (use_ice) {
+		CHECK(wait_until(&w, ice_connected, 10000));
+		CHECK(w.ice_local_type == BSK_CAND_HOST);
+		CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
+		CHECK(st.ice_state == BSK_ICE_CONNECTED);
+		CHECK(strlen(st.remote_address) > 0);
+	}
 
 	CHECK(wait_until(&w, paused_remote, 10000));
 	CHECK(wait_until(&w, streams, 10000));
@@ -147,6 +158,11 @@ static int run_caller(const char *host)
 	CHECK(BSK_OK == bsk_call_get_info(e, call, &info));
 	CHECK(info.outgoing);
 	CHECK(0 == strcmp(info.audio_codec, "PCMU"));
+	if (use_ice) {
+		CHECK(wait_until(&w, ice_connected, 10000));
+		CHECK(w.ice_local_type == BSK_CAND_HOST);
+		CHECK(w.ice_remote_type == BSK_CAND_HOST);
+	}
 
 	sleep(1);
 	CHECK_OK(bsk_call_hold(e, call, true, &err), &err);
@@ -188,6 +204,7 @@ int main(int argc, char **argv)
 	const char *role = argc > 1 ? argv[1] : "caller";
 	const char *host = argc > 2 ? argv[2] : "127.0.0.1";
 
+	use_ice = argc > 3 && 0 == strcmp(argv[3], "ice");
 	waiter_init(&w);
 	if (0 == strcmp(role, "callee"))
 		return run_callee(host);

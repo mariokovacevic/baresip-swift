@@ -57,6 +57,27 @@ sleep 0.5
 "$BUILD/tests/bsk_test_registration" "$HOSTIP" 5080 badpass
 wait "$REG_PID"
 
+echo "== registration over TLS (private CA in memory, pinning ok/bad, missing CA)"
+CERT_DIR="$BUILD/tls"
+mkdir -p "$CERT_DIR"
+if [[ ! -f "$CERT_DIR/cert.pem" ]]; then
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
+    -keyout "$CERT_DIR/key.pem" -out "$CERT_DIR/cert.pem" -days 2 \
+    -subj "/CN=baresipkit-test" -addext "subjectAltName=IP:$HOSTIP" >/dev/null 2>&1
+fi
+PIN="$(openssl x509 -in "$CERT_DIR/cert.pem" -pubkey -noout | openssl pkey -pubin -outform der 2>/dev/null | openssl dgst -sha256 -binary | base64)"
+export BSK_TEST_CA_PEM="$CERT_DIR/cert.pem"
+export BSK_TEST_PIN="$PIN"
+for mode in tls tls-pin-ok tls-pin-bad tls-noca; do
+  REGISTRAR_HOST="$HOSTIP" REGISTRAR_PORT=5081 REGISTRAR_IDLE_TIMEOUT=5 python3 "$ROOT/Tools/ContactParameterProof/tls_registrar.py" \
+    "$CERT_DIR/cert.pem" "$CERT_DIR/key.pem" "$BUILD/trace-$mode.txt" > "$BUILD/registrar-$mode.out" &
+  REG_PID=$!
+  sleep 0.7
+  "$BUILD/tests/bsk_test_registration" "$HOSTIP" 5081 "$mode"
+  wait "$REG_PID"
+  cat "$BUILD/registrar-$mode.out"
+done
+
 echo "== two-process call (hold/resume, DTMF, mute, stats)"
 "$BUILD/tests/bsk_test_call" callee "$HOSTIP" > "$BUILD/callee.out" 2> "$BUILD/callee.err" &
 CALLEE_PID=$!
@@ -67,6 +88,17 @@ done
 "$BUILD/tests/bsk_test_call" caller "$HOSTIP" 2> "$BUILD/caller.err"
 wait "$CALLEE_PID"
 cat "$BUILD/callee.out"
+
+echo "== two-process call with ICE (host candidates, selected pair in statistics)"
+"$BUILD/tests/bsk_test_call" callee "$HOSTIP" ice > "$BUILD/callee-ice.out" 2> "$BUILD/callee-ice.err" &
+CALLEE_PID=$!
+for i in $(seq 1 50); do
+  grep -q READY "$BUILD/callee-ice.out" 2>/dev/null && break
+  sleep 0.1
+done
+"$BUILD/tests/bsk_test_call" caller "$HOSTIP" ice 2> "$BUILD/caller-ice.err"
+wait "$CALLEE_PID"
+cat "$BUILD/callee-ice.out"
 
 if [[ -f "$PREFIX/lib/libvpx.a" ]]; then
   echo "== video preview (fakevideo)"

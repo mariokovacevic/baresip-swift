@@ -1,0 +1,35 @@
+name: BaresipKitSample
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  BaresipKit:
+    path: ../..
+targets:
+  BaresipKitSample:
+    type: application
+    platform: iOS
+    sources: [SampleApp]
+    dependencies:
+      - package: BaresipKit
+        product: BaresipKit
+      - package: BaresipKit
+        product: BaresipKitAudio
+      - package: BaresipKit
+        product: BaresipKitVideo
+      - package: BaresipKit
+        product: BaresipKitCallKit
+      - package: BaresipKit
+        product: BaresipKitPushKit
+    info:
+      path: SampleApp/Info.plist
+      properties:
+        UILaunchScreen: {}
+        NSMicrophoneUsageDescription: "Needed for SIP calls."
+        NSCameraUsageDescription: "Needed for video calls."
+        UIBackgroundModes: [audio, voip]
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
+        CODE_SIGN_STYLE: Automatic

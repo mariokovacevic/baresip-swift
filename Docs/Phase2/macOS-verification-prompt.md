@@ -12,6 +12,12 @@ rotation). Sources/BaresipKitVideo/BaresipVideoView.swift (UIKit,
 AVSampleBufferDisplayLayer) is also uncompiled. Read Core/src/bsk_video.c,
 Core/CMakeLists.txt and Docs/Phase0/C-ABI.md first.
 
+Also new since then and host-verified on Linux: Patches/0004 (libre server
+verify handler, used for SPKI pinning in Core/src/bsk_tls.c), Patches/0005
+(ICE module events mapped to BSK_EVENT_ICE), TLS registration tests
+(Tools/ContactParameterProof/tls_registrar.py) and an ICE call stage in
+Tests/Core/run_tests.sh. They are part of step 1.
+
 Do this in order and stop for review after step 7:
 
 1. `PLATFORM=host MODULE_SET=full Build/build-xcframework.sh` then

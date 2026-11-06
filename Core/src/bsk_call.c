@@ -274,6 +274,13 @@ static void fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 		}
 	}
 
+	st->ice_state = c->ice_state;
+	st->local_candidate = c->ice_local_type;
+	st->remote_candidate = c->ice_remote_type;
+	str_ncpy(st->local_address, c->ice_local_addr, sizeof(st->local_address));
+	str_ncpy(st->remote_address, c->ice_remote_addr,
+		 sizeof(st->remote_address));
+
 	{
 		double loss = st->audio.rx_fraction_lost_permille / 10.0;
 		double delay = st->audio.rtt_ms / 2.0 +
@@ -476,6 +483,102 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 	default:
 		break;
 	}
+}
+
+
+static bsk_candidate_type cand_type_from_name(const struct pl *name)
+{
+	if (0 == pl_strcasecmp(name, "srflx"))
+		return BSK_CAND_SRFLX;
+	if (0 == pl_strcasecmp(name, "prflx"))
+		return BSK_CAND_PRFLX;
+	if (0 == pl_strcasecmp(name, "relay"))
+		return BSK_CAND_RELAY;
+	return BSK_CAND_HOST;
+}
+
+
+static struct bsk_call_ctx *find_by_sdpm(bsk_engine *e, const void *sdpm)
+{
+	struct le *le;
+
+	for (le = e->calls.head; le; le = le->next) {
+		struct bsk_call_ctx *c = le->data;
+		struct stream *as, *vs;
+
+		if (!c->call)
+			continue;
+		as = audio_strm(call_audio(c->call));
+		vs = video_strm(call_video(c->call));
+		if ((as && stream_sdpmedia(as) == sdpm) ||
+		    (vs && stream_sdpmedia(vs) == sdpm))
+			return c;
+	}
+
+	return NULL;
+}
+
+
+void bsk_call_handle_module_event(bsk_engine *e, const char *text)
+{
+	struct pl module, event, rest, val;
+	struct bsk_call_ctx *c;
+	bsk_event ev;
+	void *sdpm = NULL;
+
+	if (!text)
+		return;
+
+	if (re_regex(text, strlen(text), "[^,]+,[^,]+,[^]*", &module, &event,
+		     &rest))
+		return;
+	if (0 != pl_strcasecmp(&module, "ice"))
+		return;
+
+	if (0 == re_regex(rest.p, rest.l, "sdpm=0x[0-9a-f]+", &val))
+		sdpm = (void *)(uintptr_t)pl_x64(&val);
+	else if (0 == re_regex(rest.p, rest.l, "sdpm=[0-9a-fx]+", &val))
+		sdpm = (void *)(uintptr_t)pl_x64(&val);
+	if (!sdpm)
+		return;
+
+	c = find_by_sdpm(e, sdpm);
+	if (!c)
+		return;
+
+	if (0 == pl_strcasecmp(&event, "gathering"))
+		c->ice_state = BSK_ICE_GATHERING;
+	else if (0 == pl_strcasecmp(&event, "checking"))
+		c->ice_state = BSK_ICE_CHECKING;
+	else if (0 == pl_strcasecmp(&event, "failed"))
+		c->ice_state = BSK_ICE_FAILED;
+	else if (0 == pl_strcasecmp(&event, "connected")) {
+		c->ice_state = BSK_ICE_CONNECTED;
+		if (0 == re_regex(rest.p, rest.l, "ltype=[a-z]+", &val))
+			c->ice_local_type = cand_type_from_name(&val);
+		if (0 == re_regex(rest.p, rest.l, "rtype=[a-z]+", &val))
+			c->ice_remote_type = cand_type_from_name(&val);
+		if (0 == re_regex(rest.p, rest.l, "laddr=[^ ]+", &val))
+			(void)pl_strcpy(&val, c->ice_local_addr,
+					sizeof(c->ice_local_addr));
+		if (0 == re_regex(rest.p, rest.l, "raddr=[^ ]+", &val))
+			(void)pl_strcpy(&val, c->ice_remote_addr,
+					sizeof(c->ice_remote_addr));
+	}
+	else
+		return;
+
+	bsk_event_init(&ev, BSK_EVENT_ICE);
+	ev.account = c->account;
+	ev.call = c->id;
+	ev.u.ice.state = c->ice_state;
+	ev.u.ice.local_candidate = c->ice_local_type;
+	ev.u.ice.remote_candidate = c->ice_remote_type;
+	str_ncpy(ev.u.ice.local_address, c->ice_local_addr,
+		 sizeof(ev.u.ice.local_address));
+	str_ncpy(ev.u.ice.remote_address, c->ice_remote_addr,
+		 sizeof(ev.u.ice.remote_address));
+	bsk_emit(e, &ev);
 }
 
 

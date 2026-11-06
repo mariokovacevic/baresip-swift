@@ -15,6 +15,28 @@ static int registered_thrice(struct waiter *x) { return x->reg_count >= 3; }
 static int failed(struct waiter *x) { return x->reg_state == BSK_REG_FAILED; }
 static int running(struct waiter *x) { return x->engine_state == BSK_ENGINE_RUNNING; }
 
+static char *read_file(const char *path, size_t *len)
+{
+	FILE *f = fopen(path, "rb");
+	char *buf;
+	long n;
+
+	if (!f)
+		return NULL;
+	fseek(f, 0, SEEK_END);
+	n = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	buf = calloc(1, (size_t)n + 1);
+	if (fread(buf, 1, (size_t)n, f) != (size_t)n) {
+		free(buf);
+		fclose(f);
+		return NULL;
+	}
+	fclose(f);
+	*len = (size_t)n;
+	return buf;
+}
+
 
 int main(int argc, char **argv)
 {
@@ -27,6 +49,11 @@ int main(int argc, char **argv)
 	bsk_account_id acc = BSK_ID_NONE;
 	bsk_error err;
 	char aor[128], registrar[128];
+	bool tls = 0 == strncmp(mode, "tls", 3);
+	char *ca_pem = NULL;
+	size_t ca_len = 0;
+	const char *pins[1] = { getenv("BSK_TEST_PIN") };
+	const char *bad_pins[1] = { "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" };
 	bsk_contact_param set_a[] = {
 		{ "app-id", "com.example.proof" },
 		{ "pn-type", "apple" },
@@ -56,19 +83,36 @@ int main(int argc, char **argv)
 	cfg.log_sip_trace = true;
 	cfg.log_level = BSK_LOG_DEBUG;
 
+	if (tls && 0 != strcmp(mode, "tls-noca")) {
+		ca_pem = read_file(getenv("BSK_TEST_CA_PEM"), &ca_len);
+		CHECK(ca_pem != NULL);
+		cfg.tls.ca_pem = ca_pem;
+		cfg.tls.ca_pem_len = ca_len;
+	}
+	if (0 == strcmp(mode, "tls-pin-ok")) {
+		CHECK(pins[0] != NULL);
+		cfg.tls.pinned_spki_sha256_base64 = pins;
+		cfg.tls.pinned_count = 1;
+	}
+	if (0 == strcmp(mode, "tls-pin-bad")) {
+		cfg.tls.pinned_spki_sha256_base64 = bad_pins;
+		cfg.tls.pinned_count = 1;
+	}
+
 	CHECK_OK(bsk_engine_create(&cfg, on_event, NULL, &e, &err), &err);
 	bsk_engine_set_log_handler(e, test_log, "reg ");
 	CHECK_OK(bsk_engine_start(e, &err), &err);
 	CHECK(wait_until(&w, running, 2000));
 
 	snprintf(aor, sizeof(aor), "sip:alice@%s:%s", host, port);
-	snprintf(registrar, sizeof(registrar), "sip:%s:%s;transport=udp", host, port);
+	snprintf(registrar, sizeof(registrar), "sip:%s:%s;transport=%s", host, port,
+		 tls ? "tls" : "udp");
 
 	memset(&ac, 0, sizeof(ac));
 	ac.aor = aor;
 	ac.display_name = "Alice";
 	ac.registrar = registrar;
-	ac.transport = BSK_TRANSPORT_UDP;
+	ac.transport = tls ? BSK_TRANSPORT_TLS : BSK_TRANSPORT_UDP;
 	ac.auth_user = "alice";
 	ac.auth_password = 0 == strcmp(mode, "badpass") ? "wrong" : "secret";
 	ac.register_expires = 4;
@@ -77,6 +121,22 @@ int main(int argc, char **argv)
 
 	CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
 	CHECK_OK(bsk_account_register(e, acc, &err), &err);
+
+	if (0 == strcmp(mode, "tls-pin-bad") || 0 == strcmp(mode, "tls-noca")) {
+		CHECK(wait_until(&w, failed, 15000));
+		CHECK(w.last_error.sip_status == 0);
+		CHECK(w.last_error.status == BSK_ERR_TLS);
+		printf("registration %s: PASS (rejected: %s)\n", mode,
+		       w.last_error.message);
+		goto done;
+	}
+
+	if (0 == strcmp(mode, "tls") || 0 == strcmp(mode, "tls-pin-ok")) {
+		CHECK(wait_until(&w, registered, 10000));
+		CHECK_OK(bsk_account_unregister(e, acc, &err), &err);
+		printf("registration %s: PASS (registered over TLS)\n", mode);
+		goto done;
+	}
 
 	if (0 == strcmp(mode, "badpass")) {
 		CHECK(wait_until(&w, failed, 5000));
@@ -100,5 +160,6 @@ int main(int argc, char **argv)
  done:
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
+	free(ca_pem);
 	return 0;
 }

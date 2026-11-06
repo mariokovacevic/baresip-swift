@@ -27,6 +27,7 @@ struct bsk_account_ctx {
 	char pending_cparams[BSK_CPARAMS_MAX];
 	bool pending_reregister;
 	bool is_default;
+	bool tls;
 	uint32_t expires;
 	uint64_t reg_started_ms;
 };
@@ -54,6 +55,11 @@ struct bsk_call_ctx {
 	struct bsk_video_sink remote_sink;
 	struct bsk_video_sink local_sink;
 	uint64_t created_ms;
+	bsk_ice_state ice_state;
+	bsk_candidate_type ice_local_type;
+	bsk_candidate_type ice_remote_type;
+	char ice_local_addr[64];
+	char ice_remote_addr[64];
 };
 
 struct bsk_engine {
@@ -71,6 +77,9 @@ struct bsk_engine {
 	char *client_cert_pem;
 	size_t client_cert_pem_len;
 	char *cipher_list;
+	char *pins[16];
+	size_t pin_count;
+	bool pin_depth_seen;
 	int tls_min_version;
 	bool verify_server;
 	bool ipv6;
@@ -169,10 +178,13 @@ struct bsk_call_ctx *bsk_call_find_call(bsk_engine *engine,
 					const struct call *call);
 void bsk_call_handle_event(bsk_engine *engine, enum bevent_ev ev,
 			   struct bevent *event);
+void bsk_call_handle_module_event(bsk_engine *engine, const char *text);
 void bsk_calls_flush(bsk_engine *engine);
 void bsk_calls_audio_changed(bsk_engine *engine);
 
 bsk_engine *bsk_global_engine(void);
+
+int bsk_tls_install_pins(bsk_engine *engine);
 
 int bsk_video_init(bsk_engine *engine);
 void bsk_video_close(bsk_engine *engine);

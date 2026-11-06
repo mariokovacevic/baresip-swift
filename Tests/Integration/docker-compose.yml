@@ -1,0 +1,15 @@
+services:
+  asterisk:
+    image: andrius/asterisk:latest
+    network_mode: host
+    volumes:
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./asterisk/keys:/etc/asterisk/keys:ro
+  coturn:
+    image: coturn/coturn:latest
+    network_mode: host
+    command: >
+      -n --log-file=stdout --realm=baresipkit.test --user=bsk:bsk
+      --listening-port=3478 --min-port=49152 --max-port=49200 --no-tls --no-dtls --lt-cred-mech

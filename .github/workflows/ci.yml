@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+jobs:
+  linux-core:
+    name: Linux host build, sanitizers, core tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev zlib1g-dev yasm python3
+      - name: Cache pinned sources and built prefix
+        uses: actions/cache@v4
+        with:
+          path: |
+            Build/.deps
+            Build/out/host/prefix
+          key: linux-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Patches/*.patch') }}
+      - name: Build host prefix (full module set)
+        run: PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+      - name: Run core test suite under ASan/UBSan
+        run: HOSTIP=$(hostname -I | awk '{print $1}') PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Upload traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-core-logs
+          path: Build/out/host/core-tests/*.txt
+
+  macos:
+    name: macOS XCFramework, Swift package, simulator tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+          cmake --version || brew install cmake
+      - name: Cache pinned sources and built prefixes
+        uses: actions/cache@v4
+        with:
+          path: |
+            Build/.deps
+            Build/out/ios-arm64/prefix
+            Build/out/ios-arm64-simulator/prefix
+            Build/out/host/prefix
+          key: macos-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Patches/*.patch') }}
+      - name: Build XCFramework (default module set)
+        run: MODULE_SET=default JOBS=4 Build/build-xcframework.sh
+      - name: Host build and core tests
+        run: |
+          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+          HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1) PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Build Swift package for the simulator
+        run: xcodebuild build -scheme BaresipKit-Package -destination 'generic/platform=iOS Simulator' | tail -20
+      - name: Run XCTest on a simulator
+        run: |
+          DEVICE=$(xcrun simctl list devices available iPhone | grep -m1 -o 'iPhone [0-9A-Za-z ]*' | head -1)
+          xcodebuild test -scheme BaresipKit-Package -destination "platform=iOS Simulator,name=${DEVICE}" | tail -40
+      - name: Upload XCFramework
+        uses: actions/upload-artifact@v4
+        with:
+          name: BaresipKitCore.xcframework
+          path: |
+            Build/out/BaresipKitCore.xcframework.zip
+            Build/out/checksum.txt
+            Build/out/sizes.txt
