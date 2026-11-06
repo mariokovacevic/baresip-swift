@@ -2,7 +2,6 @@
 #include <re.h>
 #include <rem.h>
 #include <baresip.h>
-#include <re_h264.h>
 #include <CoreMedia/CoreMedia.h>
 #include <CoreVideo/CoreVideo.h>
 #include <VideoToolbox/VideoToolbox.h>
