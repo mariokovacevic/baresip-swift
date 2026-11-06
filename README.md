@@ -6,16 +6,15 @@ BaresipKit wraps the [baresip](https://github.com/baresip/baresip) user agent an
 
 ## Status
 
-The SDK is feature complete for audio and video SIP calls and is in verification. Everything that can run on Linux is verified there under ASan/UBSan; Apple-only parts are verified on macOS in rounds (see the prompts in `Docs/Phase*/`).
+The macOS and Linux jobs below pass on every push (`.github/workflows/ci.yml`); the integration job is new:
 
-| Layer | Target | State |
-|---|---|---|
-| 1 | baresip + libre + OpenSSL + Opus [+ libvpx] C core, reproducible CMake build → XCFramework | verified on macOS (device arm64, simulator arm64) and Linux host |
-| 2 | `BaresipKitCore` C ABI (`Core/`) | engine, accounts, push Contact parameters, calls, hold/resume, DTMF, mute, statistics, ICE events, TLS pinning, video sinks and preview: host suite passes; `vidtoolbox` H.264 and `bskcapture` camera (`Core/src/apple`) await the next macOS round |
-| 3 | `BaresipKitBridge` | verified on macOS |
-| 4 | `BaresipKit` Swift API | compiled and tested on the simulator through the frame-sink API; video view additions await the next macOS round |
-| 5 | `BaresipKitAudio`, `BaresipKitCallKit`, `BaresipKitPushKit`, `BaresipKitVideo` | compiled on the simulator; `BaresipVideoView` awaits the next macOS round |
-| — | sample app, CI, Asterisk/coturn integration scaffold, fuzzing | written; sample app and CI await the next macOS round, integration suite needs Docker |
+| Job | What it verifies |
+|---|---|
+| macOS | XCFramework for iOS device arm64 and simulator arm64; host suite with ASan/UBSan incl. TLS pinning, ICE, VP8 and **H.264 via VideoToolbox** two-process video calls; Swift package build; **XCTest on an iPhone simulator** (engine lifecycle, contact parameters, video preview frames, `BaresipVideoView`, network events, audio options); **sample app build** |
+| Linux | host build of the full module set; the same core suite under ASan/UBSan; libFuzzer over the facade parsers |
+| Integration | Asterisk + coturn in Docker: TLS registration, echo calls, early media, DTMF over RFC 4733 and SIP INFO, hold/resume, ICE with TURN, two accounts with call swapping (job added; being brought to green) |
+
+Not verified by automation: the camera (`bskcapture`) needs a physical device, and CallKit/PushKit need a signed app with a VoIP push certificate. Both build in CI; see [Docs/Limitations.md](Docs/Limitations.md).
 
 ## Quick start
 

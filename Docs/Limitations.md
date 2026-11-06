@@ -12,7 +12,8 @@
 | Software AEC | not needed on iOS (VoiceProcessingIO); `webrtc_aec` module needs an external library | none planned |
 | Zero-copy decoded frames | the decoder's `CVPixelBuffer` is copied into the frame sink's buffer because baresip's `vidframe` has no native-buffer slot | small baresip extension or a side channel from `vidtoolbox` to the sink |
 | ABI stability | 0.1; config structs will gain a `size` member before 1.0 | before the first tagged release |
-| Camera on the simulator | no camera; use `fakevideo` | n/a |
-| Integration tests against Asterisk/coturn | docker-compose scaffold in `Tests/Integration`, not run in CI yet | run on a self-hosted or Docker-enabled runner |
+| Camera on the simulator | no camera; use `fakevideo`. `bskcapture` is compiled in CI but only exercised on a physical device | manual device test |
+| CallKit / PushKit end to end | adapters compile and the sample app builds in CI; reporting a call to CallKit and receiving VoIP pushes need a signed app on a device and a VoIP certificate | manual device test |
+| Intel simulators | the XCFramework ships an arm64 simulator slice only | build with `SLICES` including `ios-x86_64-simulator` |
 
 Applied upstream patches (all in `Patches/`, to be proposed upstream): Contact URI parameters API, avcapture CMake gate and iOS guards, libre server-verification handler, ICE module events.
