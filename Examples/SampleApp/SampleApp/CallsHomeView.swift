@@ -278,7 +278,7 @@ struct CallListRow: View {
             }
             Spacer(minLength: 8)
             if row.state == .incoming {
-                Button("Open") { model.callMinimized = false }
+                Button("Open") { Task { await model.showIncoming(row.id) } }
                     .buttonStyle(.bordered)
             } else if !isCurrent {
                 Button("Switch") { Task { await model.switchTo(row.id) } }

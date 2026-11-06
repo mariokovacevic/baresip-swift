@@ -27,7 +27,8 @@ final class CallModel: ObservableObject {
     @Published var incoming: BaresipCallInfo?
     @Published var muted = false
     @Published var onHold = false
-    @Published var videoEnabled = false
+    @Published var previewVideo = false
+    private var pendingOutgoingVideo = false
     @Published var frontCamera = true
     @Published var previewing = false
     @Published var incomingEarlyVideo = false
@@ -175,9 +176,10 @@ final class CallModel: ObservableObject {
         guard !target.isEmpty else { return }
         if uiTest, let engine {
             callMinimized = false
+            pendingOutgoingVideo = video
             do {
-                _ = try await engine.makeCall(accountID: accountID, destination: target, video: video)
-                videoEnabled = video
+                let call = try await engine.makeCall(accountID: accountID, destination: target, video: video)
+                setVideo(video, for: call)
             } catch {
                 append("call failed: \(error)")
             }
@@ -185,9 +187,9 @@ final class CallModel: ObservableObject {
         }
         callMinimized = false
         guard let callKit else { return }
+        pendingOutgoingVideo = video
         do {
             _ = try await callKit.startOutgoingCall(to: target, video: video)
-            videoEnabled = video
         } catch {
             append("call failed: \(error)")
         }
@@ -200,7 +202,7 @@ final class CallModel: ObservableObject {
             await activatePreviewAudio()
             try await engine.sendProgress(callID: incoming.id, earlyVideo: video)
             previewing = true
-            videoEnabled = video
+            previewVideo = video
             append("previewing \(incoming.remoteURI) (they do not hear or see you)")
         } catch {
             append("preview failed: \(error)")
@@ -228,8 +230,9 @@ final class CallModel: ObservableObject {
         callState = calls.first { $0.id == incoming.id }?.state
         onHold = false
         callMinimized = false
-        videoEnabled = incoming.hasVideo
+        setVideo(incoming.hasVideo, for: incoming.id)
         previewing = false
+        previewVideo = false
         self.incoming = nil
     }
 
@@ -237,10 +240,12 @@ final class CallModel: ObservableObject {
         guard let engine else { return }
         do {
             try await engine.setActiveCall(call)
+            if call == heldCall {
+                heldCall = currentCall
+            }
             currentCall = call
             callState = calls.first { $0.id == call }?.state
             onHold = false
-            heldCall = nil
         } catch {
             append("switch failed: \(error)")
         }
@@ -278,7 +283,12 @@ final class CallModel: ObservableObject {
             return
         }
         guard state != .released else { return }
-        calls.append(CallRow(id: call, remote: "…", state: state, outgoing: state != .incoming))
+        let outgoing = state != .incoming
+        calls.append(CallRow(id: call, remote: "…", state: state, outgoing: outgoing,
+                             hasVideo: outgoing && pendingOutgoingVideo))
+        if outgoing {
+            pendingOutgoingVideo = false
+        }
         refreshInfo(call)
     }
 
@@ -290,8 +300,18 @@ final class CallModel: ObservableObject {
                 self.calls[index].remote = info.remoteDisplayName.isEmpty ? info.remoteURI : info.remoteDisplayName
                 self.calls[index].outgoing = info.isOutgoing
                 self.calls[index].codec = info.audioCodec
+                self.calls[index].hasVideo = info.hasVideo
             }
         }
+    }
+
+    var videoEnabled: Bool {
+        currentRow?.hasVideo ?? false
+    }
+
+    private func setVideo(_ enabled: Bool, for call: BaresipCallID) {
+        guard let index = calls.firstIndex(where: { $0.id == call }) else { return }
+        calls[index].hasVideo = enabled
     }
 
     var currentRow: CallRow? {
@@ -316,12 +336,27 @@ final class CallModel: ObservableObject {
                 let name = CallRow.displayName(currentRow?.remote ?? "call")
                     .replacingOccurrences(of: "/", with: "-")
                 let url = folder.appendingPathComponent("\(stamp) \(name).wav")
-                try await engine.startRecording(callID: currentCall, to: url)
+                let previous = lastRecording
                 lastRecording = url
+                do {
+                    try await engine.startRecording(callID: currentCall, to: url)
+                } catch {
+                    lastRecording = previous
+                    throw error
+                }
             }
         } catch {
             append("recording failed: \(error)")
         }
+    }
+
+    func showIncoming(_ call: BaresipCallID) async {
+        guard incoming?.id != call, let engine,
+              let info = try? await engine.callInfo(callID: call) else { return }
+        incoming = info
+        incomingEarlyVideo = false
+        previewing = false
+        previewVideo = false
     }
 
     func endConsultation() async {
@@ -330,16 +365,13 @@ final class CallModel: ObservableObject {
     }
 
     var conversations: [(peer: String, last: ChatMessage)] {
-        var seen: [String: ChatMessage] = [:]
-        var order: [String] = []
-        for message in messages {
-            let key = CallRow.displayName(message.peer)
-            if seen[key] == nil {
-                order.append(key)
-            }
-            seen[key] = message
+        var latest: [String: (position: Int, message: ChatMessage)] = [:]
+        for (position, message) in messages.enumerated() {
+            latest[CallRow.displayName(message.peer)] = (position, message)
         }
-        return order.reversed().compactMap { key in seen[key].map { (key, $0) } }
+        return latest
+            .sorted { $0.value.position > $1.value.position }
+            .map { (peer: $0.key, last: $0.value.message) }
     }
 
     func messages(with peer: String) -> [ChatMessage] {
@@ -354,6 +386,7 @@ final class CallModel: ObservableObject {
         if incoming?.id == call {
             incoming = nil
             previewing = false
+            previewVideo = false
         }
         guard call == currentCall else { return }
         if let next = heldCall ?? calls.first?.id {
@@ -371,8 +404,8 @@ final class CallModel: ObservableObject {
         stats = nil
         onHold = false
         muted = false
-        videoEnabled = false
         previewing = false
+        previewVideo = false
         callMinimized = false
         if previewAudioActive {
             previewAudioActive = false
@@ -390,7 +423,7 @@ final class CallModel: ObservableObject {
         guard let engine, let incoming else { return }
         try? await engine.reject(callID: incoming.id, statusCode: 486)
         previewing = false
-        videoEnabled = false
+        previewVideo = false
         self.incoming = nil
     }
 
@@ -470,8 +503,9 @@ final class CallModel: ObservableObject {
 
     func toggleVideo() async {
         guard let engine, let currentCall else { return }
-        videoEnabled.toggle()
-        try? await engine.setVideoEnabled(videoEnabled, callID: currentCall)
+        let enabled = !videoEnabled
+        setVideo(enabled, for: currentCall)
+        try? await engine.setVideoEnabled(enabled, callID: currentCall)
     }
 
     func sendDTMF(_ digits: String) async {
@@ -666,7 +700,7 @@ final class CallModel: ObservableObject {
             }
             if registeredSettings?.autoPreview == true && !calls.contains(where: { $0.id != info.id }) {
                 previewing = true
-                videoEnabled = info.hasVideo || earlyVideo
+                previewVideo = info.hasVideo || earlyVideo
                 await activatePreviewAudio()
             }
             append("incoming call from \(info.remoteURI)\(earlyVideo ? " (early video offered)" : "")")
@@ -755,6 +789,7 @@ struct CallRow: Identifiable, Equatable {
     var remote: String
     var state: BaresipCallState
     var outgoing: Bool
+    var hasVideo = false
     var codec: String = ""
     var connectedAt: Date?
 
