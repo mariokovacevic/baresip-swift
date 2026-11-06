@@ -6,15 +6,37 @@ BaresipKit wraps the [baresip](https://github.com/baresip/baresip) user agent an
 
 ## Status
 
-Phase 0 (feasibility) is complete and reviewed; Phase 1 (facade, bridge, Swift API) is in progress. Start with [`Docs/Phase0/README.md`](Docs/Phase0/README.md).
+The SDK is feature complete for audio and video SIP calls and is in verification. Everything that can run on Linux is verified there under ASan/UBSan; Apple-only parts are verified on macOS in rounds (see the prompts in `Docs/Phase*/`).
 
 | Layer | Target | State |
 |---|---|---|
-| 1 | baresip + libre + OpenSSL + Opus C core, reproducible CMake build → XCFramework | verified on macOS for device arm64 and simulator arm64 |
-| 2 | `BaresipKitCore` C ABI (`Core/`) | implemented: engine thread, accounts, registration, Contact parameters, calls, hold/resume, DTMF, mute, statistics, video frame sinks and preview; host test suite incl. a VP8 video call passes under ASan/UBSan. Apple-only: `vidtoolbox` H.264 codec and `bskcapture` camera source (`Core/src/apple`), awaiting first compile on macOS |
-| 3 | `BaresipKitBridge` | C helpers for event unions, module map |
-| 4 | `BaresipKit` Swift API | written, awaiting first compile on macOS (`Docs/Phase1/macOS-verification-prompt.md`) |
-| 5 | `BaresipKitAudio`, `BaresipKitCallKit`, `BaresipKitPushKit` | compiled and tested on the simulator; `BaresipKitVideo` adds `BaresipVideoView` (AVSampleBufferDisplayLayer), awaiting first compile |
+| 1 | baresip + libre + OpenSSL + Opus [+ libvpx] C core, reproducible CMake build → XCFramework | verified on macOS (device arm64, simulator arm64) and Linux host |
+| 2 | `BaresipKitCore` C ABI (`Core/`) | engine, accounts, push Contact parameters, calls, hold/resume, DTMF, mute, statistics, ICE events, TLS pinning, video sinks and preview: host suite passes; `vidtoolbox` H.264 and `bskcapture` camera (`Core/src/apple`) await the next macOS round |
+| 3 | `BaresipKitBridge` | verified on macOS |
+| 4 | `BaresipKit` Swift API | compiled and tested on the simulator through the frame-sink API; video view additions await the next macOS round |
+| 5 | `BaresipKitAudio`, `BaresipKitCallKit`, `BaresipKitPushKit`, `BaresipKitVideo` | compiled on the simulator; `BaresipVideoView` awaits the next macOS round |
+| — | sample app, CI, Asterisk/coturn integration scaffold, fuzzing | written; sample app and CI await the next macOS round, integration suite needs Docker |
+
+## Quick start
+
+```swift
+import BaresipKit
+
+let engine = try BaresipEngine(configuration: BaresipConfiguration())
+try await engine.start()
+let account = try await engine.addAccount(BaresipAccountConfiguration(
+    aor: "sip:1001@pbx.example.com",
+    registrar: "sip:pbx.example.com:5061;transport=tls",
+    authUser: "1001", authPassword: "secret"))
+try await engine.register(accountID: account)
+for await event in engine.events {
+    if case .registration(_, .registered, _, _) = event {
+        let call = try await engine.makeCall(destination: "sip:door@pbx.example.com", video: true)
+        _ = call
+        break
+    }
+}
+```
 
 ## Documentation
 

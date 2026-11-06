@@ -8,7 +8,6 @@ import BaresipKit
 public final class BaresipVideoView: UIView {
     private let displayLayer = AVSampleBufferDisplayLayer()
     private let relay = BaresipVideoFrameRelay()
-    private var formatDescription: CMVideoFormatDescription?
 
     public override init(frame: CGRect) {
         super.init(frame: frame)
@@ -41,21 +40,17 @@ public final class BaresipVideoView: UIView {
 
     public func flush() {
         displayLayer.flushAndRemoveImage()
-        formatDescription = nil
     }
 
     private func relayFrames() {
-        let layer = displayLayer
-        let box = SendableBox(layer)
-        relay.setHandlers(onFrame: { [weak self] frame in
-            let sample = Self.makeSample(frame: frame, cache: self)
-            guard let sample else { return }
+        let box = SendableBox(displayLayer)
+        relay.setHandlers(onFrame: { frame in
+            guard let sample = BaresipVideoView.makeSample(frame: frame) else { return }
             box.value.enqueue(sample)
         }, onSize: nil)
     }
 
-    nonisolated private static func makeSample(frame: BaresipVideoFrame,
-                                               cache: BaresipVideoView?) -> CMSampleBuffer? {
+    nonisolated private static func makeSample(frame: BaresipVideoFrame) -> CMSampleBuffer? {
         var description: CMVideoFormatDescription?
         let status = CMVideoFormatDescriptionCreateForImageBuffer(allocator: kCFAllocatorDefault,
                                                                   imageBuffer: frame.pixelBuffer,
@@ -71,13 +66,14 @@ public final class BaresipVideoView: UIView {
                                                                sampleTiming: &timing,
                                                                sampleBufferOut: &sample)
         guard created == noErr, let sample else { return nil }
-        if let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true) as? [CFMutableDictionary],
-           let first = attachments.first {
-            CFDictionarySetValue(first,
+        if let attachments = CMSampleBufferGetSampleAttachmentsArray(sample, createIfNecessary: true),
+           CFArrayGetCount(attachments) > 0,
+           let raw = CFArrayGetValueAtIndex(attachments, 0) {
+            let dict = unsafeBitCast(raw, to: CFMutableDictionary.self)
+            CFDictionarySetValue(dict,
                                  Unmanaged.passUnretained(kCMSampleAttachmentKey_DisplayImmediately).toOpaque(),
                                  Unmanaged.passUnretained(kCFBooleanTrue).toOpaque())
         }
-        _ = cache
         return sample
     }
 }
