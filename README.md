@@ -1,74 +1,103 @@
 # BaresipKit
 
-Production-grade Swift wrapper for baresip: SIP, audio, video, ICE and CallKit-ready on iOS.
+BaresipKit is an open-source Swift SDK for SIP voice and video calls on iOS. It wraps the [baresip](https://github.com/baresip/baresip) user agent and the [libre](https://github.com/baresip/re) stack behind a small, versioned C ABI and an `async`/`await` Swift API, with optional adapters for the audio session, video views, CallKit and PushKit. The C core ships as a binary XCFramework inside a Swift package. License: BSD-3-Clause, the same as baresip.
 
-BaresipKit wraps the [baresip](https://github.com/baresip/baresip) user agent and the [libre](https://github.com/baresip/re) stack behind a small, stable C ABI and an idiomatic Swift API, packaged as a Swift Package with a binary XCFramework for the C core. License: BSD-3-Clause, matching baresip.
+## Features
 
-## Status
+| Feature | Status | Notes |
+|---|---|---|
+| Registration over UDP, TCP and TLS | Supported | Tested against Asterisk and a TLS test registrar in CI |
+| TLS with a private CA, mutual TLS and SPKI pinning | Supported | |
+| Audio calls: Opus, G.711 | Supported | |
+| Video calls: H.264 through VideoToolbox | Supported | Zero-copy decoded frames; VP8 in the `full` module set |
+| Hold, resume, mute, DTMF (RFC 4733 and SIP INFO) | Supported | |
+| Several calls at once, switching the active call | Supported | `maxCalls` in the configuration |
+| Blind and attended transfer (REFER, Replaces) | Supported | |
+| SIP MESSAGE (RFC 3428) | Supported | |
+| Early media preview of incoming calls | Supported | Receive-only 183 Session Progress |
+| SRTP (SDES) and DTLS-SRTP | Supported | |
+| ICE with STUN and TURN over UDP, TCP and TLS, ICE restart | Supported | |
+| Adaptive video bitrate from RTCP loss | Supported | |
+| Call recording to stereo WAV | Supported | |
+| Statistics: loss, jitter, RTT, MOS estimate | Supported | |
+| Camera capture (`bskcapture`) | Partial | Builds in CI; needs a physical device to test |
+| CallKit and PushKit adapters | Partial | Build and unit tests in CI; need a signed app and a VoIP push certificate to test end to end |
+| SIP over secure WebSocket | Partial | Transport available in the API, not covered by tests |
+| ZRTP, conferencing, presence, G.722, H.265 | Not supported | |
 
-All three CI jobs pass on every push (`.github/workflows/ci.yml`):
+What CI covers and what it does not is listed in [Docs/Limitations.md](Docs/Limitations.md).
 
-| Job | What it verifies |
-|---|---|
-| macOS | XCFramework for iOS device arm64 and simulator arm64; host suite with ASan/UBSan incl. TLS pinning, ICE with ICE restart, VP8 and **H.264 via VideoToolbox** two-process video calls (capped bitrate, decoded frames delivered without a copy); Swift package build; **XCTest on an iPhone simulator** (engine lifecycle, contact parameters, video preview frames, `BaresipVideoView`, network events, audio options); **sample app build** |
-| Linux | host build of the full module set; the same core suite under ASan/UBSan; libFuzzer over the facade parsers |
-| Integration | Asterisk + coturn in Docker: TLS registration, echo calls, early media, DTMF over RFC 4733 and SIP INFO, hold/resume, ICE, two accounts with call swapping, a relay-only ICE call whose RTP flows through TURN over UDP, TCP and TLS, and two-process ICE calls relayed through TURN over UDP, TCP and TLS with an ICE restart in the middle |
+## Requirements
 
-Not verified by automation: the camera (`bskcapture`) needs a physical device, and CallKit/PushKit need a signed app with a VoIP push certificate. Both build in CI; see [Docs/Limitations.md](Docs/Limitations.md).
+- iOS 17 or later
+- Xcode 16 or later (Swift 6)
+- To build the C core: macOS with Xcode, CMake and Python 3
 
-## Quick start
+## Installation
+
+Add the package in Xcode (File > Add Package Dependencies) or in `Package.swift`:
+
+```swift
+.package(url: "https://github.com/mariokovacevic/baresip-swift.git", from: "0.1.0")
+```
+
+Then add the products you need: `BaresipKit`, and optionally `BaresipKitAudio`, `BaresipKitVideo`, `BaresipKitCallKit` and `BaresipKitPushKit`.
+
+Until the first tagged release publishes the XCFramework, build it locally once with `Build/build-xcframework.sh`; `Package.swift` picks up `Build/out/BaresipKitCore.xcframework` automatically. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Example: register and call
 
 ```swift
 import BaresipKit
 
 let engine = try BaresipEngine(configuration: BaresipConfiguration())
 try await engine.start()
+
 let account = try await engine.addAccount(BaresipAccountConfiguration(
-    aor: "sip:1001@pbx.example.com",
-    registrar: "sip:pbx.example.com:5061;transport=tls",
-    authUser: "1001", authPassword: "secret"))
+    aor: "sip:alice@example.com",
+    authPassword: "example-password"
+))
 try await engine.register(accountID: account)
+
 for await event in engine.events {
     if case .registration(_, .registered, _, _) = event {
-        let call = try await engine.makeCall(destination: "sip:door@pbx.example.com", video: true)
-        _ = call
+        let call = try await engine.makeCall(destination: "sip:bob@example.com")
+        print("calling", call)
         break
     }
 }
 ```
 
+The app needs the `NSMicrophoneUsageDescription` key, and `NSCameraUsageDescription` for video. A VoIP app also needs the `audio` and `voip` background modes.
+
 ## Documentation
 
-Start at [`Docs/README.md`](Docs/README.md): architecture, building, the integration guide (accounts, push Contact parameters, calls, audio session, CallKit, PushKit, video, TLS, ICE) and limitations. The sample app is in `Examples/SampleApp`.
+- The DocC documentation of the package: Getting Started, Audio Session, Video, CallKit, PushKit and Push Contact Parameters. Build it with Product > Build Documentation in Xcode.
+- [Docs/Integration.md](Docs/Integration.md): the full integration guide.
+- [Docs/Architecture.md](Docs/Architecture.md): the layers and threading model.
+- [Docs/Building.md](Docs/Building.md): building the XCFramework and module sets.
+- [Docs/Limitations.md](Docs/Limitations.md): known limits and what is not tested.
+- [Examples/SampleApp](Examples/SampleApp): a SwiftUI app with accounts, calls, video, transfer, messages and recording.
 
 ## Repository layout
 
 ```
-Build/        versions.env (pins), module-sets.env, build-xcframework.sh, cmake/ios.toolchain.cmake
-Core/         BaresipKitCore: the C facade (include/baresip_kit.h, src/, src/apple/, CMakeLists.txt)
-Docs/         guides, Phase 0 feasibility set, macOS verification prompts
-Examples/     SwiftUI sample app (xcodegen project)
-Patches/      small upstreamable diffs applied to the pinned baresip/libre sources
-Sources/      BaresipKitBridge (C helpers), BaresipKit (Swift API), adapters
-Tests/        Core (C tests, run_tests.sh), BaresipKitTests (XCTest), Integration (Asterisk + coturn)
-Tools/        ContactParameterProof: proof programs, fake registrar, trace verifier
+Package.swift   Swift package; the C core is the BaresipKitCore binary target
+Core/           the C facade (include/baresip_kit.h, src/), built into the XCFramework
+Sources/        BaresipKitBridge (C helpers), BaresipKit (Swift API) and the adapters
+Tests/          BaresipKitTests (XCTest), Core (C tests), Fuzz, Integration (Asterisk and coturn)
+Examples/       the sample app (xcodegen project)
+Build/          pinned versions, module sets and the XCFramework build script
+Patches/        small patches applied to the pinned baresip and libre sources
+Scripts/        lint.sh and format.sh
+Docs/           guides and the C ABI reference
+Tools/          the Contact parameter proof and test registrars
 ```
 
-## Building the C core
+## Contributing and security
 
-On macOS with Xcode installed:
+See [CONTRIBUTING.md](CONTRIBUTING.md) for building, testing and the commit convention, and [SECURITY.md](SECURITY.md) for reporting vulnerabilities privately. This project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
-```bash
-Build/build-xcframework.sh
-```
+## License
 
-Produces `Build/out/BaresipKitCore.xcframework` (iOS device arm64 + iOS simulator arm64), a zip and its SPM checksum. `MODULE_SET=minimal|default|full` selects the baresip module set; `PLATFORM=host` builds natively for CI and sanitizer runs.
-
-## Pinned upstream versions
-
-libre v4.9.0, baresip v4.9.0, OpenSSL 3.5.9, Opus 1.6.1. See `Build/versions.env` and `DEPENDENCIES.md`.
-
-
-## CallKit note
-
-`BaresipCallKitConfiguration.localizedName` is deprecated and has no effect. `CXProviderConfiguration.localizedName` is read-only in current SDKs, so CallKit shows the application name from the app's `Info.plist`.
+BaresipKit is available under the BSD 3-Clause license; see [LICENSE](LICENSE). Third-party components and their licenses are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [DEPENDENCIES.md](DEPENDENCIES.md). H.264 is patent-encumbered; read the note in DEPENDENCIES.md before shipping.
