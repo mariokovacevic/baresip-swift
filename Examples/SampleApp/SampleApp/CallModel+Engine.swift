@@ -35,8 +35,10 @@ extension CallModel {
             callKit = BaresipCallKitAdapter(engine: engine,
                                             configuration: BaresipCallKitConfiguration(supportsVideo: true))
             push = BaresipPushKitAdapter(engine: engine, appID: "com.example.BaresipKitSample") { [weak self] payload in
+                let from = payload["from"] as? String
+                let video = payload["video"] as? Bool ?? false
                 guard let self else { throw CancellationError() }
-                try await pushArrived(payload)
+                try await pushArrived(from: from, video: video)
             }
             append(
                 """
@@ -103,10 +105,8 @@ extension CallModel {
         await engine.networkDidChange()
     }
 
-    func pushArrived(_ payload: [AnyHashable: Any]) async throws {
+    func pushArrived(from: String?, video: Bool) async throws {
         guard let callKit else { throw CancellationError() }
-        let from = payload["from"] as? String
-        try await callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: from, displayName: from,
-                                                     hasVideo: payload["video"] as? Bool ?? false)
+        try await callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: from, displayName: from, hasVideo: video)
     }
 }
