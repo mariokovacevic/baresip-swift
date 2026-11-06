@@ -10,9 +10,9 @@ All three CI jobs pass on every push (`.github/workflows/ci.yml`):
 
 | Job | What it verifies |
 |---|---|
-| macOS | XCFramework for iOS device arm64 and simulator arm64; host suite with ASan/UBSan incl. TLS pinning, ICE, VP8 and **H.264 via VideoToolbox** two-process video calls; Swift package build; **XCTest on an iPhone simulator** (engine lifecycle, contact parameters, video preview frames, `BaresipVideoView`, network events, audio options); **sample app build** |
+| macOS | XCFramework for iOS device arm64 and simulator arm64; host suite with ASan/UBSan incl. TLS pinning, ICE with ICE restart, VP8 and **H.264 via VideoToolbox** two-process video calls (capped bitrate, decoded frames delivered without a copy); Swift package build; **XCTest on an iPhone simulator** (engine lifecycle, contact parameters, video preview frames, `BaresipVideoView`, network events, audio options); **sample app build** |
 | Linux | host build of the full module set; the same core suite under ASan/UBSan; libFuzzer over the facade parsers |
-| Integration | Asterisk + coturn in Docker: TLS registration, echo calls, early media, DTMF over RFC 4733 and SIP INFO, hold/resume, ICE, two accounts with call swapping, and a relay-only ICE call whose RTP flows through TURN in both directions |
+| Integration | Asterisk + coturn in Docker: TLS registration, echo calls, early media, DTMF over RFC 4733 and SIP INFO, hold/resume, ICE, two accounts with call swapping, a relay-only ICE call whose RTP flows through TURN over UDP, TCP and TLS, and two-process ICE calls relayed through TURN over UDP, TCP and TLS with an ICE restart in the middle |
 
 Not verified by automation: the camera (`bskcapture`) needs a physical device, and CallKit/PushKit need a signed app with a VoIP push certificate. Both build in CI; see [Docs/Limitations.md](Docs/Limitations.md).
 

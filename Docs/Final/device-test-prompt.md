@@ -34,6 +34,17 @@ root cause, keep the fix minimal, and re-run that test.
    g. incoming call while the app is in the foreground (answer and reject);
    h. CallKit: the call appears on the lock screen / call UI and the
       audio session activates only after answering.
+   i. network change during a call: start an audio call on Wi-Fi with ICE
+      enabled, turn Wi-Fi off so the phone moves to cellular, and check
+      that audio returns within a few seconds (the log shows "local ICE
+      restart" and a new "connected" ICE event);
+   j. video quality on a weak link: during a video call, check that
+      `callStatistics` shows `videoTargetBitrate` dropping when the
+      network is degraded (for example Network Link Conditioner with
+      packet loss on the Mac side) and rising again afterwards;
+   k. rendering cost: with remote H.264 video on screen, check in
+      Instruments (Time Profiler) that no CVPixelBufferCreate calls come
+      from BaresipVideoFrame.copyPlanes for remote frames.
    Collect the app log (os_log subsystem com.example.BaresipKitSample) with
    `log stream --predicate 'subsystem == "com.example.BaresipKitSample"'`
    from the Mac while testing, and check that no password, Authorization
