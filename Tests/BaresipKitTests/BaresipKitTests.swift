@@ -152,6 +152,18 @@ final class VideoSinkTests: XCTestCase {
         } catch let error as BaresipError {
             XCTAssertEqual(error.status, .notFound)
         }
+        do {
+            try await engine.transferAttended(callID: BaresipCallID(rawValue: 42), to: BaresipCallID(rawValue: 43))
+            XCTFail("expected notFound")
+        } catch let error as BaresipError {
+            XCTAssertEqual(error.status, .notFound)
+        }
+        do {
+            try await engine.sendMessage(to: "sip:bob@example.invalid", text: "hi")
+            XCTFail("expected notFound without an account")
+        } catch let error as BaresipError {
+            XCTAssertEqual(error.status, .notFound)
+        }
         let devices = await engine.videoDevices()
         XCTAssertNotNil(devices)
         await engine.stop()
@@ -215,7 +227,7 @@ final class NetworkEventTests: XCTestCase {
         let engine = try BaresipEngine(configuration: BaresipConfiguration())
         XCTAssertFalse(engine.isEngineThread)
         XCTAssertEqual(BaresipEngine.abiVersion.major, 0)
-        XCTAssertEqual(BaresipEngine.abiVersion.minor, 4)
+        XCTAssertEqual(BaresipEngine.abiVersion.minor, 5)
     }
 }
 

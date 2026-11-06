@@ -30,6 +30,7 @@ struct bsk_account_ctx {
 	bool is_default;
 	bool tls;
 	bool answer_early_media;
+	bool reject_transfers;
 	uint32_t expires;
 	uint64_t reg_started_ms;
 };
@@ -133,6 +134,10 @@ struct bsk_engine {
 	struct list accounts;
 	struct list calls;
 	uint64_t next_account_id;
+	uint64_t next_message_id;
+	bsk_account_id replace_account;
+	bool replace_video;
+	uint64_t replace_ms;
 	uint64_t next_call_id;
 	struct log baresip_log;
 	struct tmr tmr_stop;
@@ -211,6 +216,8 @@ bool bsk_ice_parse_event(const char *text, size_t len,
 void bsk_calls_flush(bsk_engine *engine);
 void bsk_calls_audio_changed(bsk_engine *engine);
 void bsk_calls_rate_tick(bsk_engine *engine);
+int bsk_message_init(bsk_engine *engine);
+void bsk_message_close(bsk_engine *engine);
 
 bsk_engine *bsk_global_engine(void);
 

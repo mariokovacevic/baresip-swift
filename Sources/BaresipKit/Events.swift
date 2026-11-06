@@ -208,6 +208,22 @@ public struct BaresipTransferEvent: Sendable, Equatable {
     public let targetURI: String
 }
 
+public struct BaresipMessage: Sendable, Equatable {
+    public let accountID: BaresipAccountID?
+    public let from: String
+    public let contentType: String
+    public let body: Data
+
+    public var text: String? { String(data: body, encoding: .utf8) }
+}
+
+public struct BaresipMessageStatus: Sendable, Equatable {
+    public let id: BaresipMessageID
+    public let delivered: Bool
+    public let sipStatus: Int?
+    public let error: BaresipError?
+}
+
 public struct BaresipICEEvent: Sendable, Equatable {
     public let state: BaresipICEState
     public let localCandidate: BaresipCandidateType
@@ -257,6 +273,8 @@ public enum BaresipEvent: Sendable {
     case network(BaresipNetworkEvent)
     case audio(BaresipCallID?, BaresipAudioEvent)
     case diagnostic(BaresipDiagnosticEvent)
+    case message(BaresipMessage)
+    case messageStatus(BaresipMessageStatus)
 
     init?(_ ev: UnsafePointer<bsk_event>) {
         let e = ev.pointee
@@ -319,6 +337,19 @@ public enum BaresipEvent: Sendable {
             let x = bsk_bridge_event_diagnostic(ev)
             self = .diagnostic(BaresipDiagnosticEvent(level: BaresipLogLevel(x.level),
                                                       message: stringFromCArray(x.message)))
+        case BSK_EVENT_MESSAGE:
+            let x = bsk_bridge_event_message(ev)
+            let body = x.body.map { Data(bytes: $0, count: x.body_len) } ?? Data()
+            self = .message(BaresipMessage(accountID: e.account == 0 ? nil : account,
+                                           from: stringFromCArray(x.from),
+                                           contentType: stringFromCArray(x.content_type),
+                                           body: body))
+        case BSK_EVENT_MESSAGE_STATUS:
+            let x = bsk_bridge_event_message_status(ev)
+            self = .messageStatus(BaresipMessageStatus(id: BaresipMessageID(rawValue: x.message_id),
+                                                       delivered: x.delivered,
+                                                       sipStatus: x.sip_status == 0 ? nil : Int(x.sip_status),
+                                                       error: err(x.error)))
         default:
             return nil
         }

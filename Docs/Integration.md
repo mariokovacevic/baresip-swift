@@ -104,6 +104,27 @@ Incoming early media (preview before answering, for example at a door intercom):
 
 Incoming calls are reported to CallKit when the INVITE arrives. After a VoIP push, report the call first with `reportIncomingCallFromPush(uuid:remoteURI:displayName:hasVideo:)`; when the INVITE arrives it is matched to that UUID by caller user and host (a push without a caller matches the next INVITE) and, if the user already answered, answered immediately; if no INVITE arrives within `pushInviteTimeout` (30 s by default) the CallKit call is ended. Answering from the CallKit UI keeps video when the call offers it. Hold, mute, DTMF and end actions are forwarded to the engine. Outgoing progress is reported from `outgoingRinging`/`earlyMedia` (connecting) and `connected` (connected).
 
+## Messages
+
+```swift
+let id = try await engine.sendMessage(to: "sip:bob@pbx.example.com", text: "Hello")
+for await event in engine.events {
+    switch event {
+    case .messageStatus(let status) where status.id == id:
+        print(status.delivered ? "delivered" : "failed: \(String(describing: status.error))")
+    case .message(let message):
+        print("\(message.from): \(message.text ?? "")")
+    default: break
+    }
+}
+```
+
+`sendMessage` sends a SIP MESSAGE (RFC 3428) with `text/plain` from the given or default account; `.messageStatus` reports the final response (delivered on 2xx, otherwise the SIP status or transport error). Incoming `text/plain` and `application/json` messages arrive as `.message` with the raw body; other content types are answered with 415 by baresip.
+
+## Transfers
+
+`transfer(callID:to:)` is a blind transfer (REFER). For an attended transfer put the first call on hold, call the target, talk to it, then call `transferAttended(callID: firstCall, to: consultationCall)`: the first party receives a REFER with `Replaces` and calls the target, the target's call is replaced without ringing, and both of your calls end. When the other side transfers you, the SDK follows the REFER automatically (a new outgoing call appears as `.call(newID, .outgoingInit)` and the old call ends when the transfer succeeds); set `acceptTransfers: false` on the account to decline transfers with 603.
+
 ## PushKit
 
 ```swift

@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #define BSK_ABI_VERSION_MAJOR 0
-#define BSK_ABI_VERSION_MINOR 4
+#define BSK_ABI_VERSION_MINOR 5
 
 typedef struct bsk_engine bsk_engine;
 
@@ -267,6 +267,7 @@ typedef struct bsk_account_config {
 	const char *const *video_codecs;
 	size_t video_codec_count;
 	bool answer_early_media;
+	bool reject_transfers;
 } bsk_account_config;
 
 typedef struct bsk_call_info {
@@ -326,7 +327,9 @@ typedef enum bsk_event_type {
 	BSK_EVENT_ICE = 8,
 	BSK_EVENT_NETWORK = 9,
 	BSK_EVENT_AUDIO = 10,
-	BSK_EVENT_DIAGNOSTIC = 11
+	BSK_EVENT_DIAGNOSTIC = 11,
+	BSK_EVENT_MESSAGE = 12,
+	BSK_EVENT_MESSAGE_STATUS = 13
 } bsk_event_type;
 
 typedef enum bsk_media_event {
@@ -404,6 +407,18 @@ typedef struct bsk_event {
 			bsk_log_level level;
 			char message[160];
 		} diagnostic;
+		struct {
+			char from[256];
+			char content_type[64];
+			const char *body;
+			size_t body_len;
+		} message;
+		struct {
+			uint64_t message_id;
+			bool delivered;
+			uint16_t sip_status;
+			bsk_error error;
+		} message_status;
 	} u;
 } bsk_event;
 
@@ -542,6 +557,15 @@ BSK_EXPORT bsk_status bsk_call_set_video_max_bitrate(bsk_engine *engine,
 						     bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_restart_ice(bsk_engine *engine,
 					   bsk_call_id call, bsk_error *err);
+BSK_EXPORT bsk_status bsk_call_transfer_attended(bsk_engine *engine,
+						 bsk_call_id call,
+						 bsk_call_id target_call,
+						 bsk_error *err);
+BSK_EXPORT bsk_status bsk_message_send(bsk_engine *engine,
+				       bsk_account_id account,
+				       const char *peer_uri, const char *text,
+				       uint64_t *out_message_id,
+				       bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_transfer(bsk_engine *engine, bsk_call_id call,
 					const char *target_uri, bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_get_info(const bsk_engine *engine,

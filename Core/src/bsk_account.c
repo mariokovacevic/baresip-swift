@@ -346,6 +346,7 @@ static int add_op(bsk_engine *e, void *arg)
 	}
 
 	err |= account_set_mwi(acc, false);
+	err |= account_set_call_transfer(acc, !c->reject_transfers);
 
 	if (err) {
 		ua_destroy(a->ua);
@@ -359,6 +360,7 @@ static int add_op(bsk_engine *e, void *arg)
 
 	a->is_default = list_isempty(&e->accounts);
 	a->answer_early_media = c->answer_early_media;
+	a->reject_transfers = c->reject_transfers;
 	list_append(&e->accounts, &a->le, a);
 	aa->id = a->id;
 

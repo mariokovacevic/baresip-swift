@@ -422,6 +422,45 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 
 
 static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video);
+
+
+static void follow_transfer(bsk_engine *e, struct bsk_call_ctx *c,
+			    const char *target)
+{
+	struct bsk_account_ctx *a = bsk_account_find(e, c->account);
+	struct bsk_call_ctx *n;
+	struct call *call2 = NULL;
+	struct pl pl;
+	int err;
+
+	if (!a || a->reject_transfers) {
+		(void)call_notify_sipfrag(c->call, 603, "Declined");
+		return;
+	}
+
+	err = ua_call_alloc(&call2, a->ua,
+			    c->video ? VIDMODE_ON : VIDMODE_OFF, NULL,
+			    c->call, call_localuri(c->call), true);
+	if (!err) {
+		n = call_ctx_alloc(e, call2, a->id, true);
+		if (!n) {
+			err = ENOMEM;
+		}
+		else {
+			n->video = c->video;
+			pl_set_str(&pl, target);
+			err = call_connect(call2, &pl);
+		}
+	}
+
+	if (err) {
+		(void)call_notify_sipfrag(c->call, 500, "Call Error");
+		n = bsk_call_find_call(e, call2);
+		if (n)
+			finish_call(e, n, NULL);
+		mem_deref(call2);
+	}
+}
 static bool other_call_active(const bsk_engine *e,
 			      const struct bsk_call_ctx *c);
 
@@ -450,6 +489,14 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		bev.u.call_incoming.early_video =
 			call_early_video_available(call);
 		bsk_emit(e, &bev);
+		if (a && e->replace_account == a->id &&
+		    bsk_now_ms() - e->replace_ms < 3000) {
+			e->replace_account = BSK_ID_NONE;
+			c->video = e->replace_video && call_has_video(call);
+			(void)ua_answer(a->ua, call,
+					c->video ? VIDMODE_ON : VIDMODE_OFF);
+			return;
+		}
 		if (a && a->answer_early_media && !other_call_active(e, c))
 			(void)start_preview(e, c, true);
 		return;
@@ -556,6 +603,8 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 			str_ncpy(tev.u.transfer.target_uri, text,
 				 sizeof(tev.u.transfer.target_uri));
 		bsk_emit(e, &tev);
+		if (ev == BEVENT_CALL_TRANSFER && str_isset(text))
+			follow_transfer(e, c, text);
 		break;
 	}
 
@@ -581,6 +630,15 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 	}
 
 	case BEVENT_CALL_CLOSED:
+		if (text && strstr(text, " replaced") &&
+		    (c->state == BSK_CALL_CONNECTED ||
+		     c->state == BSK_CALL_STREAMS_RUNNING ||
+		     c->state == BSK_CALL_PAUSED ||
+		     c->state == BSK_CALL_PAUSED_BY_REMOTE)) {
+			e->replace_account = c->account;
+			e->replace_video = c->video;
+			e->replace_ms = bsk_now_ms();
+		}
 		finish_call(e, c, event);
 		break;
 
@@ -1165,6 +1223,27 @@ static int ice_restart_op(bsk_engine *e, void *arg)
 }
 
 
+struct attended_arg {
+	bsk_call_id call;
+	bsk_call_id target;
+};
+
+
+static int attended_op(bsk_engine *e, void *arg)
+{
+	struct attended_arg *aa = arg;
+	struct bsk_call_ctx *c = bsk_call_find(e, aa->call);
+	struct bsk_call_ctx *t = bsk_call_find(e, aa->target);
+
+	if (!c || !t || !c->call || !t->call)
+		return ENOENT;
+	if (c == t)
+		return EINVAL;
+
+	return call_replace_transfer(c->call, t->call);
+}
+
+
 static int transfer_op(bsk_engine *e, void *arg)
 {
 	struct call_arg *ca = arg;
@@ -1344,6 +1423,27 @@ bsk_status bsk_call_restart_ice(bsk_engine *engine, bsk_call_id call,
 {
 	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
 	return run_call(engine, ice_restart_op, &ca, err, "ICE restart");
+}
+
+
+bsk_status bsk_call_transfer_attended(bsk_engine *engine, bsk_call_id call,
+				      bsk_call_id target_call, bsk_error *err)
+{
+	struct attended_arg aa = { call, target_call };
+	int ret;
+
+	bsk_error_clear(err);
+
+	if (!engine)
+		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
+				     NULL, NULL);
+
+	ret = bsk_run(engine, attended_op, &aa);
+	if (ret)
+		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
+				     NULL, "attended transfer failed: %m", ret);
+
+	return BSK_OK;
 }
 
 

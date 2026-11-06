@@ -42,6 +42,11 @@ root cause, keep the fix minimal, and re-run that test.
       repeat with "Preview incoming calls automatically" turned on;
    h. CallKit: the call appears on the lock screen / call UI and the
       audio session activates only after answering.
+   l. messages: send a SIP message to the other party and check that it
+      arrives and shows "delivered"; reply from the other side;
+   m. attended transfer: during a call tap Consult with a third number,
+      talk to it, then Complete transfer; the first and third parties must
+      be connected and your calls end;
    i. network change during a call: turn on ICE in the app's NAT section
       (optionally with a TURN server), register, start an audio call on Wi-Fi, turn Wi-Fi off so the phone moves to cellular, and check
       that audio returns within a few seconds (the log shows "local ICE

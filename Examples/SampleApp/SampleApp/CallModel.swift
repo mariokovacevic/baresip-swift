@@ -33,6 +33,12 @@ final class CallModel: ObservableObject {
     @Published var incomingEarlyVideo = false
     @Published var log: [String] = []
     @Published var stats: BaresipCallStatistics?
+    @Published var heldCall: BaresipCallID?
+    @Published var transferTarget = ""
+    @Published var messages: [ChatMessage] = []
+    @Published var messageTo = ""
+    @Published var messageText = ""
+    private var earlyStatuses: [BaresipMessageID: ChatMessage.Status] = [:]
 
     private(set) var engine: BaresipEngine?
     private var accountID: BaresipAccountID?
@@ -219,6 +225,59 @@ final class CallModel: ObservableObject {
         previewing = false
         videoEnabled = false
         self.incoming = nil
+    }
+
+    func sendMessage() async {
+        guard let engine else { return }
+        let to = normalizedDestination(messageTo)
+        let text = messageText
+        guard !to.isEmpty, !text.isEmpty else { return }
+        do {
+            let id = try await engine.sendMessage(to: to, text: text, accountID: accountID)
+            let status = earlyStatuses.removeValue(forKey: id) ?? .sending
+            messages.append(ChatMessage(id: UUID(), messageID: id, peer: to, text: text, outgoing: true, status: status))
+            messageText = ""
+        } catch {
+            messages.append(ChatMessage(id: UUID(), messageID: nil, peer: to, text: text, outgoing: true,
+                                        status: .failed("\(error)")))
+        }
+    }
+
+    func blindTransfer() async {
+        guard let engine, let currentCall else { return }
+        let target = normalizedDestination(transferTarget)
+        guard !target.isEmpty else { return }
+        do {
+            try await engine.transfer(callID: currentCall, to: target)
+            append("transferring \(currentCall) to \(target)")
+        } catch {
+            append("transfer failed: \(error)")
+        }
+    }
+
+    func consult() async {
+        guard let engine, let currentCall, heldCall == nil else { return }
+        let target = normalizedDestination(transferTarget)
+        guard !target.isEmpty else { return }
+        do {
+            try await engine.hold(callID: currentCall)
+            heldCall = currentCall
+            onHold = false
+            _ = try await engine.makeCall(accountID: accountID, destination: target, video: false)
+            append("consulting \(target) while \(currentCall) is on hold")
+        } catch {
+            append("consultation failed: \(error)")
+        }
+    }
+
+    func completeTransfer() async {
+        guard let engine, let heldCall, let currentCall, heldCall != currentCall else { return }
+        do {
+            try await engine.transferAttended(callID: heldCall, to: currentCall)
+            append("attended transfer of \(heldCall) to \(currentCall)")
+        } catch {
+            append("attended transfer failed: \(error)")
+        }
     }
 
     func hangup() async {
@@ -441,6 +500,17 @@ final class CallModel: ObservableObject {
             if state == .outgoingInit {
                 currentCall = call
             }
+            if state == .released, heldCall == call {
+                heldCall = nil
+            }
+            if state == .released, currentCall == call, let held = heldCall {
+                currentCall = held
+                heldCall = nil
+                onHold = true
+                callState = .paused
+                try? await engine?.resume(callID: held)
+                return
+            }
             if state == .released, currentCall == call {
                 currentCall = nil
                 callState = nil
@@ -461,6 +531,21 @@ final class CallModel: ObservableObject {
                     }
                 }
             }
+        case .message(let message):
+            messages.append(ChatMessage(id: UUID(), messageID: nil, peer: message.from,
+                                        text: message.text ?? "<\(message.contentType), \(message.body.count) bytes>",
+                                        outgoing: false, status: .received))
+            append("message from \(message.from)")
+        case .messageStatus(let status):
+            let result: ChatMessage.Status = status.delivered ? .delivered
+                : .failed(status.error.map { "\($0)" } ?? "\(status.sipStatus ?? 0)")
+            if let index = messages.lastIndex(where: { $0.messageID == status.id }) {
+                messages[index].status = result
+            } else {
+                earlyStatuses[status.id] = result
+            }
+        case .transfer(let call, let event):
+            append("transfer \(call): \(event.failed ? "failed" : "requested") \(event.targetURI)")
         case .statistics(_, let s):
             stats = s
         case .ice(_, let ice):
@@ -480,4 +565,21 @@ final class CallModel: ObservableObject {
             log.removeFirst(log.count - 200)
         }
     }
+}
+
+
+struct ChatMessage: Identifiable, Equatable {
+    enum Status: Equatable {
+        case sending
+        case delivered
+        case failed(String)
+        case received
+    }
+
+    let id: UUID
+    let messageID: BaresipMessageID?
+    let peer: String
+    let text: String
+    let outgoing: Bool
+    var status: Status
 }

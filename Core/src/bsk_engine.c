@@ -609,6 +609,10 @@ static int engine_thread(void *arg)
 	if (err)
 		goto fail;
 
+	err = bsk_message_init(e);
+	if (err)
+		goto fail;
+
 	err = bsk_video_init(e);
 	if (err)
 		goto fail;
@@ -628,6 +632,7 @@ static int engine_thread(void *arg)
 	tmr_cancel(&e->tmr_stop);
 	tmr_cancel(&e->tmr_running);
 	tmr_cancel(&e->tmr_rate);
+	bsk_message_close(e);
 	bevent_unregister(bevent_handler);
 	bsk_video_close(e);
 	bsk_calls_flush(e);
@@ -650,6 +655,7 @@ static int engine_thread(void *arg)
 	return 0;
 
  fail:
+	bsk_message_close(e);
 	bevent_unregister(bevent_handler);
 	bsk_video_close(e);
 	close_ops(e);

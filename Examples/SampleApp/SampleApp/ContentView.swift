@@ -87,6 +87,23 @@ struct ContentView: View {
                             }
                         }
                         .buttonStyle(.borderless)
+                        TextField("Transfer to (number, user or SIP URI)", text: $model.transferTarget)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        HStack {
+                            Button("Blind transfer") { Task { await model.blindTransfer() } }
+                            Spacer()
+                            if model.heldCall == nil {
+                                Button("Consult") { Task { await model.consult() } }
+                            } else {
+                                Button("Complete transfer") { Task { await model.completeTransfer() } }
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                        if model.heldCall != nil {
+                            Text("First call on hold; hang up to return to it, or complete the transfer to connect both parties.")
+                                .font(.caption)
+                        }
                         Toggle("Speaker", isOn: $speaker).onChange(of: speaker) { _, on in model.toggleSpeaker(on) }
                         DTMFPad { digit in Task { await model.sendDTMF(digit) } }
                     }
@@ -114,6 +131,25 @@ struct ContentView: View {
                             .frame(height: 120)
                     }
                 }
+                Section("Messages") {
+                    TextField("To (number, user or SIP URI)", text: $model.messageTo)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    HStack {
+                        TextField("Message", text: $model.messageText)
+                        Button("Send") { Task { await model.sendMessage() } }
+                            .disabled(model.messageText.isEmpty || model.messageTo.isEmpty)
+                    }
+                    ForEach(model.messages.suffix(20)) { message in
+                        VStack(alignment: message.outgoing ? .trailing : .leading, spacing: 2) {
+                            Text(message.text)
+                            Text("\(message.outgoing ? "to" : "from") \(message.peer) · \(statusText(message.status))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: message.outgoing ? .trailing : .leading)
+                    }
+                }
                 Section("Log") {
                     ForEach(Array(model.log.suffix(30).enumerated()), id: \.offset) { _, line in
                         Text(line).font(.caption2.monospaced())
@@ -130,6 +166,15 @@ struct ContentView: View {
             return "\(String(describing: model.registration)): \(error)"
         }
         return String(describing: model.registration)
+    }
+
+    private func statusText(_ status: ChatMessage.Status) -> String {
+        switch status {
+        case .sending: return "sending"
+        case .delivered: return "delivered"
+        case .failed(let reason): return "failed: \(reason)"
+        case .received: return "received"
+        }
     }
 
     private var registrationColor: Color {

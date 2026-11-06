@@ -202,6 +202,44 @@ bsk_bridge_event_diagnostic(const bsk_event *ev)
 	return out;
 }
 
+typedef struct bsk_bridge_message_event {
+	char from[256];
+	char content_type[64];
+	const char *body;
+	size_t body_len;
+} bsk_bridge_message_event;
+
+static inline bsk_bridge_message_event
+bsk_bridge_event_message(const bsk_event *ev)
+{
+	bsk_bridge_message_event out;
+	__builtin_memcpy(out.from, ev->u.message.from, sizeof(out.from));
+	__builtin_memcpy(out.content_type, ev->u.message.content_type,
+			 sizeof(out.content_type));
+	out.body = ev->u.message.body;
+	out.body_len = ev->u.message.body_len;
+	return out;
+}
+
+typedef struct bsk_bridge_message_status_event {
+	uint64_t message_id;
+	bool delivered;
+	uint16_t sip_status;
+	bsk_error error;
+} bsk_bridge_message_status_event;
+
+static inline bsk_bridge_message_status_event
+bsk_bridge_event_message_status(const bsk_event *ev)
+{
+	bsk_bridge_message_status_event out = {
+		ev->u.message_status.message_id,
+		ev->u.message_status.delivered,
+		ev->u.message_status.sip_status,
+		ev->u.message_status.error
+	};
+	return out;
+}
+
 #ifdef __cplusplus
 }
 #endif

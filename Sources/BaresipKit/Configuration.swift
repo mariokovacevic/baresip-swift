@@ -245,6 +245,7 @@ public struct BaresipAccountConfiguration: Sendable, Equatable {
     public var audioCodecs: [String]
     public var videoCodecs: [String]
     public var answerEarlyMedia: Bool
+    public var acceptTransfers: Bool
 
     public init(aor: String, displayName: String? = nil, registrar: String? = nil,
                 outboundProxy: String? = nil, transport: BaresipTransport = .tls,
@@ -257,7 +258,7 @@ public struct BaresipAccountConfiguration: Sendable, Equatable {
                 dtmfMode: BaresipDTMFMode = .auto,
                 contactParameters: [ContactParameter] = [],
                 audioCodecs: [String] = [], videoCodecs: [String] = [],
-                answerEarlyMedia: Bool = false) {
+                answerEarlyMedia: Bool = false, acceptTransfers: Bool = true) {
         self.aor = aor
         self.displayName = displayName
         self.registrar = registrar
@@ -276,6 +277,7 @@ public struct BaresipAccountConfiguration: Sendable, Equatable {
         self.audioCodecs = audioCodecs
         self.videoCodecs = videoCodecs
         self.answerEarlyMedia = answerEarlyMedia
+        self.acceptTransfers = acceptTransfers
     }
 
     public func validate() throws {

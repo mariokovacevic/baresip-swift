@@ -23,6 +23,7 @@ set(BSK_SOURCES
   src/bsk_video.c
   src/bsk_tls.c
   src/bsk_rate.c
+  src/bsk_message.c
 )
 
 if(APPLE)

@@ -105,6 +105,25 @@ done
 wait "$CALLEE_PID"
 cat "$BUILD/callee-ice.out"
 
+echo "== SIP MESSAGE and attended transfer (three processes)"
+"$BUILD/tests/bsk_test_transfer" b "$HOSTIP" > "$BUILD/xfer-b.out" 2> "$BUILD/xfer-b.err" &
+XB_PID=$!
+"$BUILD/tests/bsk_test_transfer" c "$HOSTIP" > "$BUILD/xfer-c.out" 2> "$BUILD/xfer-c.err" &
+XC_PID=$!
+for i in $(seq 1 50); do
+  grep -q READY "$BUILD/xfer-b.out" 2>/dev/null && grep -q READY "$BUILD/xfer-c.out" 2>/dev/null && break
+  sleep 0.1
+done
+if ! "$BUILD/tests/bsk_test_transfer" a "$HOSTIP" 2> "$BUILD/xfer-a.err"; then
+  grep -E "CHECK|state" "$BUILD/xfer-a.err" | tail -20 || true
+  kill "$XB_PID" "$XC_PID" 2>/dev/null || true
+  grep -E "CHECK|state" "$BUILD/xfer-b.err" "$BUILD/xfer-c.err" | tail -30 || true
+  exit 1
+fi
+wait "$XB_PID"
+wait "$XC_PID"
+cat "$BUILD/xfer-b.out" "$BUILD/xfer-c.out" | grep -v READY
+
 if [[ -f "$PREFIX/lib/libvpx.a" ]]; then
   echo "== video preview (fakevideo)"
   "$BUILD/tests/bsk_test_video" preview

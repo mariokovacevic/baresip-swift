@@ -13,3 +13,6 @@ target_link_libraries(bsk_test_video PRIVATE baresipkitcore)
 
 add_executable(bsk_test_integration test_integration.c)
 target_link_libraries(bsk_test_integration PRIVATE baresipkitcore)
+
+add_executable(bsk_test_transfer test_transfer.c)
+target_link_libraries(bsk_test_transfer PRIVATE baresipkitcore)

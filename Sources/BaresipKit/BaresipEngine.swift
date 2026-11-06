@@ -284,6 +284,7 @@ public final class BaresipEngine: @unchecked Sendable {
             cfg.video_codecs = arena.cStringArray(account.videoCodecs)
             cfg.video_codec_count = account.videoCodecs.count
             cfg.answer_early_media = account.answerEarlyMedia
+            cfg.reject_transfers = !account.acceptTransfers
 
             var id: UInt64 = 0
             var err = bsk_error()
@@ -530,6 +531,29 @@ public final class BaresipEngine: @unchecked Sendable {
             var err = bsk_error()
             try BaresipEngine.check(bsk_call_restart_ice(h, callID.rawValue, &err), err)
         }
+    }
+
+    public func transferAttended(callID: BaresipCallID, to targetCallID: BaresipCallID) async throws {
+        try await run { h in
+            var err = bsk_error()
+            try BaresipEngine.check(bsk_call_transfer_attended(h, callID.rawValue, targetCallID.rawValue, &err), err)
+        }
+    }
+
+    @discardableResult
+    public func sendMessage(to peerURI: String, text: String,
+                            accountID: BaresipAccountID? = nil) async throws -> BaresipMessageID {
+        let account = lock.withLock { accountID ?? defaultAccount }
+        let id: UInt64 = try await run { h in
+            let arena = CStringArena()
+            var id: UInt64 = 0
+            var err = bsk_error()
+            try BaresipEngine.check(bsk_message_send(h, account?.rawValue ?? 0, arena.cString(peerURI),
+                                                     arena.cString(text), &id, &err), err)
+            withExtendedLifetime(arena) {}
+            return id
+        }
+        return BaresipMessageID(rawValue: id)
     }
 
     public func transfer(callID: BaresipCallID, to targetURI: String) async throws {
