@@ -123,6 +123,44 @@ struct ContentView: View {
                         }
                     }
                 }
+                if !model.calls.isEmpty {
+                    Section("Calls (\(model.calls.count))") {
+                        ForEach(model.calls) { row in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack {
+                                    Image(systemName: row.outgoing ? "arrow.up.right" : "arrow.down.left")
+                                        .foregroundStyle(.secondary)
+                                    Text(row.remote)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    if row.id == model.currentCall {
+                                        Text("current")
+                                            .font(.caption)
+                                            .foregroundStyle(.green)
+                                    }
+                                }
+                                Text(String(describing: row.state))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                HStack {
+                                    if row.id != model.currentCall && row.state != .incoming {
+                                        Button("Switch") { Task { await model.switchTo(row.id) } }
+                                    }
+                                    if row.state != .incoming {
+                                        Button(row.state == .paused || row.state == .pausing ? "Resume" : "Hold") {
+                                            Task { await model.toggleHold(row.id) }
+                                        }
+                                    }
+                                    Spacer()
+                                    Button("Hang up", role: .destructive) { Task { await model.hangup(row.id) } }
+                                }
+                                .buttonStyle(.borderless)
+                                .font(.callout)
+                            }
+                            .accessibilityIdentifier("calls.row")
+                        }
+                    }
+                }
                 if model.videoEnabled, let call = model.currentCall {
                     Section("Video") {
                         VideoPane(callID: call, local: false)

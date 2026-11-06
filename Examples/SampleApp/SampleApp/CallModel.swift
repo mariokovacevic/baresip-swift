@@ -34,6 +34,7 @@ final class CallModel: ObservableObject {
     @Published var log: [String] = []
     @Published var stats: BaresipCallStatistics?
     @Published var heldCall: BaresipCallID?
+    @Published var calls: [CallRow] = []
     @Published var transferTarget = ""
     @Published var messages: [ChatMessage] = []
     @Published var messageTo = ""
@@ -213,10 +214,108 @@ final class CallModel: ObservableObject {
 
     func answer() async {
         guard let engine, let incoming else { return }
+        let others = calls.contains { $0.id != incoming.id }
         try? await engine.answer(callID: incoming.id, video: incoming.hasVideo)
+        if others {
+            try? await engine.setActiveCall(incoming.id)
+        }
+        currentCall = incoming.id
+        callState = calls.first { $0.id == incoming.id }?.state
+        onHold = false
         videoEnabled = incoming.hasVideo
         previewing = false
         self.incoming = nil
+    }
+
+    func switchTo(_ call: BaresipCallID) async {
+        guard let engine else { return }
+        do {
+            try await engine.setActiveCall(call)
+            currentCall = call
+            callState = calls.first { $0.id == call }?.state
+            onHold = false
+            heldCall = nil
+        } catch {
+            append("switch failed: \(error)")
+        }
+    }
+
+    func toggleHold(_ call: BaresipCallID) async {
+        guard let engine, let row = calls.first(where: { $0.id == call }) else { return }
+        let held = row.state == .paused || row.state == .pausing
+        if held {
+            try? await engine.resume(callID: call)
+        } else {
+            try? await engine.hold(callID: call)
+        }
+        if call == currentCall {
+            onHold = !held
+        }
+    }
+
+    func hangup(_ call: BaresipCallID) async {
+        try? await engine?.hangup(callID: call)
+    }
+
+    private var currentCallOnHold: Bool {
+        guard let currentCall, let row = calls.first(where: { $0.id == currentCall }) else { return false }
+        return row.state == .paused || row.state == .pausing
+    }
+
+    private func updateRow(_ call: BaresipCallID, state: BaresipCallState) {
+        if let index = calls.firstIndex(where: { $0.id == call }) {
+            calls[index].state = state
+            return
+        }
+        guard state != .released else { return }
+        calls.append(CallRow(id: call, remote: "…", state: state, outgoing: state != .incoming))
+        Task { [weak self] in
+            guard let self, let engine = self.engine,
+                  let info = try? await engine.callInfo(callID: call) else { return }
+            if let index = self.calls.firstIndex(where: { $0.id == call }) {
+                self.calls[index].remote = info.remoteDisplayName.isEmpty ? info.remoteURI : info.remoteDisplayName
+                self.calls[index].outgoing = info.outgoing
+            }
+        }
+    }
+
+    private func callReleased(_ call: BaresipCallID) async {
+        calls.removeAll { $0.id == call }
+        if heldCall == call {
+            heldCall = nil
+        }
+        if incoming?.id == call {
+            incoming = nil
+            previewing = false
+        }
+        guard call == currentCall else { return }
+        if let next = heldCall ?? calls.first?.id {
+            heldCall = nil
+            currentCall = next
+            callState = calls.first { $0.id == next }?.state
+            if let engine {
+                try? await engine.resume(callID: next)
+            }
+            onHold = false
+            return
+        }
+        currentCall = nil
+        callState = nil
+        stats = nil
+        onHold = false
+        muted = false
+        videoEnabled = false
+        previewing = false
+        if previewAudioActive {
+            previewAudioActive = false
+            await audio?.deactivate()
+        }
+        if pendingApply {
+            pendingApply = false
+            Task { [weak self] in
+                await self?.applySaved()
+            }
+        }
     }
 
     func reject() async {
@@ -487,49 +586,34 @@ final class CallModel: ObservableObject {
         case .incomingCall(let info, let earlyVideo):
             incoming = info
             incomingEarlyVideo = earlyVideo
-            currentCall = info.id
-            if registeredSettings?.autoPreview == true && callState == nil {
+            if let index = calls.firstIndex(where: { $0.id == info.id }) {
+                calls[index].remote = info.remoteDisplayName.isEmpty ? info.remoteURI : info.remoteDisplayName
+            } else {
+                calls.append(CallRow(id: info.id,
+                                     remote: info.remoteDisplayName.isEmpty ? info.remoteURI : info.remoteDisplayName,
+                                     state: .incoming, outgoing: false))
+            }
+            if currentCall == nil {
+                currentCall = info.id
+            }
+            if registeredSettings?.autoPreview == true && !calls.contains(where: { $0.id != info.id }) {
                 previewing = true
                 videoEnabled = info.hasVideo || earlyVideo
                 await activatePreviewAudio()
             }
             append("incoming call from \(info.remoteURI)\(earlyVideo ? " (early video offered)" : "")")
         case .call(let call, let state, let error):
-            callState = state
             append("call \(call) \(state) \(error.map { "\($0)" } ?? "")")
-            if state == .outgoingInit {
+            updateRow(call, state: state)
+            if state == .outgoingInit && (currentCall == nil || heldCall != nil || currentCallOnHold) {
                 currentCall = call
             }
-            if state == .released, heldCall == call {
-                heldCall = nil
+            if call == currentCall {
+                callState = state
+                onHold = state == .paused || state == .pausing
             }
-            if state == .released, currentCall == call, let held = heldCall {
-                currentCall = held
-                heldCall = nil
-                onHold = true
-                callState = .paused
-                try? await engine?.resume(callID: held)
-                return
-            }
-            if state == .released, currentCall == call {
-                currentCall = nil
-                callState = nil
-                stats = nil
-                onHold = false
-                muted = false
-                videoEnabled = false
-                previewing = false
-                incoming = nil
-                if previewAudioActive {
-                    previewAudioActive = false
-                    await audio?.deactivate()
-                }
-                if pendingApply {
-                    pendingApply = false
-                    Task { [weak self] in
-                        await self?.applySaved()
-                    }
-                }
+            if state == .released {
+                await callReleased(call)
             }
         case .message(let message):
             messages.append(ChatMessage(id: UUID(), messageID: nil, peer: message.from,
@@ -582,4 +666,12 @@ struct ChatMessage: Identifiable, Equatable {
     let text: String
     let outgoing: Bool
     var status: Status
+}
+
+
+struct CallRow: Identifiable, Equatable {
+    let id: BaresipCallID
+    var remote: String
+    var state: BaresipCallState
+    var outgoing: Bool
 }
