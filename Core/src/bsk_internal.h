@@ -9,6 +9,7 @@
 #include <rem.h>
 #include <baresip.h>
 #include "baresip_kit.h"
+#include "bsk_rate.h"
 
 #define BSK_MAX_MODULES 32
 #define BSK_MAX_DTMF 64
@@ -60,6 +61,9 @@ struct bsk_call_ctx {
 	bsk_candidate_type ice_remote_type;
 	char ice_local_addr[64];
 	char ice_remote_addr[64];
+	struct bsk_rate rate;
+	bool rate_init;
+	uint32_t video_max_bitrate;
 };
 
 struct bsk_engine {
@@ -125,6 +129,9 @@ struct bsk_engine {
 	struct log baresip_log;
 	struct tmr tmr_stop;
 	struct tmr tmr_running;
+	struct tmr tmr_rate;
+	bool video_adaptive;
+	uint32_t video_min_bitrate;
 	bool audio_active;
 	bool suspended;
 	bool stop_requested;
@@ -194,6 +201,7 @@ bool bsk_ice_parse_event(const char *text, size_t len,
 			 struct bsk_ice_info *out);
 void bsk_calls_flush(bsk_engine *engine);
 void bsk_calls_audio_changed(bsk_engine *engine);
+void bsk_calls_rate_tick(bsk_engine *engine);
 
 bsk_engine *bsk_global_engine(void);
 

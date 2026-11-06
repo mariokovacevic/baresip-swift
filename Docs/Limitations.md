@@ -4,7 +4,7 @@
 |---|---|---|
 | ICE restart with Asterisk | Asterisk 23 regenerates its credentials on a restart offer but keeps its old ICE session when the candidates are unchanged, so an explicit `restartICE` without a network change loses media with Asterisk; restarts after an address change work | report upstream to Asterisk |
 | Trickle ICE | not supported (full candidate exchange in SDP) | none planned |
-| Video bitrate adaptation | fixed target bitrate with a token-bucket pacer; no REMB/TWCC | facade-side reaction to RTCP loss reports |
+| Video bitrate adaptation | loss-based only: the encoder target follows RTCP receiver reports (cut on more than 10 % loss, slow increase below 2 %); no REMB/TWCC bandwidth estimation, so congestion without loss is not detected. With VP8 every change re-creates the encoder context (H.264 via VideoToolbox changes in place) | delay-based estimation if needed |
 | External audio injection | not exposed in ABI 0.1 | `ausrc`/`auplay` style callbacks in a later ABI revision |
 | G.722 | not in the default module set (needs spandsp or libg722) | add on request |
 | ZRTP | needs libzrtpcpp; capability check only | none planned |

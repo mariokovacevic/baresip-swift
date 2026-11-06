@@ -34,6 +34,8 @@ public final class BaresipEngine: @unchecked Sendable {
         cfg.log_level = configuration.logLevel.c
         cfg.log_sip_trace = configuration.logSIPTrace
         cfg.ice_relay_only = configuration.iceRelayOnly
+        cfg.video_adaptive_bitrate = configuration.videoAdaptiveBitrate
+        cfg.video_min_bitrate_bps = UInt32(clamping: max(0, configuration.videoMinimumBitrate))
 
         let a = configuration.audio
         cfg.audio.source_module = arena.cString(a.sourceModule)
@@ -512,6 +514,14 @@ public final class BaresipEngine: @unchecked Sendable {
         try await run { h in
             var err = bsk_error()
             try BaresipEngine.check(bsk_call_request_keyframe(h, callID.rawValue, &err), err)
+        }
+    }
+
+    public func setVideoMaxBitrate(callID: BaresipCallID, bitsPerSecond: Int?) async throws {
+        let bps = UInt32(clamping: max(0, bitsPerSecond ?? 0))
+        try await run { h in
+            var err = bsk_error()
+            try BaresipEngine.check(bsk_call_set_video_max_bitrate(h, callID.rawValue, bps, &err), err)
         }
     }
 

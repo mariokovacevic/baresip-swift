@@ -243,6 +243,68 @@ static int restart_ice(struct bsk_call_ctx *c)
 }
 
 
+static uint32_t video_cap(const bsk_engine *e, const struct bsk_call_ctx *c)
+{
+	if (c->video_max_bitrate && c->video_max_bitrate < e->video_bitrate)
+		return c->video_max_bitrate;
+
+	return e->video_bitrate;
+}
+
+
+static void rate_apply(bsk_engine *e, struct bsk_call_ctx *c, bool force)
+{
+	struct video *v = call_video(c->call);
+	struct stream *vs = video_strm(v);
+	const struct rtcp_stats *rs;
+	uint32_t cap, target;
+
+	if (!vs || !video_bitrate(v))
+		return;
+
+	cap = video_cap(e, c);
+
+	if (!c->rate_init) {
+		bsk_rate_init(&c->rate, video_bitrate(v), e->video_min_bitrate,
+			      cap, bsk_now_ms());
+		c->rate_init = true;
+	}
+
+	bsk_rate_set_max(&c->rate, cap);
+
+	if (!e->video_adaptive) {
+		c->rate.current = cap;
+	}
+	else if (!force) {
+		rs = stream_rtcp_stats(vs);
+		if (rs)
+			(void)bsk_rate_update(&c->rate, rs->tx.sent,
+					      rs->tx.lost, bsk_now_ms());
+	}
+
+	target = c->rate.current;
+	if (target && target != video_bitrate(v))
+		(void)video_set_bitrate(v, target);
+}
+
+
+void bsk_calls_rate_tick(bsk_engine *engine)
+{
+	struct le *le;
+
+	for (le = engine->calls.head; le; le = le->next) {
+		struct bsk_call_ctx *c = le->data;
+
+		if (!c->call)
+			continue;
+		if (!engine->video_adaptive && !c->video_max_bitrate)
+			continue;
+
+		rate_apply(engine, c, false);
+	}
+}
+
+
 void bsk_calls_audio_changed(bsk_engine *engine)
 {
 	struct le *le;
@@ -297,6 +359,8 @@ static void fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 		st->video.tx_bitrate_bps = stream_metric_get_tx_bitrate(vs);
 		st->video.rx_bitrate_bps = stream_metric_get_rx_bitrate(vs);
 		st->video.secure = stream_is_secure(vs);
+		st->video_target_bitrate_bps =
+			video_bitrate(call_video(c->call));
 		rs = stream_rtcp_stats(vs);
 		if (rs) {
 			st->video.rx_lost = rs->rx.lost;
@@ -1012,6 +1076,25 @@ static int keyframe_op(bsk_engine *e, void *arg)
 }
 
 
+static int video_bitrate_op(bsk_engine *e, void *arg)
+{
+	struct call_arg *ca = arg;
+	int err;
+	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
+
+	if (!c)
+		return err;
+
+	c->video_max_bitrate = ca->u32a;
+
+	if (!video_strm(call_video(c->call)))
+		return 0;
+
+	rate_apply(e, c, true);
+	return 0;
+}
+
+
 static int ice_restart_op(bsk_engine *e, void *arg)
 {
 	struct call_arg *ca = arg;
@@ -1186,6 +1269,16 @@ bsk_status bsk_call_request_keyframe(bsk_engine *engine, bsk_call_id call,
 {
 	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
 	return run_call(engine, keyframe_op, &ca, err, "keyframe request");
+}
+
+
+bsk_status bsk_call_set_video_max_bitrate(bsk_engine *engine,
+					  bsk_call_id call,
+					  uint32_t bitrate_bps, bsk_error *err)
+{
+	struct call_arg ca = { call, false, 0, NULL, bitrate_bps, 0, 0 };
+	return run_call(engine, video_bitrate_op, &ca, err,
+			"video bitrate");
 }
 
 

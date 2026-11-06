@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #define BSK_ABI_VERSION_MAJOR 0
-#define BSK_ABI_VERSION_MINOR 3
+#define BSK_ABI_VERSION_MINOR 4
 
 typedef struct bsk_engine bsk_engine;
 
@@ -234,6 +234,8 @@ typedef struct bsk_engine_config {
 	bsk_log_level log_level;
 	bool log_sip_trace;
 	bool ice_relay_only;
+	bool video_adaptive_bitrate;
+	uint32_t video_min_bitrate_bps;
 } bsk_engine_config;
 
 typedef struct bsk_contact_param {
@@ -309,6 +311,7 @@ typedef struct bsk_call_statistics {
 	char local_address[64];
 	char remote_address[64];
 	float mos_estimate;
+	uint32_t video_target_bitrate_bps;
 } bsk_call_statistics;
 
 typedef enum bsk_event_type {
@@ -533,6 +536,10 @@ BSK_EXPORT bsk_status bsk_call_set_camera(bsk_engine *engine, bsk_call_id call,
 BSK_EXPORT bsk_status bsk_call_request_keyframe(bsk_engine *engine,
 						bsk_call_id call,
 						bsk_error *err);
+BSK_EXPORT bsk_status bsk_call_set_video_max_bitrate(bsk_engine *engine,
+						     bsk_call_id call,
+						     uint32_t bitrate_bps,
+						     bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_restart_ice(bsk_engine *engine,
 					   bsk_call_id call, bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_transfer(bsk_engine *engine, bsk_call_id call,

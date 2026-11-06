@@ -277,6 +277,7 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 	e->log_level = c->log_level;
 	e->log_sip_trace = c->log_sip_trace;
 	e->ice_relay_only = c->ice_relay_only;
+	e->video_adaptive = c->video_adaptive_bitrate;
 
 	if (c->modules && c->module_count) {
 		if (c->module_count > BSK_MAX_MODULES)
@@ -319,6 +320,10 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 	e->video_height = c->video.height ? c->video.height : 480;
 	e->video_fps = c->video.fps ? c->video.fps : 30;
 	e->video_bitrate = c->video.bitrate_bps ? c->video.bitrate_bps : 800000;
+	e->video_min_bitrate = c->video_min_bitrate_bps ?
+		c->video_min_bitrate_bps : 150000;
+	if (e->video_min_bitrate > e->video_bitrate)
+		e->video_min_bitrate = e->video_bitrate;
 
 	return err;
 }
@@ -431,6 +436,15 @@ static void running_handler(void *arg)
 	bsk_engine *e = arg;
 
 	set_state(e, BSK_ENGINE_RUNNING, NULL);
+}
+
+
+static void rate_handler(void *arg)
+{
+	bsk_engine *e = arg;
+
+	bsk_calls_rate_tick(e);
+	tmr_start(&e->tmr_rate, 1000, rate_handler, e);
 }
 
 
@@ -571,12 +585,14 @@ static int engine_thread(void *arg)
 	e->state = BSK_ENGINE_READY;
 	e->t0_ms = bsk_now_ms();
 	tmr_start(&e->tmr_running, 0, running_handler, e);
+	tmr_start(&e->tmr_rate, 1000, rate_handler, e);
 	signal_start(e, 0);
 
 	(void)re_main(NULL);
 
 	tmr_cancel(&e->tmr_stop);
 	tmr_cancel(&e->tmr_running);
+	tmr_cancel(&e->tmr_rate);
 	bevent_unregister(bevent_handler);
 	bsk_video_close(e);
 	bsk_calls_flush(e);

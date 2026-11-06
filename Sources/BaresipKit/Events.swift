@@ -180,6 +180,7 @@ public struct BaresipCallStatistics: Sendable, Equatable {
     public let localAddress: String
     public let remoteAddress: String
     public let mosEstimate: Float
+    public let videoTargetBitrate: Int
 
     init(_ c: bsk_call_statistics) {
         id = BaresipCallID(rawValue: c.id)
@@ -191,6 +192,7 @@ public struct BaresipCallStatistics: Sendable, Equatable {
         localAddress = stringFromCArray(c.local_address)
         remoteAddress = stringFromCArray(c.remote_address)
         mosEstimate = c.mos_estimate
+        videoTargetBitrate = Int(c.video_target_bitrate_bps)
     }
 }
 

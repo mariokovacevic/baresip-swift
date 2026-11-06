@@ -140,9 +140,27 @@ final class VideoSinkTests: XCTestCase {
         } catch let error as BaresipError {
             XCTAssertEqual(error.status, .notFound)
         }
+        do {
+            try await engine.setVideoMaxBitrate(callID: BaresipCallID(rawValue: 42), bitsPerSecond: 200_000)
+            XCTFail("expected notFound")
+        } catch let error as BaresipError {
+            XCTAssertEqual(error.status, .notFound)
+        }
+        do {
+            try await engine.restartICE(callID: BaresipCallID(rawValue: 42))
+            XCTFail("expected notFound")
+        } catch let error as BaresipError {
+            XCTAssertEqual(error.status, .notFound)
+        }
         let devices = await engine.videoDevices()
         XCTAssertNotNil(devices)
         await engine.stop()
+    }
+
+    func testAdaptiveBitrateDefaults() {
+        let cfg = BaresipConfiguration()
+        XCTAssertTrue(cfg.videoAdaptiveBitrate)
+        XCTAssertEqual(cfg.videoMinimumBitrate, 150_000)
     }
 
     func testFrameFromNativeBuffer() throws {
@@ -197,7 +215,7 @@ final class NetworkEventTests: XCTestCase {
         let engine = try BaresipEngine(configuration: BaresipConfiguration())
         XCTAssertFalse(engine.isEngineThread)
         XCTAssertEqual(BaresipEngine.abiVersion.major, 0)
-        XCTAssertEqual(BaresipEngine.abiVersion.minor, 3)
+        XCTAssertEqual(BaresipEngine.abiVersion.minor, 4)
     }
 }
 

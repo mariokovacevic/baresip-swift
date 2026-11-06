@@ -92,6 +92,7 @@ static bsk_engine *start_engine(const char *listen)
 	cfg.video.height = getenv("BSK_TEST_VCODEC") ? 480 : 240;
 	cfg.video.fps = 15;
 	cfg.video.bitrate_bps = 300000;
+	cfg.video_adaptive_bitrate = true;
 	cfg.tls.verify_server = true;
 	cfg.log_level = getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
 	cfg.extra_config = extra;
@@ -210,6 +211,8 @@ static int run_caller(const char *host)
 	bsk_call_id call = BSK_ID_NONE;
 	bsk_video_sink sink = { on_frame, on_size, NULL };
 	bsk_call_info info;
+	bsk_call_statistics st;
+	uint32_t tx_before;
 	char dest[128];
 
 	tag = "vcaller";
@@ -229,11 +232,28 @@ static int run_caller(const char *host)
 			  getenv("BSK_TEST_VCODEC") ? getenv("BSK_TEST_VCODEC") : "VP8"));
 	CHECK_OK(bsk_call_request_keyframe(e, call, &err), &err);
 	sleep(1);
+
+	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+	CHECK(st.video_target_bitrate_bps >= 150000);
+	CHECK(st.video_target_bitrate_bps <= 300000);
+	CHECK_OK(bsk_call_set_video_max_bitrate(e, call, 200000, &err), &err);
+	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+	CHECK(st.video_target_bitrate_bps == 200000);
+	tx_before = st.video.tx_packets;
+	sleep(2);
+	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+	CHECK(st.video_target_bitrate_bps == 200000);
+	CHECK(st.video.tx_packets > tx_before);
+	CHECK_OK(bsk_call_set_video_max_bitrate(e, call, 0, &err), &err);
+	CHECK(BSK_ERR_NOT_FOUND ==
+	      bsk_call_set_video_max_bitrate(e, 9999, 100000, &err));
+
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
 	CHECK(wait_until(&w, released, 10000));
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
-	printf("vcaller: PASS (local frames=%d, remote frames=%d, codec=%s)\n",
+	printf("vcaller: PASS (local frames=%d, remote frames=%d, codec=%s,"
+	       " capped bitrate 200000)\n",
 	       local_frames, remote_frames, info.video_codec);
 	return 0;
 }

@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include "test_common.h"
+#include "../../Core/src/bsk_rate.h"
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
 
@@ -82,7 +83,7 @@ static void test_status_strings(void)
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
 	CHECK(0 == strcmp(bsk_status_string(BSK_ERR_AUTH),
 			  "authentication failed"));
-	CHECK(bsk_abi_version() == 3);
+	CHECK(bsk_abi_version() == 4);
 	CHECK(bsk_capabilities(NULL, 0) > 0);
 }
 
@@ -188,6 +189,64 @@ static void test_config_size_compat(void)
 }
 
 
+static void test_rate_control(void)
+{
+	struct bsk_rate r;
+	uint32_t sent = 0, b;
+	int32_t lost = 0;
+	uint64_t now = 0;
+	int i;
+
+	bsk_rate_init(&r, 800000, 150000, 800000, now);
+	CHECK(r.current == 800000);
+	CHECK(bsk_rate_update(&r, sent, lost, now) == 800000);
+
+	sent += 10;
+	now += 1000;
+	CHECK(bsk_rate_update(&r, sent, lost, now) == 800000);
+
+	sent += 100;
+	lost += 30;
+	now += 1000;
+	b = bsk_rate_update(&r, sent, lost, now);
+	CHECK(b < 800000 && b >= 150000);
+	CHECK(b == 690910);
+
+	for (i = 0; i < 20; i++) {
+		sent += 100;
+		lost += 50;
+		now += 1000;
+		b = bsk_rate_update(&r, sent, lost, now);
+	}
+	CHECK(b == 150000);
+
+	sent += 100;
+	lost += 5;
+	now += 1000;
+	CHECK(bsk_rate_update(&r, sent, lost, now) == 150000);
+
+	for (i = 0; i < 200; i++) {
+		sent += 100;
+		now += 1000;
+		b = bsk_rate_update(&r, sent, lost, now);
+	}
+	CHECK(b == 800000);
+
+	bsk_rate_set_max(&r, 300000);
+	CHECK(r.current == 300000);
+	bsk_rate_set_max(&r, 100000);
+	CHECK(r.current == 100000 && r.min == 100000);
+
+	bsk_rate_init(&r, 0, 900000, 500000, 0);
+	CHECK(r.current == 500000 && r.min == 500000);
+
+	bsk_rate_init(&r, 500000, 150000, 800000, 0);
+	(void)bsk_rate_update(&r, 1000, 10, 0);
+	CHECK(bsk_rate_update(&r, 500, 0, 1000) == 500000);
+	CHECK(bsk_rate_update(&r, 600, 0, 5000) > 500000);
+}
+
+
 int main(void)
 {
 	test_contact_params();
@@ -195,6 +254,7 @@ int main(void)
 	test_status_strings();
 	test_engine_lifecycle_without_network();
 	test_config_size_compat();
+	test_rate_control();
 	printf("unit: PASS\n");
 	return 0;
 }
