@@ -98,12 +98,14 @@ jobs:
           done
       - name: Build documentation, warnings as errors
         run: |
-          status=0
-          xcodebuild docbuild -scheme BaresipKit-Package -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath Build/out/docc OTHER_DOCC_FLAGS="--warnings-as-errors" > docc.log 2>&1 || status=$?
-          grep -E "error|warning" docc.log | grep -v "^note:" | sort -u | head -80 || true
-          tail -5 docc.log
-          test "$status" = 0
+          for scheme in BaresipKit BaresipKitAudio BaresipKitVideo BaresipKitCallKit BaresipKitPushKit; do
+            status=0
+            xcodebuild docbuild -scheme "$scheme" -destination 'generic/platform=iOS Simulator' \
+              OTHER_DOCC_FLAGS="--warnings-as-errors" > docc.log 2>&1 || status=$?
+            grep -E "error|warning" docc.log | grep -v "^note:" | sort -u | head -80 || true
+            tail -3 docc.log
+            test "$status" = 0
+          done
       - name: Host build and core tests
         run: |
           PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh

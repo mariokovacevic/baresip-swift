@@ -97,10 +97,11 @@ extension CallModel {
                 nat.stunURI = settings.stunURI.trimmed
             }
             if !settings.turnURI.trimmed.isEmpty {
-                nat.turnServers = [BaresipTURNServer(uri: settings.turnURI.trimmed,
-                                                     username: settings.turnUser.trimmed.isEmpty ? nil : settings
-                                                         .turnUser.trimmed,
-                                                     password: turnPassword.isEmpty ? nil : turnPassword)]
+                let turnUser = settings.turnUser.trimmed
+                let server = BaresipTURNServer(uri: settings.turnURI.trimmed,
+                                               username: turnUser.isEmpty ? nil : turnUser,
+                                               password: turnPassword.isEmpty ? nil : turnPassword)
+                nat.turnServers = [server]
             }
         }
         let authUser = settings.authUser.trimmed.isEmpty ? settings.username.trimmed : settings.authUser.trimmed
