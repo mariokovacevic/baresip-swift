@@ -2,7 +2,7 @@ import XCTest
 
 @MainActor
 final class RegistrationCallUITests: XCTestCase {
-    private var app: XCUIApplication!
+    private let app = XCUIApplication()
 
     func testTLSRegistrationPinningAndCall() throws {
         continueAfterFailure = false
@@ -13,7 +13,6 @@ final class RegistrationCallUITests: XCTestCase {
         let port = env["BSK_UITEST_PORT"] ?? "5081"
         let peer = env["BSK_UITEST_PEER"] ?? "sip:bob@\(host):5070"
 
-        app = XCUIApplication()
         app.launchEnvironment = ["BSK_UITEST": "1", "BSK_UITEST_CA_PEM": ca]
         app.launch()
 
@@ -21,7 +20,7 @@ final class RegistrationCallUITests: XCTestCase {
         type(host, into: field("account.domain"))
         type(port, into: field("account.port"))
         type("alice", into: field("account.username"))
-        type("secret", into: field("account.password"))
+        type("secret", into: passwordField())
         save()
         waitForRegistration(containing: "registered", timeout: 30)
 
@@ -63,12 +62,21 @@ final class RegistrationCallUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
+    private func passwordField() -> XCUIElement {
+        let byIdentifier = field("account.password")
+        return byIdentifier.exists ? byIdentifier : app.secureTextFields.firstMatch
+    }
+
     private func pinsField() -> XCUIElement {
         field("account.pins")
     }
 
     private func type(_ text: String, into field: XCUIElement) {
         scrollTo(field)
+        guard field.exists else {
+            XCTFail("\(field) not found in:\n\(app.debugDescription)")
+            return
+        }
         field.tap()
         field.typeText(text)
     }
