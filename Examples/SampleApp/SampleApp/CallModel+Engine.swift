@@ -39,7 +39,11 @@ extension CallModel {
                 try await pushArrived(payload)
             }
             append(
-                "engine started, core \(BaresipEngine.coreVersion), CA \(tls.ca == nil ? "system" : "custom"), client certificate \(tls.client == nil ? "none" : "set"), pins \(tls.pins.count)"
+                """
+                engine started, core \(BaresipEngine.coreVersion), CA \
+                \(tls.ca == nil ? "system" : "custom"), client certificate \
+                \(tls.client == nil ? "none" : "set"), pins \(tls.pins.count)
+                """
             )
         } catch {
             append("engine start failed: \(error)")

@@ -31,7 +31,10 @@ struct TransferView: View {
                         }
                     } footer: {
                         Text(
-                            "\(held.title) and \(current.title) are connected to each other. \(current.title)'s phone doesn't ring again; both of your calls end."
+                            """
+                            \(held.title) and \(current.title) are connected to each other. \(current.title)'s \
+                            phone doesn't ring again; both of your calls end.
+                            """
                         )
                     }
                 } else {
@@ -55,7 +58,10 @@ struct TransferView: View {
                         Text("Transfer \(model.currentRow?.title ?? "call") to")
                     } footer: {
                         Text(
-                            "Consult puts this call on hold and calls the target so you can talk first. Blind sends the call on right away."
+                            """
+                            Consult puts this call on hold and calls the target so you can talk first. Blind sends \
+                            the call on right away.
+                            """
                         )
                     }
                 }

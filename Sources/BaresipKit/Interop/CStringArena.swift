@@ -71,7 +71,7 @@ func string(fromCArray tuple: some Any) -> String {
     // SAFETY: the C ABI declares these fields as fixed-size char arrays that the core always NUL-terminates.
     withUnsafeBytes(of: tuple) { raw in
         let length = raw.firstIndex(of: 0) ?? raw.count
-        return String(decoding: UnsafeRawBufferPointer(rebasing: raw[0 ..< length]), as: UTF8.self)
+        return decodeUTF8(raw[0 ..< length])
     }
 }
 
@@ -87,6 +87,13 @@ extension Duration {
 }
 
 func string(fromNullTerminated buffer: [CChar]) -> String {
-    let bytes = buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }
-    return String(decoding: bytes, as: UTF8.self)
+    decodeUTF8(buffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) })
+}
+
+func decodeUTF8(_ bytes: some Collection<UInt8>) -> String {
+    if let text = String(bytes: bytes, encoding: .utf8) {
+        return text
+    }
+    let replacement = Character("\u{FFFD}")
+    return String(bytes.map { $0 < 0x80 ? Character(Unicode.Scalar($0)) : replacement })
 }

@@ -11,8 +11,9 @@ final class ContactParameterTests: XCTestCase {
             BaresipContactParameter("pn-timeout", "0"),
         ]
         let encoded = try BaresipEngine.encodeContactParameters(params)
-        XCTAssertEqual(encoded,
-                       "app-id=com.example.app;pn-type=apple;pn-tok=0123abcd:remote&ffff0000:voip;pn-silent=1;pn-timeout=0")
+        let expected = "app-id=com.example.app;pn-type=apple;pn-tok=0123abcd:remote&ffff0000:voip"
+            + ";pn-silent=1;pn-timeout=0"
+        XCTAssertEqual(encoded, expected)
     }
 
     func testRejectsSeparatorInsideValue() {

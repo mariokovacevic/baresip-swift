@@ -113,14 +113,14 @@ final class VideoSinkTests: XCTestCase {
                                            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange, nil, &pb),
                        kCVReturnSuccess)
         let buffer = try XCTUnwrap(pb)
-        var c = bsk_video_frame()
-        c.format = BSK_PIX_NV12
-        c.width = 16
-        c.height = 8
-        c.timestamp_us = 1_500_000
-        c.rotation_degrees = 90
-        c.native_buffer = Unmanaged.passUnretained(buffer).toOpaque()
-        let frame = try XCTUnwrap(BaresipVideoFrame(c))
+        var raw = bsk_video_frame()
+        raw.format = BSK_PIX_NV12
+        raw.width = 16
+        raw.height = 8
+        raw.timestamp_us = 1_500_000
+        raw.rotation_degrees = 90
+        raw.native_buffer = Unmanaged.passUnretained(buffer).toOpaque()
+        let frame = try XCTUnwrap(BaresipVideoFrame(raw))
         XCTAssertEqual(frame.width, 16)
         XCTAssertEqual(frame.height, 8)
         XCTAssertEqual(frame.rotationDegrees, 90)

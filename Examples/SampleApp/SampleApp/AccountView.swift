@@ -78,7 +78,10 @@ struct AccountView: View {
                 Text("Server certificate")
             } footer: {
                 Text(
-                    "PEM (one or more certificates) or DER (.cer/.crt). Needed for a private CA or a self-signed server."
+                    """
+                    PEM (one or more certificates) or DER (.cer/.crt). Needed for a private CA or a \
+                    self-signed server.
+                    """
                 )
             }
 
@@ -114,7 +117,10 @@ struct AccountView: View {
                 Text("Certificate pinning (optional)")
             } footer: {
                 Text(
-                    "One pin per line. With pins set, the connection is accepted only if the chain verifies and a certificate matches a pin."
+                    """
+                    One pin per line. With pins set, the connection is accepted only if the chain verifies \
+                    and a certificate matches a pin.
+                    """
                 )
             }
 
@@ -124,7 +130,10 @@ struct AccountView: View {
                 Text("Incoming calls")
             } footer: {
                 Text(
-                    "Sends 183 Session Progress so you hear and see the caller before answering, for example at a door intercom. Your microphone and camera stay off until you answer."
+                    """
+                    Sends 183 Session Progress so you hear and see the caller before answering, for example \
+                    at a door intercom. Your microphone and camera stay off until you answer.
+                    """
                 )
             }
 
@@ -172,7 +181,10 @@ struct AccountView: View {
                 .accessibilityIdentifier("account.save")
             } footer: {
                 Text(
-                    "The password is stored in the Keychain and certificates in the app's protected storage. Changing certificates restarts the SIP engine."
+                    """
+                    The password is stored in the Keychain and certificates in the app's protected storage. \
+                    Changing certificates restarts the SIP engine.
+                    """
                 )
             }
         }

@@ -220,7 +220,8 @@ struct CallsHomeView: View {
         case .registered:
             let ca = model.caSummaries.isEmpty ? "system CA" : "private CA"
             let pins = model.settings.pinList.count
-            return "Registered over \(model.settings.transportName.uppercased()) · \(ca)\(pins > 0 ? " · \(pins) pin\(pins == 1 ? "" : "s")" : "")"
+            let pinText = pins == 0 ? "" : " · \(pins) pin\(pins == 1 ? "" : "s")"
+            return "Registered over \(model.settings.transportName.uppercased()) · \(ca)\(pinText)"
         case .registering:
             return "Registering…"
         case .unregistering:

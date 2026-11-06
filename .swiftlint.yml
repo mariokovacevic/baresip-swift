@@ -23,6 +23,9 @@ opt_in_rules:
   - unused_optional_binding
   - yoda_condition
 
+trailing_comma:
+  mandatory_comma: true
+
 line_length:
   warning: 120
   error: 160

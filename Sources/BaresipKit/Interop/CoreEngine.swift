@@ -53,7 +53,7 @@ struct CoreEngine: @unchecked Sendable {
         bsk_engine_set_log_handler(raw, { level, domain, line, length, user in
             guard let user, let line else { return }
             // SAFETY: line points at length bytes that are valid for the duration of the callback.
-            let text = String(decoding: UnsafeRawBufferPointer(start: line, count: length), as: UTF8.self)
+            let text = decodeUTF8(UnsafeRawBufferPointer(start: line, count: length))
             let entry = BaresipLogEntry(level: BaresipLogLevel(level), domain: BaresipLogDomain(domain), message: text)
             Unmanaged<BaresipEngine>.fromOpaque(user).takeUnretainedValue().deliverLog(entry)
         }, user)

@@ -21,23 +21,25 @@ struct SIPSettings: Codable, Equatable {
     init() {}
 
     init(from decoder: Decoder) throws {
-        let c = try decoder.container(keyedBy: CodingKeys.self)
-        let d = SIPSettings.defaults
-        domain = try c.decodeIfPresent(String.self, forKey: .domain) ?? d.domain
-        port = try c.decodeIfPresent(String.self, forKey: .port) ?? d.port
-        transport = try c.decodeIfPresent(BaresipTransport.self, forKey: .transport) ?? d.transport
-        username = try c.decodeIfPresent(String.self, forKey: .username) ?? d.username
-        authUser = try c.decodeIfPresent(String.self, forKey: .authUser) ?? d.authUser
-        displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? d.displayName
-        outboundProxy = try c.decodeIfPresent(String.self, forKey: .outboundProxy) ?? d.outboundProxy
-        mediaEncryption = try c.decodeIfPresent(BaresipMediaEncryption.self, forKey: .mediaEncryption) ?? d
-            .mediaEncryption
-        pins = try c.decodeIfPresent(String.self, forKey: .pins) ?? d.pins
-        useICE = try c.decodeIfPresent(Bool.self, forKey: .useICE) ?? d.useICE
-        stunURI = try c.decodeIfPresent(String.self, forKey: .stunURI) ?? d.stunURI
-        turnURI = try c.decodeIfPresent(String.self, forKey: .turnURI) ?? d.turnURI
-        turnUser = try c.decodeIfPresent(String.self, forKey: .turnUser) ?? d.turnUser
-        autoPreview = try c.decodeIfPresent(Bool.self, forKey: .autoPreview) ?? d.autoPreview
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = SIPSettings.defaults
+        func value<T: Decodable>(_ key: CodingKeys, _ fallback: T) throws -> T {
+            try container.decodeIfPresent(T.self, forKey: key) ?? fallback
+        }
+        domain = try value(.domain, defaults.domain)
+        port = try value(.port, defaults.port)
+        transport = try value(.transport, defaults.transport)
+        username = try value(.username, defaults.username)
+        authUser = try value(.authUser, defaults.authUser)
+        displayName = try value(.displayName, defaults.displayName)
+        outboundProxy = try value(.outboundProxy, defaults.outboundProxy)
+        mediaEncryption = try value(.mediaEncryption, defaults.mediaEncryption)
+        pins = try value(.pins, defaults.pins)
+        useICE = try value(.useICE, defaults.useICE)
+        stunURI = try value(.stunURI, defaults.stunURI)
+        turnURI = try value(.turnURI, defaults.turnURI)
+        turnUser = try value(.turnUser, defaults.turnUser)
+        autoPreview = try value(.autoPreview, defaults.autoPreview)
     }
 
     private static let defaults = SIPSettings()
@@ -61,8 +63,8 @@ struct SIPSettings: Codable, Equatable {
 
     var registrar: String {
         let host = domain.trimmed
-        let p = port.trimmed
-        return "sip:\(host)\(p.isEmpty ? "" : ":\(p)");transport=\(transportName)"
+        let trimmedPort = port.trimmed
+        return "sip:\(host)\(trimmedPort.isEmpty ? "" : ":\(trimmedPort)");transport=\(transportName)"
     }
 
     var proxy: String? {

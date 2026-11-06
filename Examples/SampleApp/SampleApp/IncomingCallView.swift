@@ -62,9 +62,7 @@ struct IncomingCallView: View {
 
             VStack(spacing: 28) {
                 Spacer()
-                Text(model.previewing
-                    ? "You hear the caller\(model.previewVideo ? " and see their video" : ""). Your microphone and camera turn on when you answer."
-                    : "Answer, decline, or preview the call first without being heard or seen.")
+                Text(model.previewing ? previewingHint : waitingHint)
                     .font(.subheadline)
                     .foregroundStyle(Color(white: 0.78))
                     .multilineTextAlignment(.center)
@@ -86,6 +84,15 @@ struct IncomingCallView: View {
         .background(Color.black.ignoresSafeArea())
         .ignoresSafeArea(edges: .top)
         .preferredColorScheme(.dark)
+    }
+
+    private var waitingHint: String {
+        "Answer, decline, or preview the call first without being heard or seen."
+    }
+
+    private var previewingHint: String {
+        let seen = model.previewVideo ? " and see their video" : ""
+        return "You hear the caller\(seen). Your microphone and camera turn on when you answer."
     }
 
     private var hasVideo: Bool {

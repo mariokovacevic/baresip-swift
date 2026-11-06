@@ -6,7 +6,7 @@ public struct BaresipCallKitConfiguration: Sendable {
     @available(
         *,
         deprecated,
-        message: "CXProviderConfiguration.localizedName is read-only in current SDKs; CallKit shows the app name from the Info.plist."
+        message: "Has no effect: CallKit shows the app name from the Info.plist."
     )
     public var localizedName: String = ""
     /// Whether calls may have video.
@@ -39,7 +39,7 @@ public struct BaresipCallKitConfiguration: Sendable {
     @available(
         *,
         deprecated,
-        message: "localizedName has no effect; use init(supportsVideo:maximumCallsPerCallGroup:iconTemplateImageData:ringtoneSound:)"
+        message: "localizedName has no effect; use the initializer without it."
     )
     public init(localizedName: String, supportsVideo: Bool = true, maximumCallsPerCallGroup: Int = 1,
                 iconTemplateImageData: Data? = nil, ringtoneSound: String? = nil) {
