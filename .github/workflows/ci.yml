@@ -66,6 +66,13 @@ jobs:
         run: |
           DEVICE=$(xcrun simctl list devices available iPhone | grep -m1 -o 'iPhone [0-9A-Za-z ]*' | head -1)
           xcodebuild test -scheme BaresipKit-Package -destination "platform=iOS Simulator,name=${DEVICE}" | tail -40
+      - name: Build the sample app for the simulator
+        run: |
+          brew install xcodegen >/dev/null
+          cd Examples/SampleApp
+          xcodegen generate
+          xcodebuild build -project BaresipKitSample.xcodeproj -scheme BaresipKitSample \
+            -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO | tail -20
       - name: Upload XCFramework
         uses: actions/upload-artifact@v4
         with:
