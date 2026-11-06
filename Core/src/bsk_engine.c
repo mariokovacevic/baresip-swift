@@ -11,7 +11,7 @@ static const char *default_modules[] = {
 	"g711", "opus", "l16", "auconv", "auresamp",
 	"ice", "turn", "stun", "srtp", "dtls_srtp", "rtcpsummary",
 #if defined(__APPLE__)
-	"audiounit",
+	"audiounit", "fakevideo",
 #endif
 };
 
@@ -301,7 +301,7 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 	e->voice_processing = c->audio.voice_processing;
 
 	str_ncpy(e->video_src_mod, str_isset(c->video.source_module) ?
-		 c->video.source_module : "avcapture", sizeof(e->video_src_mod));
+		 c->video.source_module : "bskcapture", sizeof(e->video_src_mod));
 	str_ncpy(e->video_src_dev, c->video.source_device ?
 		 c->video.source_device : "", sizeof(e->video_src_dev));
 	e->video_width = c->video.width ? c->video.width : 640;

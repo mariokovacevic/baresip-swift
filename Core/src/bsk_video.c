@@ -1,5 +1,8 @@
 #include <string.h>
 #include "bsk_internal.h"
+#ifdef BSK_HAVE_APPLE_VIDEO
+#include "vidtoolbox.h"
+#endif
 
 struct vidisp_st {
 	const struct vidisp *vd;
@@ -199,6 +202,15 @@ int bsk_video_init(bsk_engine *e)
 {
 	int err;
 
+#ifdef BSK_HAVE_APPLE_VIDEO
+	err = vidtoolbox_init();
+	if (err)
+		return err;
+	err = bskcapture_init();
+	if (err)
+		return err;
+#endif
+
 	err = vidisp_register(&bsk_vidisp, baresip_vidispl(), "bsk", disp_alloc,
 			      NULL, disp_display, NULL);
 	if (err)
@@ -224,6 +236,10 @@ void bsk_video_close(bsk_engine *e)
 	e->preview_src = mem_deref(e->preview_src);
 	vidfilt_unregister(&bsk_vidfilt);
 	bsk_vidisp = mem_deref(bsk_vidisp);
+#ifdef BSK_HAVE_APPLE_VIDEO
+	bskcapture_close();
+	vidtoolbox_close();
+#endif
 }
 
 

@@ -156,7 +156,7 @@ public struct BaresipVideoConfiguration: Sendable, Equatable {
     public var codecs: [String]
     public var hardwareAcceleration: Bool
 
-    public init(sourceModule: String = "avcapture", sourceDevice: String? = nil,
+    public init(sourceModule: String = "bskcapture", sourceDevice: String? = nil,
                 width: Int = 640, height: Int = 480, framesPerSecond: Int = 30,
                 bitrate: Int = 800_000, codecs: [String] = ["H264"],
                 hardwareAcceleration: Bool = true) {
@@ -189,7 +189,7 @@ public struct BaresipConfiguration: Sendable, Equatable {
     public static let defaultModules: [String] = [
         "g711", "opus", "l16", "auconv", "auresamp",
         "ice", "turn", "stun", "srtp", "dtls_srtp", "rtcpsummary",
-        "audiounit",
+        "audiounit", "fakevideo",
     ]
 
     public init(userAgent: String = "BaresipKit", instanceUUID: UUID = UUID(),

@@ -15,7 +15,7 @@ if(NOT BARESIP_INCLUDE_DIR OR NOT BARESIP_LIBRARY)
   message(FATAL_ERROR "baresip not found; set BARESIP_INCLUDE_DIR and BARESIP_LIBRARY")
 endif()
 
-add_library(baresipkitcore STATIC
+set(BSK_SOURCES
   src/bsk_engine.c
   src/bsk_log.c
   src/bsk_account.c
@@ -23,10 +23,24 @@ add_library(baresipkitcore STATIC
   src/bsk_video.c
 )
 
+if(APPLE)
+  enable_language(OBJC)
+  list(APPEND BSK_SOURCES src/apple/vidtoolbox.c src/apple/bskcapture.m)
+  set_source_files_properties(src/apple/bskcapture.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+endif()
+
+add_library(baresipkitcore STATIC ${BSK_SOURCES})
+
 target_include_directories(baresipkitcore
   PUBLIC include
-  PRIVATE ${BARESIP_INCLUDE_DIR}
+  PRIVATE ${BARESIP_INCLUDE_DIR} src/apple
 )
+if(APPLE)
+  target_compile_definitions(baresipkitcore PRIVATE BSK_HAVE_APPLE_VIDEO=1)
+  target_link_libraries(baresipkitcore PUBLIC
+    "-framework AVFoundation" "-framework CoreMedia" "-framework CoreVideo"
+    "-framework VideoToolbox" "-framework Foundation")
+endif()
 target_compile_definitions(baresipkitcore PRIVATE ${BARESIPKIT_RE_DEFINITIONS})
 target_compile_options(baresipkitcore PRIVATE -Wall -Wextra -Wshadow -Wno-unused-parameter)
 target_link_libraries(baresipkitcore PUBLIC ${BARESIP_LIBRARY} libre::libre)

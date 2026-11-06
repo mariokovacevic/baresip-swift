@@ -11,10 +11,10 @@ Phase 0 (feasibility) is complete and reviewed; Phase 1 (facade, bridge, Swift A
 | Layer | Target | State |
 |---|---|---|
 | 1 | baresip + libre + OpenSSL + Opus C core, reproducible CMake build → XCFramework | verified on macOS for device arm64 and simulator arm64 |
-| 2 | `BaresipKitCore` C ABI (`Core/`) | implemented: engine thread, accounts, registration, Contact parameters, calls, hold/resume, DTMF, mute, statistics; host test suite passes under ASan/UBSan |
+| 2 | `BaresipKitCore` C ABI (`Core/`) | implemented: engine thread, accounts, registration, Contact parameters, calls, hold/resume, DTMF, mute, statistics, video frame sinks and preview; host test suite incl. a VP8 video call passes under ASan/UBSan. Apple-only: `vidtoolbox` H.264 codec and `bskcapture` camera source (`Core/src/apple`), awaiting first compile on macOS |
 | 3 | `BaresipKitBridge` | C helpers for event unions, module map |
 | 4 | `BaresipKit` Swift API | written, awaiting first compile on macOS (`Docs/Phase1/macOS-verification-prompt.md`) |
-| 5 | `BaresipKitAudio`, `BaresipKitCallKit`, `BaresipKitPushKit` | written, awaiting first compile; `BaresipKitVideo` holds types only until the video core lands |
+| 5 | `BaresipKitAudio`, `BaresipKitCallKit`, `BaresipKitPushKit` | compiled and tested on the simulator; `BaresipKitVideo` adds `BaresipVideoView` (AVSampleBufferDisplayLayer), awaiting first compile |
 
 ## Repository layout
 

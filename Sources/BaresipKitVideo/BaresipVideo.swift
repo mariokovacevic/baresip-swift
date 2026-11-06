@@ -17,6 +17,14 @@ public final class BaresipVideoFrameRelay: BaresipVideoRenderer, @unchecked Send
         self.onSize = onSize
     }
 
+    public func setHandlers(onFrame: (@Sendable (BaresipVideoFrame) -> Void)?,
+                            onSize: (@Sendable (Int, Int) -> Void)?) {
+        lock.withLock {
+            self.onFrame = onFrame
+            self.onSize = onSize
+        }
+    }
+
     public func render(_ frame: BaresipVideoFrame) {
         let handler = lock.withLock { onFrame }
         handler?(frame)
@@ -29,5 +37,5 @@ public final class BaresipVideoFrameRelay: BaresipVideoRenderer, @unchecked Send
 }
 
 public enum BaresipVideoSupport {
-    public static let status = "Renderer and preview APIs are wired to the C ABI; the core returns unsupported until the VideoToolbox H.264 module and the camera source land."
+    public static let status = "Decoded frames reach BaresipVideoRenderer through the core frame sink; H.264 is provided by the VideoToolbox module and the camera by the bskcapture source on Apple platforms."
 }
