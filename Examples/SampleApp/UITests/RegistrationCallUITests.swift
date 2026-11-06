@@ -1,13 +1,11 @@
 import XCTest
 
+@MainActor
 final class RegistrationCallUITests: XCTestCase {
     private var app: XCUIApplication!
 
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
-
     func testTLSRegistrationPinningAndCall() throws {
+        continueAfterFailure = false
         let env = ProcessInfo.processInfo.environment
         guard let host = env["BSK_UITEST_HOST"], let ca = env["BSK_UITEST_CA_PEM"] else {
             throw XCTSkip("BSK_UITEST_HOST and BSK_UITEST_CA_PEM are not set")

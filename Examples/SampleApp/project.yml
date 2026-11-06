@@ -33,7 +33,7 @@ targets:
         LSSupportsOpeningDocumentsInPlace: true
     settings:
       base:
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         CODE_SIGN_STYLE: Automatic
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
     scheme:
@@ -47,7 +47,7 @@ targets:
       - target: BaresipKitSample
     settings:
       base:
-        SWIFT_VERSION: "5.9"
+        SWIFT_VERSION: "6.0"
         CODE_SIGN_STYLE: Automatic
         GENERATE_INFOPLIST_FILE: YES
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
