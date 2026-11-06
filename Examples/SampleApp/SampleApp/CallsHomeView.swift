@@ -27,6 +27,7 @@ struct CallsHomeView: View {
                         .padding(.horizontal, 16)
                         .frame(minHeight: 48)
                         .background(Palette.green, in: RoundedRectangle(cornerRadius: 14))
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                 }
@@ -52,6 +53,7 @@ struct CallsHomeView: View {
                     .padding(.horizontal, 16)
                     .frame(minHeight: 48)
                     .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 14))
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -91,6 +93,7 @@ struct CallsHomeView: View {
                         .foregroundStyle(Palette.secondaryText)
                 }
                 .frame(minHeight: 32)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("account.link")
@@ -206,6 +209,7 @@ struct CallsHomeView: View {
                 }
                 .padding(16)
                 .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 14))
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
