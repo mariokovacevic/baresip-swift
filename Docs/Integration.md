@@ -28,7 +28,7 @@ try await engine.start()
 
 States: `idle → starting → ready → running → stopping → stopped`, or `failed`. `stop()` unregisters, waits for the SIP stack to drain (bounded by `timeout`) and joins the engine thread. `start()` after `stop()` creates a fresh engine. One engine per process (baresip is a singleton).
 
-Background and push: call `prepareForPushWakeUp()` from the PushKit handler. If the engine is stopped it starts; if it is running it re-registers every account immediately. `suspend()` marks the engine suspended; `resume()` resets the SIP transports and re-registers. Call `networkDidChange()` from `NWPathMonitor` to reset transports, re-register and update calls with a re-INVITE.
+Background and push: call `prepareForPushWakeUp()` from the PushKit handler. If the engine is stopped it starts; if it is running it re-registers every account immediately. `suspend()` marks the engine suspended; `resumeFromBackground()` resets the SIP transports and re-registers. Call `networkDidChange()` from `NWPathMonitor` to reset transports, re-register and update calls with a re-INVITE.
 
 ## Accounts and registration
 
@@ -43,8 +43,8 @@ let account = BaresipAccountConfiguration(
     registerExpires: .seconds(600),
     mediaEncryption: .srtpMandatory,
     nat: BaresipNATConfiguration(mode: .ice,
-                                 turnServers: [TURNServer(uri: "turn:turn.example.com:3478?transport=udp",
-                                                          username: "u", password: "p")]),
+                                 turnServers: [BaresipTURNServer(uri: "turn:turn.example.com:3478?transport=udp",
+                                                                 username: "u", password: "p")]),
     contactParameters: pushTokens.contactParameters
 )
 let id = try await engine.addAccount(account)

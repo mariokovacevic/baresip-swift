@@ -10,7 +10,7 @@ public enum BaresipEngineState: Int, Sendable, Codable {
     case running = 3
     /// ``BaresipEngine/stop(timeout:)`` is in progress.
     case stopping = 4
-    /// Stopped. Create a new engine to start again.
+    /// Stopped. ``BaresipEngine/start()`` starts the engine again.
     case stopped = 5
     /// Start failed or the engine stopped on an error.
     case failed = 6
