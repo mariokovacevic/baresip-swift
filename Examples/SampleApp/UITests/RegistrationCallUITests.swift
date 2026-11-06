@@ -20,10 +20,10 @@ final class RegistrationCallUITests: XCTestCase {
         app.launch()
 
         openAccount()
-        type(host, into: app.textFields["account.domain"])
-        type(port, into: app.textFields["account.port"])
-        type("alice", into: app.textFields["account.username"])
-        type("secret", into: app.secureTextFields["account.password"])
+        type(host, into: field("account.domain"))
+        type(port, into: field("account.port"))
+        type("alice", into: field("account.username"))
+        type("secret", into: field("account.password"))
         save()
         waitForRegistration(containing: "registered", timeout: 30)
 
@@ -39,7 +39,7 @@ final class RegistrationCallUITests: XCTestCase {
         save()
         waitForRegistration(containing: "registered", timeout: 30)
 
-        let destination = app.textFields["call.destination"]
+        let destination = field("call.destination")
         type(peer, into: destination)
         app.buttons["call.audio"].tap()
         let state = app.staticTexts["call.state"]
@@ -58,15 +58,15 @@ final class RegistrationCallUITests: XCTestCase {
         let link = app.buttons["account.link"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
         link.tap()
-        XCTAssertTrue(app.textFields["account.domain"].waitForExistence(timeout: 5))
+        XCTAssertTrue(field("account.domain").waitForExistence(timeout: 5))
+    }
+
+    private func field(_ identifier: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(identifier: identifier).firstMatch
     }
 
     private func pinsField() -> XCUIElement {
-        let field = app.textFields["account.pins"]
-        if field.exists {
-            return field
-        }
-        return app.textViews["account.pins"]
+        field("account.pins")
     }
 
     private func type(_ text: String, into field: XCUIElement) {
