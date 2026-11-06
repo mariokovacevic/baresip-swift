@@ -4,6 +4,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 PREFIX="${PREFIX:?set PREFIX to a host build prefix (Build/out/host/prefix)}"
+PREFIX="$(cd "$PREFIX" && pwd)"
 BUILD="${BUILD_DIR:-$ROOT/Build/out/host/core-tests}"
 SANITIZE="${SANITIZE:-address,undefined}"
 HOSTIP="${HOSTIP:-$(hostname -I 2>/dev/null | awk '{print $1}')}"

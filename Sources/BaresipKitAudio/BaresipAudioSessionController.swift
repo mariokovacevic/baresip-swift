@@ -32,7 +32,7 @@ public final class BaresipAudioSessionController {
         }
     }
 
-    public static func voipCategoryOptions(allowBluetooth: Bool, defaultToSpeaker: Bool) -> AVAudioSession.CategoryOptions {
+    nonisolated public static func voipCategoryOptions(allowBluetooth: Bool, defaultToSpeaker: Bool) -> AVAudioSession.CategoryOptions {
         var options: AVAudioSession.CategoryOptions = []
         if allowBluetooth {
             #if compiler(>=6.2)
