@@ -1,10 +1,7 @@
 #include <string.h>
 #include <re.h>
 
-enum {
-	REG_EXPIRES = 4,
-	REGISTRAR_PORT = 5080
-};
+enum { REG_EXPIRES = 4, REGISTRAR_PORT = 5080 };
 
 struct proof {
 	struct sip *sip;
@@ -29,15 +26,15 @@ static const char *token_set_b =
 	":voip;pn-silent=1;pn-timeout=0;pn-channel=calls";
 
 
-static int auth_handler(char **username, char **password,
-			const char *realm, void *arg)
+static int auth_handler(char **username, char **password, const char *realm,
+			void *arg)
 {
 	int err;
 	(void)arg;
 
 	re_printf("proof: digest challenge for realm '%s'\n", realm);
 
-	err  = str_dup(username, "alice");
+	err = str_dup(username, "alice");
 	err |= str_dup(password, "secret");
 
 	return err;
@@ -78,7 +75,6 @@ static void resp_handler(int err, const struct sip_msg *msg, void *arg)
 	++g.ok_count;
 
 	switch (g.ok_count) {
-
 	case 1:
 		re_printf("proof: phase 2 - update push tokens "
 			  "and re-register\n");
@@ -93,7 +89,8 @@ static void resp_handler(int err, const struct sip_msg *msg, void *arg)
 
 	case 2:
 		re_printf("proof: phase 3 - waiting for timer-driven "
-			  "refresh (~%u ms)\n", (unsigned)(REG_EXPIRES * 900));
+			  "refresh (~%u ms)\n",
+			  (unsigned)(REG_EXPIRES * 900));
 		break;
 
 	case 3:
@@ -102,8 +99,7 @@ static void resp_handler(int err, const struct sip_msg *msg, void *arg)
 		sipreg_unregister(g.reg);
 		break;
 
-	default:
-		break;
+	default: break;
 	}
 }
 
@@ -129,8 +125,8 @@ int main(void)
 	if (err)
 		goto out;
 
-	err = sip_alloc(&g.sip, g.dnsc, 32, 32, 32,
-			"contact-proof/0.1", NULL, NULL);
+	err = sip_alloc(&g.sip, g.dnsc, 32, 32, 32, "contact-proof/0.1", NULL,
+			NULL);
 	if (err)
 		goto out;
 
@@ -145,15 +141,10 @@ int main(void)
 	re_snprintf(reg_uri, sizeof(reg_uri), "sip:127.0.0.1:%u",
 		    REGISTRAR_PORT);
 
-	err = sipreg_alloc(&g.reg, g.sip, reg_uri,
-			   "sip:alice@example.invalid",
-			   "Alice",
-			   "sip:alice@example.invalid",
-			   REG_EXPIRES, "alice",
-			   NULL, 0, 0,
-			   auth_handler, NULL, false,
-			   resp_handler, NULL,
-			   NULL,
+	err = sipreg_alloc(&g.reg, g.sip, reg_uri, "sip:alice@example.invalid",
+			   "Alice", "sip:alice@example.invalid", REG_EXPIRES,
+			   "alice", NULL, 0, 0, auth_handler, NULL, false,
+			   resp_handler, NULL, NULL,
 			   "Allow: INVITE,ACK,BYE,CANCEL,OPTIONS,INFO,"
 			   "REFER,NOTIFY,UPDATE\r\n");
 	if (err)
@@ -172,7 +163,7 @@ int main(void)
 
 	err = re_main(signal_handler);
 
- out:
+out:
 	if (err)
 		re_fprintf(stderr, "proof: failed: %m\n", err);
 

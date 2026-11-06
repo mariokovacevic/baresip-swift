@@ -44,8 +44,15 @@ static void mutate(uint8_t *buf, size_t *len, size_t cap)
 		break;
 	default:
 		if (*len) {
-			const char *tokens[] = { ";", "=", "&", ":", "pn-tok=", "response=\"",
-						 "ice,connected,", "sdpm=0x", " ltype=relay" };
+			const char *tokens[] = { ";",
+						 "=",
+						 "&",
+						 ":",
+						 "pn-tok=",
+						 "response=\"",
+						 "ice,connected,",
+						 "sdpm=0x",
+						 " ltype=relay" };
 			const char *t = tokens[rng() % 9];
 			size_t tl = strlen(t);
 			size_t pos = rng() % *len;
@@ -110,8 +117,7 @@ int main(int argc, char **argv)
 			size_t s = rng() % nseeds;
 			len = seed_len[s];
 			memcpy(buf, seeds[s], len);
-		}
-		else {
+		} else {
 			size_t k;
 			len = rng() % 64;
 			for (k = 0; k < len; k++)

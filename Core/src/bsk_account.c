@@ -85,8 +85,7 @@ bsk_status bsk_contact_params_encode(const bsk_contact_param *params,
 }
 
 
-struct bsk_account_ctx *bsk_account_find(bsk_engine *engine,
-					 bsk_account_id id)
+struct bsk_account_ctx *bsk_account_find(bsk_engine *engine, bsk_account_id id)
 {
 	struct le *le;
 
@@ -136,7 +135,7 @@ static const char *transport_name(bsk_transport tp)
 	case BSK_TRANSPORT_TCP: return "tcp";
 	case BSK_TRANSPORT_TLS: return "tls";
 	case BSK_TRANSPORT_WSS: return "wss";
-	default:                return "udp";
+	default: return "udp";
 	}
 }
 
@@ -144,10 +143,10 @@ static const char *transport_name(bsk_transport tp)
 static const char *mediaenc_name(bsk_media_encryption enc)
 {
 	switch (enc) {
-	case BSK_MEDIA_ENC_SRTP_OPTIONAL:  return "srtp";
+	case BSK_MEDIA_ENC_SRTP_OPTIONAL: return "srtp";
 	case BSK_MEDIA_ENC_SRTP_MANDATORY: return "srtp-mand";
-	case BSK_MEDIA_ENC_DTLS_SRTP:      return "dtls_srtp";
-	default:                           return NULL;
+	case BSK_MEDIA_ENC_DTLS_SRTP: return "dtls_srtp";
+	default: return NULL;
 	}
 }
 
@@ -156,8 +155,8 @@ static const char *medianat_name(bsk_nat_traversal nat)
 {
 	switch (nat) {
 	case BSK_NAT_STUN: return "stun";
-	case BSK_NAT_ICE:  return "ice";
-	default:           return NULL;
+	case BSK_NAT_ICE: return "ice";
+	default: return NULL;
 	}
 }
 
@@ -210,7 +209,8 @@ static bool account_text_safe(const char *s, const char *forbidden)
 		return true;
 
 	for (; *s; s++) {
-		if ((unsigned char)*s < 0x20 || *s == 0x7f || strchr(forbidden, *s))
+		if ((unsigned char)*s < 0x20 || *s == 0x7f ||
+		    strchr(forbidden, *s))
 			return false;
 	}
 
@@ -267,8 +267,8 @@ static int add_op(bsk_engine *e, void *arg)
 			  "%s%s%s%s%s",
 			  str_isset(c->display_name) ? "\"" : "",
 			  str_isset(c->display_name) ? c->display_name : "",
-			  str_isset(c->display_name) ? "\" " : "",
-			  c->aor, transport_name(c->transport),
+			  str_isset(c->display_name) ? "\" " : "", c->aor,
+			  transport_name(c->transport),
 			  menc ? ";mediaenc=" : "", menc ? menc : "",
 			  mnat ? ";medianat=" : "", mnat ? mnat : "",
 			  c->sip_outbound ? ";sipnat=outbound" : "");
@@ -302,9 +302,7 @@ static int add_op(bsk_engine *e, void *arg)
 	case BSK_DTMF_SIP_INFO:
 		err |= account_set_dtmfmode(acc, DTMFMODE_SIP_INFO);
 		break;
-	default:
-		err |= account_set_dtmfmode(acc, DTMFMODE_AUTO);
-		break;
+	default: err |= account_set_dtmfmode(acc, DTMFMODE_AUTO); break;
 	}
 
 	if (c->nat.mode != BSK_NAT_NONE) {
@@ -315,8 +313,7 @@ static int add_op(bsk_engine *e, void *arg)
 				err |= account_set_stun_user(acc, t->username);
 			if (t->password)
 				err |= account_set_stun_pass(acc, t->password);
-		}
-		else if (str_isset(c->nat.stun_uri)) {
+		} else if (str_isset(c->nat.stun_uri)) {
 			err |= account_set_stun_uri(acc, c->nat.stun_uri);
 		}
 	}
@@ -333,14 +330,12 @@ static int add_op(bsk_engine *e, void *arg)
 	}
 
 	if (c->contact_param_count) {
-		bsk_status st = bsk_contact_params_encode(c->contact_params,
-							  c->contact_param_count,
-							  cparams,
-							  sizeof(cparams), NULL);
+		bsk_status st = bsk_contact_params_encode(
+			c->contact_params, c->contact_param_count, cparams,
+			sizeof(cparams), NULL);
 		if (st != BSK_OK) {
 			err = EINVAL;
-		}
-		else {
+		} else {
 			err |= account_set_contact_params(acc, cparams);
 		}
 	}
@@ -387,12 +382,14 @@ bsk_status bsk_account_add(bsk_engine *engine, const bsk_account_config *config,
 
 	if (!account_text_safe(config->aor, "\"<>; \t"))
 		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
-				     NULL, "aor must not contain quotes, "
+				     NULL,
+				     "aor must not contain quotes, "
 				     "angle brackets, ';' or whitespace");
 
 	if (!account_text_safe(config->display_name, "\"\\<>"))
 		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
-				     NULL, "display name must not contain "
+				     NULL,
+				     "display name must not contain "
 				     "quotes, backslashes or angle brackets");
 
 	ret = bsk_run(engine, add_op, &aa);
@@ -618,8 +615,7 @@ static int cparams_op(bsk_engine *e, void *arg)
 }
 
 
-bsk_status bsk_account_set_contact_params(bsk_engine *engine,
-					  bsk_account_id id,
+bsk_status bsk_account_set_contact_params(bsk_engine *engine, bsk_account_id id,
 					  const bsk_contact_param *params,
 					  size_t count, bool reregister_now,
 					  bsk_error *err)
@@ -646,9 +642,9 @@ bsk_status bsk_account_set_contact_params(bsk_engine *engine,
 	ret = bsk_run(engine, cparams_op, &ca);
 	memset(cparams, 0, sizeof(cparams));
 	if (ret)
-		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
-				     NULL, "contact parameter update failed: %m",
-				     ret);
+		return bsk_error_set(
+			err, bsk_status_from_errno(ret), ret, 0, NULL,
+			"contact parameter update failed: %m", ret);
 
 	return BSK_OK;
 }
@@ -697,7 +693,6 @@ void bsk_account_handle_event(bsk_engine *e, enum bevent_ev ev,
 		return;
 
 	switch (ev) {
-
 	case BEVENT_REGISTERING:
 		a->reg_inflight = true;
 		if (!a->reg_started_ms)
@@ -713,8 +708,9 @@ void bsk_account_handle_event(bsk_engine *e, enum bevent_ev ev,
 		a->state = BSK_REG_REGISTERED;
 		{
 			uint32_t expires = account_regint(ua_account(ua));
-			uint64_t t = a->reg_started_ms ?
-				bsk_now_ms() - a->reg_started_ms : 0;
+			uint64_t t = a->reg_started_ms
+					     ? bsk_now_ms() - a->reg_started_ms
+					     : 0;
 			char msgbuf[96];
 			int n = re_snprintf(msgbuf, sizeof(msgbuf),
 					    "bsk: registration ok in %llu ms",
@@ -747,20 +743,21 @@ void bsk_account_handle_event(bsk_engine *e, enum bevent_ev ev,
 			if (msg) {
 				(void)pl_strcpy(&msg->reason, reason,
 						sizeof(reason));
-			}
-			else if (text && isdigit((unsigned char)text[0])) {
+			} else if (text && isdigit((unsigned char)text[0])) {
 				const char *sp = strchr(text, ' ');
 				scode = (uint16_t)atoi(text);
 				if (sp)
-					str_ncpy(reason, sp + 1, sizeof(reason));
+					str_ncpy(reason, sp + 1,
+						 sizeof(reason));
 			}
 			bsk_error_set(&error,
 				      (!scode && a->tls && text &&
 				       (strstr(text, "Protocol") ||
 					strstr(text, "certificate") ||
-					strstr(text, "TLS"))) ? BSK_ERR_TLS :
-				      status_from_sip(scode), 0, scode,
-				      reason, "%s",
+					strstr(text, "TLS")))
+					      ? BSK_ERR_TLS
+					      : status_from_sip(scode),
+				      0, scode, reason, "%s",
 				      text ? text : "registration failed");
 		}
 		emit_registration(e, a, &error, 0);
@@ -783,7 +780,6 @@ void bsk_account_handle_event(bsk_engine *e, enum bevent_ev ev,
 		}
 		break;
 
-	default:
-		break;
+	default: break;
 	}
 }

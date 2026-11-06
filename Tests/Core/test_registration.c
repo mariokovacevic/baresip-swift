@@ -9,11 +9,26 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	record_event(&w, ev);
 }
 
-static int registered(struct waiter *x) { return x->reg_state == BSK_REG_REGISTERED; }
-static int registered_twice(struct waiter *x) { return x->reg_count >= 2; }
-static int registered_thrice(struct waiter *x) { return x->reg_count >= 3; }
-static int failed(struct waiter *x) { return x->reg_state == BSK_REG_FAILED; }
-static int running(struct waiter *x) { return x->engine_state == BSK_ENGINE_RUNNING; }
+static int registered(struct waiter *x)
+{
+	return x->reg_state == BSK_REG_REGISTERED;
+}
+static int registered_twice(struct waiter *x)
+{
+	return x->reg_count >= 2;
+}
+static int registered_thrice(struct waiter *x)
+{
+	return x->reg_count >= 3;
+}
+static int failed(struct waiter *x)
+{
+	return x->reg_state == BSK_REG_FAILED;
+}
+static int running(struct waiter *x)
+{
+	return x->engine_state == BSK_ENGINE_RUNNING;
+}
 
 static char *read_file(const char *path, size_t *len)
 {
@@ -53,11 +68,14 @@ int main(int argc, char **argv)
 	char *ca_pem = NULL;
 	size_t ca_len = 0;
 	const char *pins[1] = { getenv("BSK_TEST_PIN") };
-	const char *bad_pins[1] = { "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" };
+	const char *bad_pins[1] = {
+		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	};
 	bsk_contact_param set_a[] = {
 		{ "app-id", "com.example.proof" },
 		{ "pn-type", "apple" },
-		{ "pn-tok", "0000000000000000000000000000000000000000000000000000000000000001:remote&1111111111111111111111111111111111111111111111111111111111111111:voip" },
+		{ "pn-tok",
+		  "0000000000000000000000000000000000000000000000000000000000000001:remote&1111111111111111111111111111111111111111111111111111111111111111:voip" },
 		{ "pn-silent", "1" },
 		{ "pn-timeout", "0" },
 		{ "pn-channel", "calls" },
@@ -65,7 +83,8 @@ int main(int argc, char **argv)
 	bsk_contact_param set_b[] = {
 		{ "app-id", "com.example.proof" },
 		{ "pn-type", "apple" },
-		{ "pn-tok", "2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip" },
+		{ "pn-tok",
+		  "2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip" },
 		{ "pn-silent", "1" },
 		{ "pn-timeout", "0" },
 		{ "pn-channel", "calls" },
@@ -105,8 +124,8 @@ int main(int argc, char **argv)
 	CHECK(wait_until(&w, running, 2000));
 
 	snprintf(aor, sizeof(aor), "sip:alice@%s:%s", host, port);
-	snprintf(registrar, sizeof(registrar), "sip:%s:%s;transport=%s", host, port,
-		 tls ? "tls" : "udp");
+	snprintf(registrar, sizeof(registrar), "sip:%s:%s;transport=%s", host,
+		 port, tls ? "tls" : "udp");
 
 	memset(&ac, 0, sizeof(ac));
 	ac.aor = aor;
@@ -157,7 +176,7 @@ int main(int argc, char **argv)
 	printf("registration: PASS (3 registrations, token update, "
 	       "timer refresh, unregister)\n");
 
- done:
+done:
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
 	free(ca_pem);

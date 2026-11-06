@@ -15,7 +15,7 @@
 #define BSK_MAX_DTMF 64
 #define BSK_CPARAMS_MAX 1024
 
-typedef int (bsk_op_fn)(bsk_engine *engine, void *arg);
+typedef int(bsk_op_fn)(bsk_engine *engine, void *arg);
 
 struct bsk_account_ctx {
 	struct le le;
@@ -184,12 +184,11 @@ void bsk_log_close(bsk_engine *engine);
 void bsk_log_emit(bsk_engine *engine, bsk_log_level level,
 		  bsk_log_domain domain, const char *line, size_t len);
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
-void bsk_sip_trace_handler(bool tx, enum sip_transp tp,
-			   const struct sa *src, const struct sa *dst,
-			   const uint8_t *pkt, size_t len, void *arg);
+void bsk_sip_trace_handler(bool tx, enum sip_transp tp, const struct sa *src,
+			   const struct sa *dst, const uint8_t *pkt, size_t len,
+			   void *arg);
 
-struct bsk_account_ctx *bsk_account_find(bsk_engine *engine,
-					 bsk_account_id id);
+struct bsk_account_ctx *bsk_account_find(bsk_engine *engine, bsk_account_id id);
 struct bsk_account_ctx *bsk_account_find_ua(bsk_engine *engine,
 					    const struct ua *ua);
 void bsk_account_handle_event(bsk_engine *engine, enum bevent_ev ev,

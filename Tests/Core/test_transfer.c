@@ -22,16 +22,16 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 			streams_n++;
 		if (ev->u.call_state.state == BSK_CALL_RELEASED)
 			released_n++;
-	}
-	else if (ev->type == BSK_EVENT_MESSAGE) {
-		size_t n = ev->u.message.body_len < sizeof(last_message) - 1 ?
-			ev->u.message.body_len : sizeof(last_message) - 1;
+	} else if (ev->type == BSK_EVENT_MESSAGE) {
+		size_t n = ev->u.message.body_len < sizeof(last_message) - 1
+				   ? ev->u.message.body_len
+				   : sizeof(last_message) - 1;
 		memcpy(last_message, ev->u.message.body, n);
 		last_message[n] = '\0';
-		snprintf(last_from, sizeof(last_from), "%s", ev->u.message.from);
+		snprintf(last_from, sizeof(last_from), "%s",
+			 ev->u.message.from);
 		message_n++;
-	}
-	else if (ev->type == BSK_EVENT_MESSAGE_STATUS) {
+	} else if (ev->type == BSK_EVENT_MESSAGE_STATUS) {
 		if (ev->u.message_status.delivered &&
 		    ev->u.message_status.sip_status == 200)
 			delivered_n++;
@@ -40,14 +40,44 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	record_event(&w, ev);
 }
 
-static int running(struct waiter *x) { return x->engine_state == BSK_ENGINE_RUNNING; }
-static int incoming(struct waiter *x) { return x->incoming_call != BSK_ID_NONE; }
-static int streams1(struct waiter *x) { (void)x; return streams_n >= 1; }
-static int streams2(struct waiter *x) { (void)x; return streams_n >= 2; }
-static int released1(struct waiter *x) { (void)x; return released_n >= 1; }
-static int released2(struct waiter *x) { (void)x; return released_n >= 2; }
-static int got_message(struct waiter *x) { (void)x; return message_n >= 1; }
-static int delivered(struct waiter *x) { (void)x; return delivered_n >= 1; }
+static int running(struct waiter *x)
+{
+	return x->engine_state == BSK_ENGINE_RUNNING;
+}
+static int incoming(struct waiter *x)
+{
+	return x->incoming_call != BSK_ID_NONE;
+}
+static int streams1(struct waiter *x)
+{
+	(void)x;
+	return streams_n >= 1;
+}
+static int streams2(struct waiter *x)
+{
+	(void)x;
+	return streams_n >= 2;
+}
+static int released1(struct waiter *x)
+{
+	(void)x;
+	return released_n >= 1;
+}
+static int released2(struct waiter *x)
+{
+	(void)x;
+	return released_n >= 2;
+}
+static int got_message(struct waiter *x)
+{
+	(void)x;
+	return message_n >= 1;
+}
+static int delivered(struct waiter *x)
+{
+	(void)x;
+	return delivered_n >= 1;
+}
 
 
 static bsk_engine *start_engine(const char *port, uint16_t rtp)
@@ -65,7 +95,8 @@ static bsk_engine *start_engine(const char *port, uint16_t rtp)
 	cfg.audio.source_module = "ausine";
 	cfg.audio.player_module = "aufile";
 	cfg.audio.player_device = "/dev/null";
-	cfg.log_level = getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
+	cfg.log_level =
+		getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
 	cfg.log_sip_trace = getenv("BSK_TEST_VERBOSE") != NULL;
 	cfg.extra_config = extra;
 	cfg.rtp_port_min = rtp;
@@ -214,7 +245,8 @@ static int run_a(const char *host)
 	acc = add_account(e, "alice", host, "5360");
 
 	snprintf(dest, sizeof(dest), "sip:bob@%s:5370", host);
-	CHECK_OK(bsk_message_send(e, acc, dest, "hello bob", &msg_id, &err), &err);
+	CHECK_OK(bsk_message_send(e, acc, dest, "hello bob", &msg_id, &err),
+		 &err);
 	CHECK(msg_id != 0);
 	CHECK(wait_until(&w, delivered, 10000));
 

@@ -4,8 +4,8 @@
 #include "bsk_internal.h"
 
 
-static bool spki_sha256_base64(const uint8_t *der, size_t der_len,
-			       char *out, size_t out_len)
+static bool spki_sha256_base64(const uint8_t *der, size_t der_len, char *out,
+			       size_t out_len)
 {
 	const unsigned char *p = der;
 	X509 *cert;

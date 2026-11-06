@@ -9,10 +9,9 @@ static int remote_native;
 static unsigned last_w, last_h;
 static int last_format = -1;
 
-static const char *video_modules[] = {
-	"g711", "l16", "auconv", "auresamp", "ausine", "aufile",
-	"fakevideo", "vp8", "rtcpsummary"
-};
+static const char *video_modules[] = { "g711",      "l16",    "auconv",
+				       "auresamp",  "ausine", "aufile",
+				       "fakevideo", "vp8",    "rtcpsummary" };
 
 static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 {
@@ -53,7 +52,12 @@ static void on_frame(bsk_engine *engine, bsk_call_id call, bool local,
 static void on_size(bsk_engine *engine, bsk_call_id call, bool local,
 		    uint32_t width, uint32_t height, void *user)
 {
-	(void)engine; (void)call; (void)local; (void)width; (void)height; (void)user;
+	(void)engine;
+	(void)call;
+	(void)local;
+	(void)width;
+	(void)height;
+	(void)user;
 	pthread_mutex_lock(&frame_mtx);
 	size_events++;
 	pthread_mutex_unlock(&frame_mtx);
@@ -68,13 +72,38 @@ static int frames(int *counter, int n)
 	return v >= n;
 }
 
-static int running(struct waiter *x) { return x->engine_state == BSK_ENGINE_RUNNING; }
-static int incoming(struct waiter *x) { return x->incoming_call != BSK_ID_NONE; }
-static int connected(struct waiter *x) { return x->call_state >= BSK_CALL_CONNECTED && x->call_state <= BSK_CALL_STREAMS_RUNNING; }
-static int released(struct waiter *x) { return x->released_call != BSK_ID_NONE; }
-static int remote3(struct waiter *x) { (void)x; return frames(&remote_frames, 3); }
-static int local3(struct waiter *x) { (void)x; return frames(&local_frames, 3); }
-static int preview3(struct waiter *x) { (void)x; return frames(&preview_frames, 3); }
+static int running(struct waiter *x)
+{
+	return x->engine_state == BSK_ENGINE_RUNNING;
+}
+static int incoming(struct waiter *x)
+{
+	return x->incoming_call != BSK_ID_NONE;
+}
+static int connected(struct waiter *x)
+{
+	return x->call_state >= BSK_CALL_CONNECTED &&
+	       x->call_state <= BSK_CALL_STREAMS_RUNNING;
+}
+static int released(struct waiter *x)
+{
+	return x->released_call != BSK_ID_NONE;
+}
+static int remote3(struct waiter *x)
+{
+	(void)x;
+	return frames(&remote_frames, 3);
+}
+static int local3(struct waiter *x)
+{
+	(void)x;
+	return frames(&local_frames, 3);
+}
+static int preview3(struct waiter *x)
+{
+	(void)x;
+	return frames(&preview_frames, 3);
+}
 
 
 static bsk_engine *start_engine(const char *listen)
@@ -98,7 +127,8 @@ static bsk_engine *start_engine(const char *listen)
 	cfg.video.bitrate_bps = 300000;
 	cfg.video_adaptive_bitrate = true;
 	cfg.tls.verify_server = true;
-	cfg.log_level = getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
+	cfg.log_level =
+		getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
 	cfg.extra_config = extra;
 	cfg.rtp_port_min = 0 == strcmp(listen, "5071") ? 31000 : 41000;
 	cfg.rtp_port_max = cfg.rtp_port_min + 100;
@@ -122,7 +152,8 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 	static const char *acodecs[] = { "PCMU/8000/1" };
 	static const char *vcodecs[1];
 
-	vcodecs[0] = getenv("BSK_TEST_VCODEC") ? getenv("BSK_TEST_VCODEC") : "VP8";
+	vcodecs[0] =
+		getenv("BSK_TEST_VCODEC") ? getenv("BSK_TEST_VCODEC") : "VP8";
 
 	snprintf(aor, sizeof(aor), "sip:%s@%s:%s", user, host, port);
 	memset(&ac, 0, sizeof(ac));
@@ -146,7 +177,8 @@ static int run_preview(void)
 	tag = "preview";
 	e = start_engine("0");
 
-	CHECK(BSK_ERR_INVALID_ARGUMENT == bsk_video_preview_start(e, NULL, NULL, &err));
+	CHECK(BSK_ERR_INVALID_ARGUMENT ==
+	      bsk_video_preview_start(e, NULL, NULL, &err));
 	CHECK_OK(bsk_video_preview_start(e, NULL, &sink, &err), &err);
 	CHECK(wait_until(&w, preview3, 3000));
 	CHECK(last_w >= 320 && last_h >= 240);
@@ -168,8 +200,8 @@ static int run_preview(void)
 
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
-	printf("preview: PASS (%d frames %ux%u, devices='%s')\n", preview_frames,
-	       last_w, last_h, devices);
+	printf("preview: PASS (%d frames %ux%u, devices='%s')\n",
+	       preview_frames, last_w, last_h, devices);
 	return 0;
 }
 
@@ -191,13 +223,16 @@ static int run_callee(const char *host)
 	CHECK(wait_until(&w, incoming, 15000));
 	CHECK(BSK_OK == bsk_call_get_info(e, w.incoming_call, &info));
 	CHECK(info.has_video);
-	CHECK_OK(bsk_call_set_video_sink(e, w.incoming_call, false, &sink, &err), &err);
+	CHECK_OK(
+		bsk_call_set_video_sink(e, w.incoming_call, false, &sink, &err),
+		&err);
 	CHECK_OK(bsk_call_answer(e, w.incoming_call, true, &err), &err);
 	CHECK(wait_until(&w, connected, 10000));
 	CHECK(wait_until(&w, remote3, 15000));
 	CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
 	CHECK(st.video.rx_packets > 0);
-	CHECK_OK(bsk_call_set_video_sink(e, w.incoming_call, false, NULL, &err), &err);
+	CHECK_OK(bsk_call_set_video_sink(e, w.incoming_call, false, NULL, &err),
+		 &err);
 	CHECK(wait_until(&w, released, 20000));
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
@@ -232,8 +267,9 @@ static int run_caller(const char *host)
 	CHECK(wait_until(&w, remote3, 15000));
 	CHECK(BSK_OK == bsk_call_get_info(e, call, &info));
 	CHECK(info.has_video);
-	CHECK(0 == strcmp(info.video_codec,
-			  getenv("BSK_TEST_VCODEC") ? getenv("BSK_TEST_VCODEC") : "VP8"));
+	CHECK(0 == strcmp(info.video_codec, getenv("BSK_TEST_VCODEC")
+						    ? getenv("BSK_TEST_VCODEC")
+						    : "VP8"));
 	CHECK_OK(bsk_call_request_keyframe(e, call, &err), &err);
 	sleep(1);
 

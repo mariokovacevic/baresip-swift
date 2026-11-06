@@ -8,8 +8,8 @@
 static bsk_engine *g_engine;
 
 static const char *default_modules[] = {
-	"g711", "opus", "l16", "auconv", "auresamp",
-	"ice", "turn", "stun", "srtp", "dtls_srtp", "rtcpsummary",
+	"g711",      "opus",      "l16",  "auconv",    "auresamp",    "ice",
+	"turn",      "stun",      "srtp", "dtls_srtp", "rtcpsummary",
 #if defined(__APPLE__)
 	"audiounit", "fakevideo",
 #endif
@@ -37,21 +37,21 @@ const char *bsk_version_string(void)
 const char *bsk_status_string(bsk_status status)
 {
 	switch (status) {
-	case BSK_OK:                   return "ok";
+	case BSK_OK: return "ok";
 	case BSK_ERR_INVALID_ARGUMENT: return "invalid argument";
-	case BSK_ERR_INVALID_STATE:    return "invalid state";
-	case BSK_ERR_NOT_FOUND:        return "not found";
-	case BSK_ERR_NO_MEMORY:        return "out of memory";
-	case BSK_ERR_UNSUPPORTED:      return "unsupported";
-	case BSK_ERR_BUSY:             return "busy";
-	case BSK_ERR_TIMEOUT:          return "timeout";
-	case BSK_ERR_NETWORK:          return "network error";
-	case BSK_ERR_TLS:              return "tls error";
-	case BSK_ERR_AUTH:             return "authentication failed";
-	case BSK_ERR_SIP:              return "sip error";
-	case BSK_ERR_MEDIA:            return "media error";
+	case BSK_ERR_INVALID_STATE: return "invalid state";
+	case BSK_ERR_NOT_FOUND: return "not found";
+	case BSK_ERR_NO_MEMORY: return "out of memory";
+	case BSK_ERR_UNSUPPORTED: return "unsupported";
+	case BSK_ERR_BUSY: return "busy";
+	case BSK_ERR_TIMEOUT: return "timeout";
+	case BSK_ERR_NETWORK: return "network error";
+	case BSK_ERR_TLS: return "tls error";
+	case BSK_ERR_AUTH: return "authentication failed";
+	case BSK_ERR_SIP: return "sip error";
+	case BSK_ERR_MEDIA: return "media error";
 	case BSK_ERR_BUFFER_TOO_SMALL: return "buffer too small";
-	default:                       return "internal error";
+	default: return "internal error";
 	}
 }
 
@@ -96,23 +96,23 @@ bsk_status bsk_error_set(bsk_error *err, bsk_status status, int sys_errno,
 bsk_status bsk_status_from_errno(int err)
 {
 	switch (err) {
-	case 0:            return BSK_OK;
-	case EINVAL:       return BSK_ERR_INVALID_ARGUMENT;
-	case ENOMEM:       return BSK_ERR_NO_MEMORY;
-	case ENOENT:       return BSK_ERR_NOT_FOUND;
-	case ENODEV:       return BSK_ERR_NOT_FOUND;
-	case ENOSYS:       return BSK_ERR_UNSUPPORTED;
+	case 0: return BSK_OK;
+	case EINVAL: return BSK_ERR_INVALID_ARGUMENT;
+	case ENOMEM: return BSK_ERR_NO_MEMORY;
+	case ENOENT: return BSK_ERR_NOT_FOUND;
+	case ENODEV: return BSK_ERR_NOT_FOUND;
+	case ENOSYS: return BSK_ERR_UNSUPPORTED;
 	case EPROTONOSUPPORT: return BSK_ERR_UNSUPPORTED;
-	case EBUSY:        return BSK_ERR_BUSY;
-	case EALREADY:     return BSK_ERR_INVALID_STATE;
-	case ETIMEDOUT:    return BSK_ERR_TIMEOUT;
-	case EAUTH:        return BSK_ERR_AUTH;
+	case EBUSY: return BSK_ERR_BUSY;
+	case EALREADY: return BSK_ERR_INVALID_STATE;
+	case ETIMEDOUT: return BSK_ERR_TIMEOUT;
+	case EAUTH: return BSK_ERR_AUTH;
 	case ECONNREFUSED:
 	case ECONNRESET:
 	case EHOSTUNREACH:
 	case ENETUNREACH:
 	case EADDRNOTAVAIL: return BSK_ERR_NETWORK;
-	default:           return BSK_ERR_INTERNAL;
+	default: return BSK_ERR_INTERNAL;
 	}
 }
 
@@ -245,7 +245,7 @@ int bsk_run(bsk_engine *engine, bsk_op_fn *fn, void *arg)
 
 	err = op.ret;
 
- out:
+out:
 	cnd_destroy(&op.cnd);
 	mtx_destroy(&op.mtx);
 
@@ -281,8 +281,8 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 		e->ca_pem_len = c->tls.ca_pem_len;
 	}
 	if (c->tls.client_cert_pem && c->tls.client_cert_pem_len) {
-		e->client_cert_pem = mem_zalloc(c->tls.client_cert_pem_len + 1,
-						NULL);
+		e->client_cert_pem =
+			mem_zalloc(c->tls.client_cert_pem_len + 1, NULL);
 		if (!e->client_cert_pem)
 			return ENOMEM;
 		memcpy(e->client_cert_pem, c->tls.client_cert_pem,
@@ -316,43 +316,51 @@ static int copy_config(bsk_engine *e, const bsk_engine_config *c)
 		for (i = 0; i < c->module_count; i++)
 			err |= dup_str(&e->modules[i], c->modules[i]);
 		e->module_count = c->module_count;
-	}
-	else {
+	} else {
 		for (i = 0; i < RE_ARRAY_SIZE(default_modules); i++)
 			err |= dup_str(&e->modules[i], default_modules[i]);
 		e->module_count = RE_ARRAY_SIZE(default_modules);
 	}
 
-	str_ncpy(e->audio_src_mod, str_isset(c->audio.source_module) ?
-		 c->audio.source_module : "audiounit",
+	str_ncpy(e->audio_src_mod,
+		 str_isset(c->audio.source_module) ? c->audio.source_module
+						   : "audiounit",
 		 sizeof(e->audio_src_mod));
-	str_ncpy(e->audio_src_dev, c->audio.source_device ?
-		 c->audio.source_device : "", sizeof(e->audio_src_dev));
-	str_ncpy(e->audio_play_mod, str_isset(c->audio.player_module) ?
-		 c->audio.player_module : "audiounit",
+	str_ncpy(e->audio_src_dev,
+		 c->audio.source_device ? c->audio.source_device : "",
+		 sizeof(e->audio_src_dev));
+	str_ncpy(e->audio_play_mod,
+		 str_isset(c->audio.player_module) ? c->audio.player_module
+						   : "audiounit",
 		 sizeof(e->audio_play_mod));
-	str_ncpy(e->audio_play_dev, c->audio.player_device ?
-		 c->audio.player_device : "", sizeof(e->audio_play_dev));
+	str_ncpy(e->audio_play_dev,
+		 c->audio.player_device ? c->audio.player_device : "",
+		 sizeof(e->audio_play_dev));
 	e->audio_srate = c->audio.sample_rate;
 	e->audio_channels = c->audio.channels;
 	e->audio_ptime = c->audio.ptime_ms ? c->audio.ptime_ms : 20;
-	e->jb_min_ms = c->audio.jitter_buffer_min_ms ?
-		c->audio.jitter_buffer_min_ms : 40;
-	e->jb_max_ms = c->audio.jitter_buffer_max_ms ?
-		c->audio.jitter_buffer_max_ms : 200;
+	e->jb_min_ms = c->audio.jitter_buffer_min_ms
+			       ? c->audio.jitter_buffer_min_ms
+			       : 40;
+	e->jb_max_ms = c->audio.jitter_buffer_max_ms
+			       ? c->audio.jitter_buffer_max_ms
+			       : 200;
 	e->jb_adaptive = c->audio.jitter_buffer_adaptive;
 	e->voice_processing = c->audio.voice_processing;
 
-	str_ncpy(e->video_src_mod, str_isset(c->video.source_module) ?
-		 c->video.source_module : "bskcapture", sizeof(e->video_src_mod));
-	str_ncpy(e->video_src_dev, c->video.source_device ?
-		 c->video.source_device : "", sizeof(e->video_src_dev));
+	str_ncpy(e->video_src_mod,
+		 str_isset(c->video.source_module) ? c->video.source_module
+						   : "bskcapture",
+		 sizeof(e->video_src_mod));
+	str_ncpy(e->video_src_dev,
+		 c->video.source_device ? c->video.source_device : "",
+		 sizeof(e->video_src_dev));
 	e->video_width = c->video.width ? c->video.width : 640;
 	e->video_height = c->video.height ? c->video.height : 480;
 	e->video_fps = c->video.fps ? c->video.fps : 30;
 	e->video_bitrate = c->video.bitrate_bps ? c->video.bitrate_bps : 800000;
-	e->video_min_bitrate = c->video_min_bitrate_bps ?
-		c->video_min_bitrate_bps : 150000;
+	e->video_min_bitrate =
+		c->video_min_bitrate_bps ? c->video_min_bitrate_bps : 150000;
 	if (e->video_min_bitrate > e->video_bitrate)
 		e->video_min_bitrate = e->video_bitrate;
 
@@ -364,7 +372,8 @@ static int build_config(bsk_engine *e, struct mbuf *mb)
 {
 	int err;
 
-	err = mbuf_printf(mb,
+	err = mbuf_printf(
+		mb,
 		"sip_transports\t\tudp,tcp,tls,wss\n"
 		"sip_verify_server\t%s\n"
 		"sip_trans_def\t\tudp\n"
@@ -385,25 +394,22 @@ static int build_config(bsk_engine *e, struct mbuf *mb)
 		"video_size\t\t%ux%u\n"
 		"video_fps\t\t%u\n"
 		"video_bitrate\t\t%u\n",
-		e->verify_server ? "yes" : "no",
-		e->max_calls,
-		e->audio_src_mod, e->audio_src_dev,
-		e->audio_play_mod, e->audio_play_dev,
-		e->jb_adaptive ? "adaptive" : "fixed",
-		e->jb_min_ms, e->jb_max_ms,
-		(unsigned)e->rtp_port_min, (unsigned)e->rtp_port_max,
-		e->ipv6 ? "unspecified" : "ipv4",
-		e->video_src_mod, e->video_src_dev,
-		e->video_width, e->video_height, e->video_fps,
-		e->video_bitrate);
+		e->verify_server ? "yes" : "no", e->max_calls, e->audio_src_mod,
+		e->audio_src_dev, e->audio_play_mod, e->audio_play_dev,
+		e->jb_adaptive ? "adaptive" : "fixed", e->jb_min_ms,
+		e->jb_max_ms, (unsigned)e->rtp_port_min,
+		(unsigned)e->rtp_port_max, e->ipv6 ? "unspecified" : "ipv4",
+		e->video_src_mod, e->video_src_dev, e->video_width,
+		e->video_height, e->video_fps, e->video_bitrate);
 
 	if (e->audio_srate)
-		err |= mbuf_printf(mb, "ausrc_srate\t\t%u\nauplay_srate\t\t%u\n",
+		err |= mbuf_printf(mb,
+				   "ausrc_srate\t\t%u\nauplay_srate\t\t%u\n",
 				   e->audio_srate, e->audio_srate);
 	if (e->audio_channels)
-		err |= mbuf_printf(mb,
-				   "ausrc_channels\t\t%u\nauplay_channels\t\t%u\n",
-				   e->audio_channels, e->audio_channels);
+		err |= mbuf_printf(
+			mb, "ausrc_channels\t\t%u\nauplay_channels\t\t%u\n",
+			e->audio_channels, e->audio_channels);
 	err |= mbuf_printf(mb, "ice_policy\t\t%s\n",
 			   e->ice_relay_only ? "relay" : "all");
 	if (str_isset(e->network_interface))
@@ -431,8 +437,7 @@ static int apply_tls(bsk_engine *e)
 
 	if (e->client_cert_pem) {
 		err = tls_set_certificate_pem(tls, e->client_cert_pem,
-					      e->client_cert_pem_len,
-					      NULL, 0);
+					      e->client_cert_pem_len, NULL, 0);
 		if (err)
 			return err;
 	}
@@ -484,7 +489,6 @@ static void bevent_handler(enum bevent_ev ev, struct bevent *event, void *arg)
 	bsk_engine *e = arg;
 
 	switch (ev) {
-
 	case BEVENT_REGISTERING:
 	case BEVENT_REGISTER_OK:
 	case BEVENT_REGISTER_FAIL:
@@ -513,16 +517,13 @@ static void bevent_handler(enum bevent_ev ev, struct bevent *event, void *arg)
 	case BEVENT_CALL_REMOTE_SDP:
 	case BEVENT_CALL_HOLD:
 	case BEVENT_CALL_RESUME:
-	case BEVENT_AUDIO_ERROR:
-		bsk_call_handle_event(e, ev, event);
-		break;
+	case BEVENT_AUDIO_ERROR: bsk_call_handle_event(e, ev, event); break;
 
 	case BEVENT_MODULE:
 		bsk_call_handle_module_event(e, bevent_get_text(event));
 		break;
 
-	default:
-		break;
+	default: break;
 	}
 }
 
@@ -568,14 +569,17 @@ static int engine_thread(void *arg)
 
 	cfg = conf_config();
 	if (str_isset(e->instance_uuid))
-		str_ncpy(cfg->sip.uuid, e->instance_uuid, sizeof(cfg->sip.uuid));
+		str_ncpy(cfg->sip.uuid, e->instance_uuid,
+			 sizeof(cfg->sip.uuid));
 
 	err = baresip_init(cfg);
 	if (err)
 		goto fail;
 
-	err = ua_init(str_isset(e->user_agent) ? e->user_agent :
-		      "BaresipKit/" BSK_VERSION_STRING, true, true, true);
+	err = ua_init(str_isset(e->user_agent)
+			      ? e->user_agent
+			      : "BaresipKit/" BSK_VERSION_STRING,
+		      true, true, true);
 	if (err)
 		goto fail;
 
@@ -659,7 +663,7 @@ static int engine_thread(void *arg)
 
 	return 0;
 
- fail:
+fail:
 	bsk_record_close();
 	bsk_message_close(e);
 	bevent_unregister(bevent_handler);
@@ -748,8 +752,8 @@ void bsk_engine_set_log_handler(bsk_engine *engine, bsk_log_handler handler,
 }
 
 
-void bsk_engine_set_event_handler(bsk_engine *engine,
-				  bsk_event_handler handler, void *user)
+void bsk_engine_set_event_handler(bsk_engine *engine, bsk_event_handler handler,
+				  void *user)
 {
 	if (!engine)
 		return;
@@ -857,7 +861,8 @@ bsk_status bsk_engine_stop(bsk_engine *engine, uint32_t timeout_ms,
 
 	if (bsk_on_engine_thread(engine))
 		return bsk_error_set(err, BSK_ERR_INVALID_STATE, EINVAL, 0,
-				     NULL, "stop must not be called from the "
+				     NULL,
+				     "stop must not be called from the "
 				     "engine thread");
 
 	if (!engine->thread_valid)
@@ -993,7 +998,8 @@ static int network_op(bsk_engine *e, void *arg)
 	bsk_event_init(&ev, BSK_EVENT_NETWORK);
 	ev.u.network.transports_reset = (err == 0);
 	{
-		const struct sa *laddr = net_laddr_af(baresip_network(), AF_INET);
+		const struct sa *laddr =
+			net_laddr_af(baresip_network(), AF_INET);
 		if (!laddr || !sa_isset(laddr, SA_ADDR))
 			laddr = net_laddr_af(baresip_network(), AF_INET6);
 		if (laddr && sa_isset(laddr, SA_ADDR))
@@ -1111,8 +1117,8 @@ bsk_status bsk_engine_audio_session_deactivated(bsk_engine *engine,
 
 bsk_status bsk_engine_audio_route_changed(bsk_engine *engine, bsk_error *err)
 {
-	struct audio_arg aa = { engine ? engine->audio_active : false,
-				true, false };
+	struct audio_arg aa = { engine ? engine->audio_active : false, true,
+				false };
 	return run_audio(engine, &aa, err);
 }
 

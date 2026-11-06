@@ -7,17 +7,13 @@
 #define REGISTRAR_HOST "127.0.0.1"
 #endif
 
-enum {
-	REGISTRAR_PORT = 5080
-};
+enum { REGISTRAR_PORT = 5080 };
 
-static const char config_buf[] =
-	"sip_transports\t\tudp\n"
-	"call_max_calls\t\t2\n";
+static const char config_buf[] = "sip_transports\t\tudp\n"
+				 "call_max_calls\t\t2\n";
 
-static const char account_fmt[] =
-	"\"Alice\" <sip:alice@%s:%u;transport=udp>"
-	";auth_user=alice;auth_pass=secret;regint=4";
+static const char account_fmt[] = "\"Alice\" <sip:alice@%s:%u;transport=udp>"
+				  ";auth_user=alice;auth_pass=secret;regint=4";
 
 static const char *token_set_a =
 	"app-id=com.example.proof;pn-type=apple;"
@@ -50,7 +46,6 @@ static void event_handler(enum bevent_ev ev, struct bevent *event, void *arg)
 	(void)arg;
 
 	switch (ev) {
-
 	case BEVENT_REGISTER_OK:
 		++ok_count;
 		re_printf("proof: REGISTER_OK #%u\n", ok_count);
@@ -62,12 +57,10 @@ static void event_handler(enum bevent_ev ev, struct bevent *event, void *arg)
 			if (err)
 				re_fprintf(stderr, "proof: update failed: %m\n",
 					   err);
-		}
-		else if (ok_count == 2) {
+		} else if (ok_count == 2) {
 			re_printf("proof: phase 3 - waiting for timer-driven "
 				  "refresh\n");
-		}
-		else if (ok_count == 3) {
+		} else if (ok_count == 3) {
 			re_printf("proof: phase 4 - unregister\n");
 			ua_unregister(ua);
 			tmr_start(&tmr_quit, 500, quit_handler, NULL);
@@ -80,8 +73,7 @@ static void event_handler(enum bevent_ev ev, struct bevent *event, void *arg)
 		re_cancel();
 		break;
 
-	default:
-		break;
+	default: break;
 	}
 }
 
@@ -139,7 +131,7 @@ int main(void)
 
 	err = re_main(signal_handler);
 
- out:
+out:
 	if (err)
 		re_fprintf(stderr, "proof: failed: %m\n", err);
 

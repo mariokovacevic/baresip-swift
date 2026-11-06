@@ -113,7 +113,7 @@ static size_t take_frames(struct bsk_rec *r, size_t count)
 	size_t i;
 
 	for (i = 0; i < count; i++) {
-		r->out[2 * i]     = i < r->n[0] ? r->side[0][i] : 0;
+		r->out[2 * i] = i < r->n[0] ? r->side[0][i] : 0;
 		r->out[2 * i + 1] = i < r->n[1] ? r->side[1][i] : 0;
 	}
 
@@ -230,8 +230,7 @@ static struct bsk_rec *rec_get(const struct audio *au)
 	r = rec_find(au);
 	if (r) {
 		mem_ref(r);
-	}
-	else {
+	} else {
 		r = mem_zalloc(sizeof(*r), rec_destructor);
 		if (r) {
 			r->au = au;
@@ -287,7 +286,7 @@ static void rec_push(struct bsk_rec *r, const struct auframe *af, int side)
 	for (i = 0; i < frames && r->n[side] < r->cap; i++)
 		r->side[side][r->n[side]++] = s[i * af->ch];
 
- out:
+out:
 	mtx_unlock(&r->mtx);
 }
 
@@ -383,12 +382,12 @@ static int decode(struct aufilt_dec_st *st, struct auframe *af)
 
 
 static struct aufilt rec_filter = {
-	.name    = "bskrec",
+	.name = "bskrec",
 	.enabled = true,
 	.encupdh = enc_update,
-	.ench    = encode,
+	.ench = encode,
 	.decupdh = dec_update,
-	.dech    = decode,
+	.dech = decode,
 };
 
 
@@ -444,7 +443,7 @@ int bsk_record_start(const struct audio *au, const char *path, void **handle)
 	atomic_store(&r->active, true);
 	tmr_start(&r->tmr, REC_FLUSH_MS, flush_timer, r);
 
- out:
+out:
 	if (err)
 		mem_deref(r);
 	else

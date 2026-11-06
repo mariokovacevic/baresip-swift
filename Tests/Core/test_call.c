@@ -17,32 +17,61 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 			(unsigned long long)ev->call, ev->u.call_state.state);
 		if (ev->u.call_state.state == BSK_CALL_EARLY_MEDIA)
 			__atomic_store_n(&saw_early, 1, __ATOMIC_SEQ_CST);
-	}
-	else if (ev->type == BSK_EVENT_CALL_MEDIA)
+	} else if (ev->type == BSK_EVENT_CALL_MEDIA)
 		fprintf(stderr, "%s: call %llu media %d\n", tag,
 			(unsigned long long)ev->call, ev->u.media.event);
 	else if (ev->type == BSK_EVENT_ICE) {
 		if (ev->u.ice.state == BSK_ICE_GATHERING) {
 			__atomic_add_fetch(&ice_gather_n, 1, __ATOMIC_SEQ_CST);
 			__atomic_store_n(&ice_reconnected, 0, __ATOMIC_SEQ_CST);
-		}
-		else if (ev->u.ice.state == BSK_ICE_CONNECTED) {
+		} else if (ev->u.ice.state == BSK_ICE_CONNECTED) {
 			__atomic_store_n(&ice_reconnected, 1, __ATOMIC_SEQ_CST);
 		}
 	}
 	record_event(&w, ev);
 }
 
-static int running(struct waiter *x) { return x->engine_state == BSK_ENGINE_RUNNING; }
-static int incoming(struct waiter *x) { return x->incoming_call != BSK_ID_NONE; }
-static int streams(struct waiter *x) { return x->call_state == BSK_CALL_STREAMS_RUNNING; }
-static int paused(struct waiter *x) { return x->call_state == BSK_CALL_PAUSED; }
-static int paused_remote(struct waiter *x) { return x->call_state == BSK_CALL_PAUSED_BY_REMOTE; }
-static int released(struct waiter *x) { return x->released_call != BSK_ID_NONE; }
-static int dtmf3(struct waiter *x) { return x->dtmf_count >= 3; }
-static int early(struct waiter *x) { (void)x; return __atomic_load_n(&saw_early, __ATOMIC_SEQ_CST); }
-static int ringing_or_later(struct waiter *x) { return x->call_state >= BSK_CALL_OUTGOING_RINGING; }
-static int ice_connected(struct waiter *x) { return x->ice_state == BSK_ICE_CONNECTED; }
+static int running(struct waiter *x)
+{
+	return x->engine_state == BSK_ENGINE_RUNNING;
+}
+static int incoming(struct waiter *x)
+{
+	return x->incoming_call != BSK_ID_NONE;
+}
+static int streams(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_STREAMS_RUNNING;
+}
+static int paused(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_PAUSED;
+}
+static int paused_remote(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_PAUSED_BY_REMOTE;
+}
+static int released(struct waiter *x)
+{
+	return x->released_call != BSK_ID_NONE;
+}
+static int dtmf3(struct waiter *x)
+{
+	return x->dtmf_count >= 3;
+}
+static int early(struct waiter *x)
+{
+	(void)x;
+	return __atomic_load_n(&saw_early, __ATOMIC_SEQ_CST);
+}
+static int ringing_or_later(struct waiter *x)
+{
+	return x->call_state >= BSK_CALL_OUTGOING_RINGING;
+}
+static int ice_connected(struct waiter *x)
+{
+	return x->ice_state == BSK_ICE_CONNECTED;
+}
 static bool use_ice;
 static const char *turn_transport;
 static const char *turn_host;
@@ -103,7 +132,8 @@ static bsk_engine *start_engine(const char *listen)
 		cfg.tls.ca_pem_len = ca_len;
 		cfg.ice_relay_only = true;
 	}
-	cfg.log_level = getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
+	cfg.log_level =
+		getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
 	cfg.log_sip_trace = true;
 	cfg.extra_config = extra;
 	cfg.rtp_port_min = 0 == strcmp(listen, callee_port) ? 30000 : 40000;
@@ -138,7 +168,8 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 		ac.nat.mode = BSK_NAT_ICE;
 	if (turn_transport) {
 		if (0 == strcmp(turn_transport, "tls"))
-			snprintf(turn, sizeof(turn), "turns:%s:5349", turn_host);
+			snprintf(turn, sizeof(turn), "turns:%s:5349",
+				 turn_host);
 		else
 			snprintf(turn, sizeof(turn),
 				 "turn:%s:3478?transport=%s", turn_host,
@@ -182,10 +213,12 @@ static int run_callee(const char *host)
 	CHECK(!info.outgoing);
 
 	if (use_ice)
-		CHECK_OK(bsk_call_progress(e, w.incoming_call, false, &err), &err);
+		CHECK_OK(bsk_call_progress(e, w.incoming_call, false, &err),
+			 &err);
 	CHECK(wait_until(&w, early, 5000));
 	for (i = 0; i < 80; i++) {
-		CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
+		CHECK(BSK_OK ==
+		      bsk_call_get_statistics(e, w.incoming_call, &st));
 		if (st.audio.rx_packets > 20)
 			break;
 		usleep(100000);
@@ -202,7 +235,8 @@ static int run_callee(const char *host)
 	if (use_ice) {
 		CHECK(wait_until(&w, ice_connected, 10000));
 		CHECK(w.ice_local_type == expected_type);
-		CHECK(BSK_OK == bsk_call_get_statistics(e, w.incoming_call, &st));
+		CHECK(BSK_OK ==
+		      bsk_call_get_statistics(e, w.incoming_call, &st));
 		CHECK(st.ice_state == BSK_ICE_CONNECTED);
 		CHECK(strlen(st.remote_address) > 0);
 		__atomic_store_n(&ice_gather_n, 0, __ATOMIC_SEQ_CST);
@@ -226,8 +260,8 @@ static int run_callee(const char *host)
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
 	printf("callee: PASS (dtmf=%s, rx=%u pkts, mos=%.2f)\n", w.dtmf,
-	       st.audio.rx_packets, st.audio.rtt_ms ? st.mos_estimate :
-	       st.mos_estimate);
+	       st.audio.rx_packets,
+	       st.audio.rtt_ms ? st.mos_estimate : st.mos_estimate);
 	return 0;
 }
 
@@ -237,8 +271,9 @@ static int run_peer(const char *host)
 	bsk_engine *e;
 	bsk_error err;
 	bsk_call_statistics st;
-	int timeout_s = getenv("BSK_PEER_TIMEOUT") ?
-		atoi(getenv("BSK_PEER_TIMEOUT")) : 300;
+	int timeout_s = getenv("BSK_PEER_TIMEOUT")
+				? atoi(getenv("BSK_PEER_TIMEOUT"))
+				: 300;
 
 	tag = "peer";
 	e = start_engine(callee_port);
@@ -267,7 +302,7 @@ static int run_peer(const char *host)
 static uint32_t le32(const unsigned char *p)
 {
 	return (uint32_t)p[0] | (uint32_t)p[1] << 8 | (uint32_t)p[2] << 16 |
-		(uint32_t)p[3] << 24;
+	       (uint32_t)p[3] << 24;
 }
 
 
@@ -376,7 +411,7 @@ static int run_caller(const char *host)
 	CHECK_OK(bsk_call_send_dtmf(e, call, "12#", 120, 60, &err), &err);
 	CHECK(BSK_ERR_BUSY == bsk_call_send_dtmf(e, call, "4", 0, 0, &err));
 	CHECK(BSK_ERR_INVALID_ARGUMENT ==
-	      bsk_call_send_dtmf(e, call, "x", 0, 0, &err) ||
+		      bsk_call_send_dtmf(e, call, "x", 0, 0, &err) ||
 	      err.status == BSK_ERR_BUSY);
 	sleep(2);
 
@@ -415,11 +450,12 @@ int main(int argc, char **argv)
 		expected_type = BSK_CAND_RELAY;
 		caller_port = "5260";
 		callee_port = "5270";
-		ca_pem = read_file(getenv("BSK_TEST_CA_PEM") ?
-				   getenv("BSK_TEST_CA_PEM") : "", &ca_len);
+		ca_pem = read_file(getenv("BSK_TEST_CA_PEM")
+					   ? getenv("BSK_TEST_CA_PEM")
+					   : "",
+				   &ca_len);
 		CHECK(ca_pem != NULL);
-	}
-	else {
+	} else {
 		turn_transport = NULL;
 	}
 	waiter_init(&w);

@@ -26,9 +26,9 @@ static bool map_fmt(enum vidfmt fmt, bsk_pixel_format *out)
 {
 	switch (fmt) {
 	case VID_FMT_YUV420P: *out = BSK_PIX_I420; return true;
-	case VID_FMT_NV12:    *out = BSK_PIX_NV12; return true;
-	case VID_FMT_ARGB:    *out = BSK_PIX_BGRA; return true;
-	default:              return false;
+	case VID_FMT_NV12: *out = BSK_PIX_NV12; return true;
+	case VID_FMT_ARGB: *out = BSK_PIX_BGRA; return true;
+	default: return false;
 	}
 }
 
@@ -50,8 +50,9 @@ static bool to_bsk_frame(const struct vidframe *vf, uint64_t timestamp,
 	}
 	out->timestamp_us = timestamp / (VIDEO_TIMEBASE / 1000000);
 #ifdef BSK_HAVE_APPLE_VIDEO
-	out->native_buffer = vf->fmt == VID_FMT_NV12 ?
-		vidtoolbox_native_buffer(vf->data[0]) : NULL;
+	out->native_buffer = vf->fmt == VID_FMT_NV12
+				     ? vidtoolbox_native_buffer(vf->data[0])
+				     : NULL;
 #else
 	out->native_buffer = NULL;
 #endif
@@ -72,8 +73,7 @@ static void deliver(bsk_engine *e, bsk_call_id call, bool local,
 	if (call == BSK_ID_NONE) {
 		sink = e->preview_sink;
 		have = sink.on_frame != NULL;
-	}
-	else {
+	} else {
 		struct bsk_call_ctx *c = bsk_call_find(e, call);
 		if (c) {
 			sink = local ? c->local_sink : c->remote_sink;
@@ -88,10 +88,12 @@ static void deliver(bsk_engine *e, bsk_call_id call, bool local,
 	if (!to_bsk_frame(vf, timestamp, &frame))
 		return;
 
-	if (sink.on_size && (*last_w != frame.width || *last_h != frame.height)) {
+	if (sink.on_size &&
+	    (*last_w != frame.width || *last_h != frame.height)) {
 		*last_w = frame.width;
 		*last_h = frame.height;
-		sink.on_size(e, call, local, frame.width, frame.height, sink.user);
+		sink.on_size(e, call, local, frame.width, frame.height,
+			     sink.user);
 	}
 
 	sink.on_frame(e, call, local, &frame, sink.user);
@@ -282,11 +284,13 @@ static int sink_op(bsk_engine *e, void *arg)
 
 	mtx_lock(&e->video_mtx);
 	if (sa->local)
-		c->local_sink = sa->has_sink ? sa->sink :
-			(bsk_video_sink){ NULL, NULL, NULL };
+		c->local_sink = sa->has_sink
+					? sa->sink
+					: (bsk_video_sink){ NULL, NULL, NULL };
 	else
-		c->remote_sink = sa->has_sink ? sa->sink :
-			(bsk_video_sink){ NULL, NULL, NULL };
+		c->remote_sink = sa->has_sink
+					 ? sa->sink
+					 : (bsk_video_sink){ NULL, NULL, NULL };
 	mtx_unlock(&e->video_mtx);
 
 	return 0;
@@ -374,11 +378,11 @@ static int preview_start_op(bsk_engine *e, void *arg)
 	size.w = cfg->video.width;
 	size.h = cfg->video.height;
 
-	err = vidsrc_alloc(&e->preview_src, baresip_vidsrcl(),
-			   cfg->video.src_mod, &prm, &size, NULL,
-			   str_isset(pa->device) ? pa->device :
-			   cfg->video.src_dev,
-			   preview_frame_handler, NULL, preview_error_handler, e);
+	err = vidsrc_alloc(
+		&e->preview_src, baresip_vidsrcl(), cfg->video.src_mod, &prm,
+		&size, NULL,
+		str_isset(pa->device) ? pa->device : cfg->video.src_dev,
+		preview_frame_handler, NULL, preview_error_handler, e);
 	if (err) {
 		mtx_lock(&e->video_mtx);
 		memset(&e->preview_sink, 0, sizeof(e->preview_sink));
@@ -439,7 +443,8 @@ bsk_status bsk_video_preview_stop(bsk_engine *engine, bsk_error *err)
 	ret = bsk_run(engine, preview_stop_op, NULL);
 	if (ret)
 		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
-				     NULL, "video preview stop failed: %m", ret);
+				     NULL, "video preview stop failed: %m",
+				     ret);
 
 	return BSK_OK;
 }

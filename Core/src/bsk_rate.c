@@ -79,21 +79,21 @@ uint32_t bsk_rate_update(struct bsk_rate *r, uint32_t sent, int32_t lost,
 
 	if ((uint64_t)dlost * 10 > dsent) {
 		next = r->current -
-			(uint64_t)r->current * (uint64_t)dlost / (2u * dsent);
+		       (uint64_t)r->current * (uint64_t)dlost / (2u * dsent);
 		r->last_change_ms = now_ms;
-	}
-	else if ((uint64_t)dlost * 50 < dsent &&
-		 now_ms - r->last_change_ms >= RATE_INCREASE_INTERVAL_MS) {
+	} else if ((uint64_t)dlost * 50 < dsent &&
+		   now_ms - r->last_change_ms >= RATE_INCREASE_INTERVAL_MS) {
 		next = (uint64_t)r->current + r->current / 12 +
-			RATE_INCREASE_STEP_BPS;
+		       RATE_INCREASE_STEP_BPS;
 		r->last_change_ms = now_ms;
 	}
 
 	next = clamp(r, next);
 
 	if (next != r->current &&
-	    ((next > r->current ? next - r->current : r->current - next) * 20
-	     >= r->current || next == r->min || next == r->max))
+	    ((next > r->current ? next - r->current : r->current - next) * 20 >=
+		     r->current ||
+	     next == r->min || next == r->max))
 		r->current = (uint32_t)next;
 
 	return r->current;

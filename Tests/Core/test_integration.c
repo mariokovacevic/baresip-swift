@@ -18,14 +18,38 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	record_event(&w, ev);
 }
 
-static int running(struct waiter *x) { return x->engine_state == BSK_ENGINE_RUNNING; }
-static int registered(struct waiter *x) { return x->reg_state == BSK_REG_REGISTERED; }
-static int streams(struct waiter *x) { return x->call_state == BSK_CALL_STREAMS_RUNNING; }
-static int early(struct waiter *x) { return x->call_state == BSK_CALL_EARLY_MEDIA; }
-static int paused(struct waiter *x) { return x->call_state == BSK_CALL_PAUSED; }
-static int released(struct waiter *x) { return x->released_call != BSK_ID_NONE; }
-static int ice_connected(struct waiter *x) { return x->ice_state == BSK_ICE_CONNECTED; }
-static int incoming(struct waiter *x) { return x->incoming_call != BSK_ID_NONE; }
+static int running(struct waiter *x)
+{
+	return x->engine_state == BSK_ENGINE_RUNNING;
+}
+static int registered(struct waiter *x)
+{
+	return x->reg_state == BSK_REG_REGISTERED;
+}
+static int streams(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_STREAMS_RUNNING;
+}
+static int early(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_EARLY_MEDIA;
+}
+static int paused(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_PAUSED;
+}
+static int released(struct waiter *x)
+{
+	return x->released_call != BSK_ID_NONE;
+}
+static int ice_connected(struct waiter *x)
+{
+	return x->ice_state == BSK_ICE_CONNECTED;
+}
+static int incoming(struct waiter *x)
+{
+	return x->incoming_call != BSK_ID_NONE;
+}
 
 
 static char *read_file(const char *path, size_t *len)
@@ -64,7 +88,8 @@ static bsk_account_id add_account(bsk_engine *e, const char *host,
 	bsk_turn_server turns[1];
 
 	snprintf(aor, sizeof(aor), "sip:%s@%s", user, host);
-	snprintf(registrar, sizeof(registrar), "sip:%s:5061;transport=tls", host);
+	snprintf(registrar, sizeof(registrar), "sip:%s:5061;transport=tls",
+		 host);
 	if (0 == strcmp(turn_transport, "tls"))
 		snprintf(turn, sizeof(turn), "turns:%s:5349", host);
 	else
@@ -134,7 +159,8 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	CHECK_OK(bsk_engine_audio_session_activated(e, &err), &err);
 
 	printf("9. ICE relay-only policy over TURN/%s: media must flow "
-	       "through the relay\n", turn_transport);
+	       "through the relay\n",
+	       turn_transport);
 	alice = add_account(e, host, "alice", "alicepass", true, BSK_DTMF_AUTO);
 	CHECK_OK(bsk_account_register(e, alice, &err), &err);
 	CHECK(wait_until(&w, registered, 10000));
@@ -177,7 +203,9 @@ int main(int argc, char **argv)
 	waiter_init(&w);
 	waiter_init(&w2);
 
-	ca = read_file(getenv("BSK_TEST_CA_PEM") ? getenv("BSK_TEST_CA_PEM") : "", &ca_len);
+	ca = read_file(getenv("BSK_TEST_CA_PEM") ? getenv("BSK_TEST_CA_PEM")
+						 : "",
+		       &ca_len);
 	CHECK(ca != NULL);
 
 	if (argc > 3)
@@ -210,7 +238,8 @@ int main(int argc, char **argv)
 	CHECK_OK(bsk_engine_audio_session_activated(e, &err), &err);
 
 	printf("1. register alice over TLS with private CA\n");
-	alice = add_account(e, host, "alice", "alicepass", false, BSK_DTMF_AUTO);
+	alice = add_account(e, host, "alice", "alicepass", false,
+			    BSK_DTMF_AUTO);
 	CHECK_OK(bsk_account_register(e, alice, &err), &err);
 	CHECK(wait_until(&w, registered, 10000));
 
@@ -250,7 +279,8 @@ int main(int argc, char **argv)
 	printf("6. DTMF over SIP INFO\n");
 	CHECK_OK(bsk_account_unregister(e, alice, &err), &err);
 	CHECK_OK(bsk_account_remove(e, alice, &err), &err);
-	alice = add_account(e, host, "alice", "alicepass", false, BSK_DTMF_SIP_INFO);
+	alice = add_account(e, host, "alice", "alicepass", false,
+			    BSK_DTMF_SIP_INFO);
 	pthread_mutex_lock(&w.mtx);
 	w.reg_state = -1;
 	pthread_mutex_unlock(&w.mtx);

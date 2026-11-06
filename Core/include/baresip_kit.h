@@ -439,7 +439,8 @@ typedef struct bsk_video_frame {
 } bsk_video_frame;
 
 typedef void (*bsk_video_frame_handler)(bsk_engine *engine, bsk_call_id call,
-					bool local, const bsk_video_frame *frame,
+					bool local,
+					const bsk_video_frame *frame,
 					void *user);
 
 typedef struct bsk_video_sink {
@@ -449,8 +450,14 @@ typedef struct bsk_video_sink {
 	void *user;
 } bsk_video_sink;
 
-#define BSK_ENGINE_CONFIG_INIT { (uint32_t)sizeof(bsk_engine_config) }
-#define BSK_ACCOUNT_CONFIG_INIT { (uint32_t)sizeof(bsk_account_config) }
+#define BSK_ENGINE_CONFIG_INIT                      \
+	{                                           \
+		(uint32_t)sizeof(bsk_engine_config) \
+	}
+#define BSK_ACCOUNT_CONFIG_INIT                      \
+	{                                            \
+		(uint32_t)sizeof(bsk_account_config) \
+	}
 
 BSK_EXPORT uint32_t bsk_abi_version(void);
 BSK_EXPORT const char *bsk_version_string(void);
@@ -458,7 +465,8 @@ BSK_EXPORT const char *bsk_status_string(bsk_status status);
 
 BSK_EXPORT bsk_status bsk_engine_create(const bsk_engine_config *config,
 					bsk_event_handler handler, void *user,
-					bsk_engine **out_engine, bsk_error *err);
+					bsk_engine **out_engine,
+					bsk_error *err);
 BSK_EXPORT void bsk_engine_destroy(bsk_engine *engine);
 BSK_EXPORT void bsk_engine_set_log_handler(bsk_engine *engine,
 					   bsk_log_handler handler, void *user);
@@ -490,10 +498,11 @@ BSK_EXPORT bsk_status bsk_engine_audio_interruption(bsk_engine *engine,
 BSK_EXPORT bsk_status bsk_account_add(bsk_engine *engine,
 				      const bsk_account_config *config,
 				      bsk_account_id *out_id, bsk_error *err);
-BSK_EXPORT bsk_status bsk_account_remove(bsk_engine *engine,
-					 bsk_account_id id, bsk_error *err);
+BSK_EXPORT bsk_status bsk_account_remove(bsk_engine *engine, bsk_account_id id,
+					 bsk_error *err);
 BSK_EXPORT bsk_status bsk_account_set_default(bsk_engine *engine,
-					      bsk_account_id id, bsk_error *err);
+					      bsk_account_id id,
+					      bsk_error *err);
 BSK_EXPORT bsk_status bsk_account_register(bsk_engine *engine,
 					   bsk_account_id id, bsk_error *err);
 BSK_EXPORT bsk_status bsk_account_unregister(bsk_engine *engine,
@@ -503,15 +512,12 @@ BSK_EXPORT bsk_status bsk_account_set_credentials(bsk_engine *engine,
 						  const char *auth_user,
 						  const char *auth_password,
 						  bsk_error *err);
-BSK_EXPORT bsk_status bsk_account_set_contact_params(bsk_engine *engine,
-						     bsk_account_id id,
-						     const bsk_contact_param *params,
-						     size_t count,
-						     bool reregister_now,
-						     bsk_error *err);
-BSK_EXPORT bsk_status bsk_account_get_registration_state(
-	const bsk_engine *engine, bsk_account_id id,
-	bsk_registration_state *out_state);
+BSK_EXPORT bsk_status bsk_account_set_contact_params(
+	bsk_engine *engine, bsk_account_id id, const bsk_contact_param *params,
+	size_t count, bool reregister_now, bsk_error *err);
+BSK_EXPORT bsk_status
+bsk_account_get_registration_state(const bsk_engine *engine, bsk_account_id id,
+				   bsk_registration_state *out_state);
 BSK_EXPORT bsk_status bsk_contact_params_encode(const bsk_contact_param *params,
 						size_t count, char *buf,
 						size_t buf_len,
@@ -557,13 +563,13 @@ BSK_EXPORT bsk_status bsk_call_set_video_max_bitrate(bsk_engine *engine,
 						     bsk_call_id call,
 						     uint32_t bitrate_bps,
 						     bsk_error *err);
-BSK_EXPORT bsk_status bsk_call_restart_ice(bsk_engine *engine,
-					   bsk_call_id call, bsk_error *err);
+BSK_EXPORT bsk_status bsk_call_restart_ice(bsk_engine *engine, bsk_call_id call,
+					   bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_record_start(bsk_engine *engine,
 					    bsk_call_id call, const char *path,
 					    bsk_error *err);
-BSK_EXPORT bsk_status bsk_call_record_stop(bsk_engine *engine,
-					   bsk_call_id call, bsk_error *err);
+BSK_EXPORT bsk_status bsk_call_record_stop(bsk_engine *engine, bsk_call_id call,
+					   bsk_error *err);
 BSK_EXPORT bsk_status bsk_call_transfer_attended(bsk_engine *engine,
 						 bsk_call_id call,
 						 bsk_call_id target_call,
@@ -593,8 +599,8 @@ BSK_EXPORT bsk_status bsk_video_preview_start(bsk_engine *engine,
 					      bsk_error *err);
 BSK_EXPORT bsk_status bsk_video_preview_stop(bsk_engine *engine,
 					     bsk_error *err);
-BSK_EXPORT size_t bsk_video_list_devices(const bsk_engine *engine,
-					 char *buf, size_t buf_len);
+BSK_EXPORT size_t bsk_video_list_devices(const bsk_engine *engine, char *buf,
+					 size_t buf_len);
 
 BSK_EXPORT size_t bsk_capabilities(char *buf, size_t buf_len);
 

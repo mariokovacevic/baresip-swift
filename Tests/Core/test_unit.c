@@ -24,11 +24,13 @@ static void test_contact_params(void)
 	char buf[256];
 	size_t len = 0;
 
-	CHECK(BSK_OK == bsk_contact_params_encode(p, 6, buf, sizeof(buf), &len));
-	CHECK(0 == strcmp(buf,
-		"app-id=com.example.app;pn-type=apple;"
-		"pn-tok=0123456789abcdef:remote&fedcba9876543210:voip;"
-		"pn-silent=1;pn-timeout=0;flag"));
+	CHECK(BSK_OK ==
+	      bsk_contact_params_encode(p, 6, buf, sizeof(buf), &len));
+	CHECK(0 ==
+	      strcmp(buf,
+		     "app-id=com.example.app;pn-type=apple;"
+		     "pn-tok=0123456789abcdef:remote&fedcba9876543210:voip;"
+		     "pn-silent=1;pn-timeout=0;flag"));
 	CHECK(len == strlen(buf));
 
 	CHECK(BSK_OK == bsk_contact_params_encode(p, 6, NULL, 0, &len));
@@ -49,8 +51,8 @@ static void test_contact_params(void)
 	CHECK(BSK_ERR_INVALID_ARGUMENT ==
 	      bsk_contact_params_encode(empty_name, 1, buf, sizeof(buf), NULL));
 
-	CHECK(BSK_OK == bsk_contact_params_encode(NULL, 0, buf, sizeof(buf),
-						  &len));
+	CHECK(BSK_OK ==
+	      bsk_contact_params_encode(NULL, 0, buf, sizeof(buf), &len));
 	CHECK(len == 0 && buf[0] == '\0');
 }
 
@@ -82,8 +84,8 @@ static void test_redaction(void)
 static void test_status_strings(void)
 {
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
-	CHECK(0 == strcmp(bsk_status_string(BSK_ERR_AUTH),
-			  "authentication failed"));
+	CHECK(0 ==
+	      strcmp(bsk_status_string(BSK_ERR_AUTH), "authentication failed"));
 	CHECK(bsk_abi_version() == 6);
 	CHECK(bsk_capabilities(NULL, 0) > 0);
 }
@@ -131,8 +133,7 @@ static void test_engine_lifecycle_without_network(void)
 	CHECK_OK(bsk_engine_create(&cfg, NULL, NULL, &e, &err), &err);
 	CHECK(bsk_engine_get_state(e) == BSK_ENGINE_IDLE);
 
-	CHECK(BSK_ERR_INVALID_STATE ==
-	      bsk_account_add(e, NULL, &acc, &err) ||
+	CHECK(BSK_ERR_INVALID_STATE == bsk_account_add(e, NULL, &acc, &err) ||
 	      BSK_ERR_INVALID_ARGUMENT == err.status);
 
 	CHECK_OK(bsk_engine_start(e, &err), &err);
@@ -150,7 +151,8 @@ static void test_engine_lifecycle_without_network(void)
 		ac.auth_password = "secret";
 		CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
 		CHECK(acc != BSK_ID_NONE);
-		CHECK(BSK_OK == bsk_account_get_registration_state(e, acc, &rs));
+		CHECK(BSK_OK ==
+		      bsk_account_get_registration_state(e, acc, &rs));
 		CHECK(rs == BSK_REG_NONE);
 		CHECK(BSK_ERR_NOT_FOUND ==
 		      bsk_account_get_registration_state(e, 999, &rs));

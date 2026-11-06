@@ -7,12 +7,9 @@ static const struct {
 	size_t keep;
 	const char *stop;
 } redactions[] = {
-	{ "response=\"", 0, "\"" },
-	{ "pn-tok=", 8, ";>, \r\n" },
-	{ "pn-prid=", 8, ";>, \r\n" },
-	{ "pn-voip-tok=", 8, ";>, \r\n" },
-	{ "auth_pass=", 0, ";>, \r\n" },
-	{ "stunpass=", 0, ";>, \r\n" },
+	{ "response=\"", 0, "\"" },      { "pn-tok=", 8, ";>, \r\n" },
+	{ "pn-prid=", 8, ";>, \r\n" },   { "pn-voip-tok=", 8, ";>, \r\n" },
+	{ "auth_pass=", 0, ";>, \r\n" }, { "stunpass=", 0, ";>, \r\n" },
 	{ "password=", 0, ";>&, \r\n" },
 };
 
@@ -46,7 +43,8 @@ size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len)
 			size_t klen = strlen(key);
 			size_t vlen, keep, k;
 
-			if (len - i < klen || 0 != strncasecmp(&in[i], key, klen))
+			if (len - i < klen ||
+			    0 != strncasecmp(&in[i], key, klen))
 				continue;
 
 			for (k = 0; k < klen && o + 1 < out_len; k++)
@@ -102,9 +100,9 @@ static bsk_log_level map_baresip_level(uint32_t level)
 {
 	switch (level) {
 	case LEVEL_DEBUG: return BSK_LOG_DEBUG;
-	case LEVEL_INFO:  return BSK_LOG_INFO;
-	case LEVEL_WARN:  return BSK_LOG_WARNING;
-	default:          return BSK_LOG_ERROR;
+	case LEVEL_INFO: return BSK_LOG_INFO;
+	case LEVEL_WARN: return BSK_LOG_WARNING;
+	default: return BSK_LOG_ERROR;
 	}
 }
 
@@ -116,13 +114,12 @@ static void baresip_log_handler(uint32_t level, const char *msg)
 	if (!engine || !msg)
 		return;
 
-	bsk_log_emit(engine, map_baresip_level(level), BSK_LOG_DOMAIN_CORE,
-		     msg, strlen(msg));
+	bsk_log_emit(engine, map_baresip_level(level), BSK_LOG_DOMAIN_CORE, msg,
+		     strlen(msg));
 }
 
 
-static void libre_dbg_handler(int level, const char *p, size_t len,
-			      void *arg)
+static void libre_dbg_handler(int level, const char *p, size_t len, void *arg)
 {
 	bsk_engine *engine = arg;
 	bsk_log_level lvl;
@@ -143,9 +140,9 @@ static void libre_dbg_handler(int level, const char *p, size_t len,
 }
 
 
-void bsk_sip_trace_handler(bool tx, enum sip_transp tp,
-			   const struct sa *src, const struct sa *dst,
-			   const uint8_t *pkt, size_t len, void *arg)
+void bsk_sip_trace_handler(bool tx, enum sip_transp tp, const struct sa *src,
+			   const struct sa *dst, const uint8_t *pkt, size_t len,
+			   void *arg)
 {
 	bsk_engine *engine = bsk_global_engine();
 	char head[160];
@@ -176,10 +173,10 @@ void bsk_log_init(bsk_engine *engine)
 		return;
 
 	log_enable_stdout(false);
-	log_level_set(engine->log_level <= BSK_LOG_DEBUG ? LEVEL_DEBUG :
-		      engine->log_level == BSK_LOG_INFO ? LEVEL_INFO :
-		      engine->log_level == BSK_LOG_WARNING ? LEVEL_WARN :
-		      LEVEL_ERROR);
+	log_level_set(engine->log_level <= BSK_LOG_DEBUG     ? LEVEL_DEBUG
+		      : engine->log_level == BSK_LOG_INFO    ? LEVEL_INFO
+		      : engine->log_level == BSK_LOG_WARNING ? LEVEL_WARN
+							     : LEVEL_ERROR);
 
 	engine->baresip_log.h = baresip_log_handler;
 	log_register_handler(&engine->baresip_log);

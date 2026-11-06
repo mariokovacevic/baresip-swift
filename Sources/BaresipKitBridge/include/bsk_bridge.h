@@ -64,26 +64,25 @@ typedef struct bsk_bridge_diagnostic_event {
 static inline bsk_bridge_engine_event
 bsk_bridge_event_engine(const bsk_event *ev)
 {
-	bsk_bridge_engine_event out = { ev->u.engine.state, ev->u.engine.error };
+	bsk_bridge_engine_event out = { ev->u.engine.state,
+					ev->u.engine.error };
 	return out;
 }
 
 static inline bsk_bridge_registration_event
 bsk_bridge_event_registration(const bsk_event *ev)
 {
-	bsk_bridge_registration_event out = {
-		ev->u.registration.state, ev->u.registration.error,
-		ev->u.registration.expires
-	};
+	bsk_bridge_registration_event out = { ev->u.registration.state,
+					      ev->u.registration.error,
+					      ev->u.registration.expires };
 	return out;
 }
 
 static inline bsk_bridge_call_state_event
 bsk_bridge_event_call_state(const bsk_event *ev)
 {
-	bsk_bridge_call_state_event out = {
-		ev->u.call_state.state, ev->u.call_state.error
-	};
+	bsk_bridge_call_state_event out = { ev->u.call_state.state,
+					    ev->u.call_state.error };
 	return out;
 }
 
@@ -92,8 +91,8 @@ static inline bsk_call_info bsk_bridge_event_call_incoming(const bsk_event *ev)
 	return ev->u.call_incoming.info;
 }
 
-static inline bool bsk_bridge_event_call_incoming_early_video(
-	const bsk_event *ev)
+static inline bool
+bsk_bridge_event_call_incoming_early_video(const bsk_event *ev)
 {
 	return ev->u.call_incoming.early_video;
 }
@@ -110,9 +109,8 @@ static inline bsk_bridge_media_event bsk_bridge_event_media(const bsk_event *ev)
 
 static inline bsk_bridge_dtmf_event bsk_bridge_event_dtmf(const bsk_event *ev)
 {
-	bsk_bridge_dtmf_event out = {
-		ev->u.dtmf.digit, ev->u.dtmf.end, ev->u.dtmf.via_sip_info
-	};
+	bsk_bridge_dtmf_event out = { ev->u.dtmf.digit, ev->u.dtmf.end,
+				      ev->u.dtmf.via_sip_info };
 	return out;
 }
 
@@ -185,10 +183,9 @@ static inline void bsk_bridge_make_network_event(bsk_event *ev,
 
 static inline bsk_bridge_audio_event bsk_bridge_event_audio(const bsk_event *ev)
 {
-	bsk_bridge_audio_event out = {
-		ev->u.audio.input_running, ev->u.audio.output_running,
-		ev->u.audio.error
-	};
+	bsk_bridge_audio_event out = { ev->u.audio.input_running,
+				       ev->u.audio.output_running,
+				       ev->u.audio.error };
 	return out;
 }
 
@@ -231,12 +228,10 @@ typedef struct bsk_bridge_message_status_event {
 static inline bsk_bridge_message_status_event
 bsk_bridge_event_message_status(const bsk_event *ev)
 {
-	bsk_bridge_message_status_event out = {
-		ev->u.message_status.message_id,
-		ev->u.message_status.delivered,
-		ev->u.message_status.sip_status,
-		ev->u.message_status.error
-	};
+	bsk_bridge_message_status_event out = { ev->u.message_status.message_id,
+						ev->u.message_status.delivered,
+						ev->u.message_status.sip_status,
+						ev->u.message_status.error };
 	return out;
 }
 

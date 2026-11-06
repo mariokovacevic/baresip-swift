@@ -14,7 +14,8 @@ struct bsk_ice_info {
 	char local_addr[64];
 	char remote_addr[64];
 };
-bool bsk_ice_parse_event(const char *text, size_t len, struct bsk_ice_info *out);
+bool bsk_ice_parse_event(const char *text, size_t len,
+			 struct bsk_ice_info *out);
 
 static void fuzz_contact(const uint8_t *data, size_t size)
 {
@@ -44,7 +45,8 @@ static void fuzz_contact(const uint8_t *data, size_t size)
 		}
 	}
 
-	(void)bsk_contact_params_encode(params, count, out, sizeof(out), &needed);
+	(void)bsk_contact_params_encode(params, count, out, sizeof(out),
+					&needed);
 	(void)bsk_contact_params_encode(params, count, NULL, 0, &needed);
 	(void)bsk_contact_params_encode(params, count, out, size % 32, NULL);
 	free(copy);

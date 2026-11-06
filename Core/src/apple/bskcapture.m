@@ -18,12 +18,12 @@ struct vidsrc_st {
 };
 
 @interface BSKCapture : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate>
-@property (nonatomic, strong) AVCaptureSession *session;
-@property (nonatomic, strong) AVCaptureDeviceInput *input;
-@property (nonatomic, strong) AVCaptureVideoDataOutput *output;
-@property (nonatomic, strong) dispatch_queue_t queue;
-@property (nonatomic, assign) struct vidsrc_st *st;
-@property (nonatomic, assign) BOOL front;
+@property(nonatomic, strong) AVCaptureSession *session;
+@property(nonatomic, strong) AVCaptureDeviceInput *input;
+@property(nonatomic, strong) AVCaptureVideoDataOutput *output;
+@property(nonatomic, strong) dispatch_queue_t queue;
+@property(nonatomic, assign) struct vidsrc_st *st;
+@property(nonatomic, assign) BOOL front;
 - (instancetype)initWithState:(struct vidsrc_st *)st;
 - (BOOL)startWithDevice:(const char *)name;
 - (void)stop;
@@ -46,24 +46,29 @@ static AVCaptureDevice *device_for_name(const char *name)
 	BOOL known;
 	AVCaptureDevicePosition pos = position_for_name(name, &known);
 	AVCaptureDeviceDiscoverySession *discovery = [AVCaptureDeviceDiscoverySession
-		discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
-		mediaType:AVMediaTypeVideo
-		position:AVCaptureDevicePositionUnspecified];
+		discoverySessionWithDeviceTypes:@[
+			AVCaptureDeviceTypeBuiltInWideAngleCamera
+		]
+				      mediaType:AVMediaTypeVideo
+				       position:
+					       AVCaptureDevicePositionUnspecified];
 
 	for (AVCaptureDevice *dev in discovery.devices) {
 		if (known && dev.position == pos)
 			return dev;
-		if (!known && name && 0 == strcmp(name, dev.uniqueID.UTF8String))
+		if (!known && name &&
+		    0 == strcmp(name, dev.uniqueID.UTF8String))
 			return dev;
-		if (!known && name && 0 == strcmp(name, dev.localizedName.UTF8String))
+		if (!known && name &&
+		    0 == strcmp(name, dev.localizedName.UTF8String))
 			return dev;
 	}
 
 	return [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
 }
 
-static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev,
-				 const struct vidsz *sz)
+static NSString *preset_for_size(AVCaptureSession *session,
+				 AVCaptureDevice *dev, const struct vidsz *sz)
 {
 	static const struct {
 		unsigned w, h;
@@ -97,12 +102,13 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 	if (!self)
 		return nil;
 	_st = st;
-	_queue = dispatch_queue_create("baresipkit.capture", DISPATCH_QUEUE_SERIAL);
+	_queue = dispatch_queue_create("baresipkit.capture",
+				       DISPATCH_QUEUE_SERIAL);
 	_session = [[AVCaptureSession alloc] init];
 	_output = [[AVCaptureVideoDataOutput alloc] init];
 	_output.alwaysDiscardsLateVideoFrames = YES;
 	_output.videoSettings = @{
-		(id)kCVPixelBufferPixelFormatTypeKey:
+		(id)kCVPixelBufferPixelFormatTypeKey :
 			@(kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange)
 	};
 	[_output setSampleBufferDelegate:self queue:_queue];
@@ -116,10 +122,13 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 
 	if (![dev lockForConfiguration:&error])
 		return;
-	for (AVFrameRateRange *range in dev.activeFormat.videoSupportedFrameRateRanges) {
+	for (AVFrameRateRange *range in dev.activeFormat
+		     .videoSupportedFrameRateRanges) {
 		if (fps >= range.minFrameRate && fps <= range.maxFrameRate) {
-			dev.activeVideoMinFrameDuration = CMTimeMake(1, (int32_t)fps);
-			dev.activeVideoMaxFrameDuration = CMTimeMake(1, (int32_t)fps);
+			dev.activeVideoMinFrameDuration =
+				CMTimeMake(1, (int32_t)fps);
+			dev.activeVideoMaxFrameDuration =
+				CMTimeMake(1, (int32_t)fps);
 			break;
 		}
 	}
@@ -128,7 +137,8 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 
 - (void)applyOrientation
 {
-	AVCaptureConnection *conn = [self.output connectionWithMediaType:AVMediaTypeVideo];
+	AVCaptureConnection *conn =
+		[self.output connectionWithMediaType:AVMediaTypeVideo];
 	if (!conn)
 		return;
 #if TARGET_OS_IPHONE
@@ -149,12 +159,14 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 	if (!dev)
 		return NO;
 
-	self.input = [AVCaptureDeviceInput deviceInputWithDevice:dev error:&error];
+	self.input = [AVCaptureDeviceInput deviceInputWithDevice:dev
+							   error:&error];
 	if (!self.input)
 		return NO;
 
 	[self.session beginConfiguration];
-	self.session.sessionPreset = preset_for_size(self.session, dev, &self.st->size);
+	self.session.sessionPreset =
+		preset_for_size(self.session, dev, &self.st->size);
 	if ([self.session canAddInput:self.input])
 		[self.session addInput:self.input];
 	if ([self.session canAddOutput:self.output])
@@ -185,12 +197,12 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 	[self.session beginConfiguration];
 	if (self.input)
 		[self.session removeInput:self.input];
-	self.session.sessionPreset = preset_for_size(self.session, dev, &self.st->size);
+	self.session.sessionPreset =
+		preset_for_size(self.session, dev, &self.st->size);
 	if ([self.session canAddInput:input]) {
 		[self.session addInput:input];
 		self.input = input;
-	}
-	else if (self.input && [self.session canAddInput:self.input]) {
+	} else if (self.input && [self.session canAddInput:self.input]) {
 		[self.session addInput:self.input];
 	}
 	[self.session commitConfiguration];
@@ -217,7 +229,7 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 
 - (void)captureOutput:(AVCaptureOutput *)output
 	didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
-	fromConnection:(AVCaptureConnection *)connection
+	       fromConnection:(AVCaptureConnection *)connection
 {
 	struct vidsrc_st *st = self.st;
 	CVImageBufferRef pb;
@@ -233,7 +245,8 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 	if (!pb || CVPixelBufferGetPlaneCount(pb) != 2)
 		return;
 
-	if (kCVReturnSuccess != CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly))
+	if (kCVReturnSuccess !=
+	    CVPixelBufferLockBaseAddress(pb, kCVPixelBufferLock_ReadOnly))
 		return;
 
 	memset(&vf, 0, sizeof(vf));
@@ -247,7 +260,8 @@ static NSString *preset_for_size(AVCaptureSession *session, AVCaptureDevice *dev
 
 	ts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
 	vidtoolbox_native_publish(BSK_NATIVE_CAPTURE, pb, vf.data[0]);
-	st->frameh(&vf, (uint64_t)(CMTimeGetSeconds(ts) * VIDEO_TIMEBASE), st->arg);
+	st->frameh(&vf, (uint64_t)(CMTimeGetSeconds(ts) * VIDEO_TIMEBASE),
+		   st->arg);
 
 	CVPixelBufferUnlockBaseAddress(pb, kCVPixelBufferLock_ReadOnly);
 }
@@ -290,7 +304,8 @@ static int bskcapture_alloc(struct vidsrc_st **stp, const struct vidsrc *vs,
 	st->arg = arg;
 	st->size = *size;
 	st->fps = prm ? prm->fps : 30;
-	str_ncpy(st->device, str_isset(dev) ? dev : "front", sizeof(st->device));
+	str_ncpy(st->device, str_isset(dev) ? dev : "front",
+		 sizeof(st->device));
 
 	cap = [[BSKCapture alloc] initWithState:st];
 	if (!cap || ![cap startWithDevice:st->device]) {
@@ -332,25 +347,31 @@ int bskcapture_init(void)
 		return err;
 
 	@autoreleasepool {
-		AVCaptureDeviceDiscoverySession *discovery =
-			[AVCaptureDeviceDiscoverySession
-				discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera]
-				mediaType:AVMediaTypeVideo
-				position:AVCaptureDevicePositionUnspecified];
+		AVCaptureDeviceDiscoverySession *discovery = [AVCaptureDeviceDiscoverySession
+			discoverySessionWithDeviceTypes:@[
+				AVCaptureDeviceTypeBuiltInWideAngleCamera
+			]
+					      mediaType:AVMediaTypeVideo
+					       position:
+						       AVCaptureDevicePositionUnspecified];
 		bool have_front = false, have_back = false;
 
 		for (AVCaptureDevice *dev in discovery.devices) {
-			if (dev.position == AVCaptureDevicePositionFront && !have_front) {
-				err |= mediadev_add(&bsk_vidsrc->dev_list, "front");
-				have_front = true;
-			}
-			else if (dev.position == AVCaptureDevicePositionBack && !have_back) {
-				err |= mediadev_add(&bsk_vidsrc->dev_list, "back");
-				have_back = true;
-			}
-			else {
+			if (dev.position == AVCaptureDevicePositionFront &&
+			    !have_front) {
 				err |= mediadev_add(&bsk_vidsrc->dev_list,
-						    dev.localizedName.UTF8String);
+						    "front");
+				have_front = true;
+			} else if (dev.position ==
+					   AVCaptureDevicePositionBack &&
+				   !have_back) {
+				err |= mediadev_add(&bsk_vidsrc->dev_list,
+						    "back");
+				have_back = true;
+			} else {
+				err |= mediadev_add(
+					&bsk_vidsrc->dev_list,
+					dev.localizedName.UTF8String);
 			}
 		}
 	}

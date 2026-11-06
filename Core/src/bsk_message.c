@@ -24,15 +24,15 @@ static void resp_handler(int err, const struct sip_msg *msg, void *arg)
 		bsk_error_set(&ev.u.message_status.error,
 			      bsk_status_from_errno(err), err, 0, NULL,
 			      "message not sent: %m", err);
-	}
-	else if (msg) {
+	} else if (msg) {
 		ev.u.message_status.sip_status = msg->scode;
 		ev.u.message_status.delivered = msg->scode < 300;
 		if (msg->scode >= 300) {
 			bsk_error_set(&ev.u.message_status.error,
-				      msg->scode == 401 || msg->scode == 407 ?
-				      BSK_ERR_AUTH : BSK_ERR_SIP, 0,
-				      msg->scode, NULL, "%u %r", msg->scode,
+				      msg->scode == 401 || msg->scode == 407
+					      ? BSK_ERR_AUTH
+					      : BSK_ERR_SIP,
+				      0, msg->scode, NULL, "%u %r", msg->scode,
 				      &msg->reason);
 		}
 	}
@@ -94,9 +94,9 @@ static int send_op(bsk_engine *e, void *arg)
 	struct msg_ctx *m;
 	int err;
 
-	a = sa->account == BSK_ID_NONE ? (e->accounts.head ?
-					   e->accounts.head->data : NULL)
-		: bsk_account_find(e, sa->account);
+	a = sa->account == BSK_ID_NONE
+		    ? (e->accounts.head ? e->accounts.head->data : NULL)
+		    : bsk_account_find(e, sa->account);
 	if (!a)
 		return ENOENT;
 

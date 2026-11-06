@@ -8,28 +8,31 @@
 #include <pthread.h>
 #include "baresip_kit.h"
 
-#define CHECK(cond) do { \
-	if (!(cond)) { \
-		fprintf(stderr, "CHECK failed: %s (%s:%d)\n", #cond, \
-			__FILE__, __LINE__); \
-		exit(1); \
-	} \
-} while (0)
+#define CHECK(cond)                                                          \
+	do {                                                                 \
+		if (!(cond)) {                                               \
+			fprintf(stderr, "CHECK failed: %s (%s:%d)\n", #cond, \
+				__FILE__, __LINE__);                         \
+			exit(1);                                             \
+		}                                                            \
+	} while (0)
 
-#define CHECK_OK(st, err) do { \
-	bsk_status _s = (st); \
-	if (_s != BSK_OK) { \
-		fprintf(stderr, "CHECK_OK failed: %s -> %s (%d) %s (%s:%d)\n", \
-			#st, bsk_status_string(_s), (err)->sys_errno, \
-			(err)->message, __FILE__, __LINE__); \
-		exit(1); \
-	} \
-} while (0)
+#define CHECK_OK(st, err)                                                      \
+	do {                                                                   \
+		bsk_status _s = (st);                                          \
+		if (_s != BSK_OK) {                                            \
+			fprintf(stderr,                                        \
+				"CHECK_OK failed: %s -> %s (%d) %s (%s:%d)\n", \
+				#st, bsk_status_string(_s), (err)->sys_errno,  \
+				(err)->message, __FILE__, __LINE__);           \
+			exit(1);                                               \
+		}                                                              \
+	} while (0)
 
-static const char *test_modules[] = {
-	"g711", "l16", "auconv", "auresamp", "ausine", "aufile",
-	"ice", "turn", "stun", "srtp", "dtls_srtp", "rtcpsummary"
-};
+static const char *test_modules[] = { "g711",     "l16",       "auconv",
+				      "auresamp", "ausine",    "aufile",
+				      "ice",      "turn",      "stun",
+				      "srtp",     "dtls_srtp", "rtcpsummary" };
 
 static void test_log(bsk_log_level level, bsk_log_domain domain,
 		     const char *line, size_t len, void *user)
@@ -112,9 +115,7 @@ static void record_event(struct waiter *w, const bsk_event *ev)
 			w->reg_count++;
 		w->last_error = ev->u.registration.error;
 		break;
-	case BSK_EVENT_CALL_INCOMING:
-		w->incoming_call = ev->call;
-		break;
+	case BSK_EVENT_CALL_INCOMING: w->incoming_call = ev->call; break;
 	case BSK_EVENT_CALL_STATE:
 		w->call_state = ev->u.call_state.state;
 		w->call_state_count++;
@@ -122,23 +123,18 @@ static void record_event(struct waiter *w, const bsk_event *ev)
 			w->released_call = ev->call;
 		w->last_error = ev->u.call_state.error;
 		break;
-	case BSK_EVENT_CALL_MEDIA:
-		w->media_event = ev->u.media.event;
-		break;
+	case BSK_EVENT_CALL_MEDIA: w->media_event = ev->u.media.event; break;
 	case BSK_EVENT_CALL_DTMF:
 		if (!ev->u.dtmf.end && w->dtmf_count < 31)
 			w->dtmf[w->dtmf_count++] = ev->u.dtmf.digit;
 		break;
-	case BSK_EVENT_CALL_STATISTICS:
-		w->stats_count++;
-		break;
+	case BSK_EVENT_CALL_STATISTICS: w->stats_count++; break;
 	case BSK_EVENT_ICE:
 		w->ice_state = ev->u.ice.state;
 		w->ice_local_type = ev->u.ice.local_candidate;
 		w->ice_remote_type = ev->u.ice.remote_candidate;
 		break;
-	default:
-		break;
+	default: break;
 	}
 	waiter_signal(w);
 	pthread_mutex_unlock(&w->mtx);

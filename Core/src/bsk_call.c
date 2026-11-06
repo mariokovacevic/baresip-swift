@@ -80,8 +80,7 @@ static struct bsk_call_ctx *call_ctx_alloc(bsk_engine *e, struct call *call,
 }
 
 
-static void get_dirs(struct call *call, enum sdp_dir *adir,
-		     enum sdp_dir *vdir)
+static void get_dirs(struct call *call, enum sdp_dir *adir, enum sdp_dir *vdir)
 {
 	struct stream *as = audio_strm(call_audio(call));
 	struct stream *vs = video_strm(call_video(call));
@@ -97,7 +96,7 @@ static bsk_media_direction map_dir(enum sdp_dir dir)
 	case SDP_SENDONLY: return BSK_DIR_SENDONLY;
 	case SDP_RECVONLY: return BSK_DIR_RECVONLY;
 	case SDP_SENDRECV: return BSK_DIR_SENDRECV;
-	default:           return BSK_DIR_INACTIVE;
+	default: return BSK_DIR_INACTIVE;
 	}
 }
 
@@ -108,7 +107,7 @@ static enum sdp_dir unmap_dir(bsk_media_direction dir)
 	case BSK_DIR_SENDONLY: return SDP_SENDONLY;
 	case BSK_DIR_RECVONLY: return SDP_RECVONLY;
 	case BSK_DIR_SENDRECV: return SDP_SENDRECV;
-	default:               return SDP_INACTIVE;
+	default: return SDP_INACTIVE;
 	}
 }
 
@@ -142,10 +141,12 @@ static void fill_info(struct bsk_call_ctx *c, bsk_call_info *info)
 		 sizeof(info->remote_display_name));
 	ac = audio_codec(call_audio(call), true);
 	if (ac)
-		str_ncpy(info->audio_codec, ac->name, sizeof(info->audio_codec));
+		str_ncpy(info->audio_codec, ac->name,
+			 sizeof(info->audio_codec));
 	vc = video_codec(call_video(call), true);
 	if (vc)
-		str_ncpy(info->video_codec, vc->name, sizeof(info->video_codec));
+		str_ncpy(info->video_codec, vc->name,
+			 sizeof(info->video_codec));
 	info->setup_ms = call_setup_duration(call) * 1000;
 	info->duration_s = call_duration(call);
 }
@@ -203,11 +204,11 @@ static void apply_audio_activation(bsk_engine *e, struct bsk_call_ctx *c)
 
 	if (e->audio_active) {
 		(void)audio_set_source(au, e->audio_src_mod, e->audio_src_dev);
-		(void)audio_set_player(au, e->audio_play_mod, e->audio_play_dev);
+		(void)audio_set_player(au, e->audio_play_mod,
+				       e->audio_play_dev);
 		if (c->muted)
 			audio_mute(au, true);
-	}
-	else {
+	} else {
 		(void)audio_set_source(au, NULL, NULL);
 		(void)audio_set_player(au, NULL, NULL);
 	}
@@ -276,8 +277,7 @@ static void rate_apply(bsk_engine *e, struct bsk_call_ctx *c, bool force)
 
 	if (!e->video_adaptive) {
 		c->rate.current = cap;
-	}
-	else if (!force) {
+	} else if (!force) {
 		rs = stream_rtcp_stats(vs);
 		if (rs)
 			(void)bsk_rate_update(&c->rate, rs->tx.sent,
@@ -346,7 +346,8 @@ static void fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 			st->audio.rtt_ms = rs->rtt / 1000;
 			if (rs->rx.sent + (uint32_t)rs->rx.lost)
 				st->audio.rx_fraction_lost_permille =
-					(uint32_t)((uint64_t)rs->rx.lost * 1000 /
+					(uint32_t)((uint64_t)rs->rx.lost *
+						   1000 /
 						   (rs->rx.sent + rs->rx.lost));
 		}
 		if (0 == stream_jbuf_stats(as, &js))
@@ -374,14 +375,15 @@ static void fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 	st->ice_state = c->ice_state;
 	st->local_candidate = c->ice_local_type;
 	st->remote_candidate = c->ice_remote_type;
-	str_ncpy(st->local_address, c->ice_local_addr, sizeof(st->local_address));
+	str_ncpy(st->local_address, c->ice_local_addr,
+		 sizeof(st->local_address));
 	str_ncpy(st->remote_address, c->ice_remote_addr,
 		 sizeof(st->remote_address));
 
 	{
 		double loss = st->audio.rx_fraction_lost_permille / 10.0;
 		double delay = st->audio.rtt_ms / 2.0 +
-			st->audio.jitter_buffer_delay_ms + 20.0;
+			       st->audio.jitter_buffer_delay_ms + 20.0;
 		double r = 93.2;
 		if (delay > 160.0)
 			r -= 0.024 * delay + 0.11 * (delay - 177.3);
@@ -392,9 +394,9 @@ static void fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 			r = 0;
 		if (r > 100)
 			r = 100;
-		st->mos_estimate = (float)(1.0 + 0.035 * r +
-					   r * (r - 60.0) * (100.0 - r) *
-					   7.0e-6);
+		st->mos_estimate =
+			(float)(1.0 + 0.035 * r +
+				r * (r - 60.0) * (100.0 - r) * 7.0e-6);
 	}
 }
 
@@ -412,9 +414,10 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 		  c->state == BSK_CALL_EARLY_MEDIA) &&
 		 (scode >= 300 || (scode == 0 && str_isset(text)));
 
-	bsk_error_set(&error, scode >= 300 ? BSK_ERR_SIP :
-		      (failed ? BSK_ERR_NETWORK : BSK_OK), 0, scode,
-		      NULL, "%s", text ? text : "");
+	bsk_error_set(&error,
+		      scode >= 300 ? BSK_ERR_SIP
+				   : (failed ? BSK_ERR_NETWORK : BSK_OK),
+		      0, scode, NULL, "%s", text ? text : "");
 
 	if (c->recording) {
 		(void)bsk_record_stop(&c->recording);
@@ -444,15 +447,13 @@ static void follow_transfer(bsk_engine *e, struct bsk_call_ctx *c,
 		return;
 	}
 
-	err = ua_call_alloc(&call2, a->ua,
-			    c->video ? VIDMODE_ON : VIDMODE_OFF, NULL,
-			    c->call, call_localuri(c->call), true);
+	err = ua_call_alloc(&call2, a->ua, c->video ? VIDMODE_ON : VIDMODE_OFF,
+			    NULL, c->call, call_localuri(c->call), true);
 	if (!err) {
 		n = call_ctx_alloc(e, call2, a->id, true);
 		if (!n) {
 			err = ENOMEM;
-		}
-		else {
+		} else {
 			n->video = c->video;
 			pl_set_str(&pl, target);
 			err = call_connect(call2, &pl);
@@ -512,7 +513,6 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		return;
 
 	switch (ev) {
-
 	case BEVENT_CALL_OUTGOING:
 		emit_state(e, c, BSK_CALL_OUTGOING_INIT, NULL);
 		break;
@@ -569,15 +569,15 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 			if (c->state == BSK_CALL_PAUSING)
 				emit_state(e, c, BSK_CALL_PAUSED, NULL);
 			else if (c->state == BSK_CALL_RESUMING) {
-				emit_state(e, c, BSK_CALL_STREAMS_RUNNING, NULL);
+				emit_state(e, c, BSK_CALL_STREAMS_RUNNING,
+					   NULL);
 				if (call_has_video(call)) {
 					video_req_keyframe(call_video(call));
 					emit_media(e, c,
 						   BSK_MEDIA_KEYFRAME_REQUESTED,
 						   "local resume");
 				}
-			}
-			else if (c->state == BSK_CALL_UPDATING)
+			} else if (c->state == BSK_CALL_UPDATING)
 				emit_state(e, c, c->steady_state, NULL);
 		}
 		break;
@@ -648,8 +648,7 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		finish_call(e, c, event);
 		break;
 
-	default:
-		break;
+	default: break;
 	}
 }
 
@@ -687,8 +686,7 @@ static struct bsk_call_ctx *find_by_sdpm(bsk_engine *e, const void *sdpm)
 }
 
 
-bool bsk_ice_parse_event(const char *text, size_t len,
-			 struct bsk_ice_info *out)
+bool bsk_ice_parse_event(const char *text, size_t len, struct bsk_ice_info *out)
 {
 	struct pl module, event, rest, val;
 
@@ -727,8 +725,7 @@ bool bsk_ice_parse_event(const char *text, size_t len,
 		if (0 == re_regex(rest.p, rest.l, "raddr=[^ ]+", &val))
 			(void)pl_strcpy(&val, out->remote_addr,
 					sizeof(out->remote_addr));
-	}
-	else
+	} else
 		return false;
 
 	return true;
@@ -788,15 +785,14 @@ static int make_op(bsk_engine *e, void *arg)
 	struct call *call = NULL;
 	int err;
 
-	a = ma->account == BSK_ID_NONE ? (e->accounts.head ?
-					   e->accounts.head->data : NULL)
-		: bsk_account_find(e, ma->account);
+	a = ma->account == BSK_ID_NONE
+		    ? (e->accounts.head ? e->accounts.head->data : NULL)
+		    : bsk_account_find(e, ma->account);
 	if (!a)
 		return ENOENT;
 
 	err = ua_connect_dir(a->ua, &call, NULL, ma->destination,
-			     ma->video ? VIDMODE_ON : VIDMODE_OFF,
-			     SDP_SENDRECV,
+			     ma->video ? VIDMODE_ON : VIDMODE_OFF, SDP_SENDRECV,
 			     ma->video ? SDP_SENDRECV : SDP_INACTIVE);
 	if (err)
 		return err;
@@ -873,8 +869,8 @@ static struct ua *call_ua(bsk_engine *e, struct bsk_call_ctx *c)
 
 static enum sdp_dir preview_vdir(const struct bsk_call_ctx *c)
 {
-	return c->preview_video && call_has_video(c->call) ?
-		SDP_RECVONLY : SDP_INACTIVE;
+	return c->preview_video && call_has_video(c->call) ? SDP_RECVONLY
+							   : SDP_INACTIVE;
 }
 
 
@@ -893,8 +889,7 @@ static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video)
 }
 
 
-static bool other_call_active(const bsk_engine *e,
-			      const struct bsk_call_ctx *c)
+static bool other_call_active(const bsk_engine *e, const struct bsk_call_ctx *c)
 {
 	struct le *le;
 
@@ -986,8 +981,7 @@ static int hold_op(bsk_engine *e, void *arg)
 		return err;
 
 	c->local_hold = ca->flag;
-	emit_state(e, c, ca->flag ? BSK_CALL_PAUSING : BSK_CALL_RESUMING,
-		   NULL);
+	emit_state(e, c, ca->flag ? BSK_CALL_PAUSING : BSK_CALL_RESUMING, NULL);
 
 	return 0;
 }
@@ -1248,8 +1242,10 @@ static int record_op(bsk_engine *e, void *arg)
 	if (err)
 		return err;
 
-	emit_media(e, c, ca->flag ? BSK_MEDIA_RECORDING_STARTED :
-		   BSK_MEDIA_RECORDING_STOPPED, NULL);
+	emit_media(e, c,
+		   ca->flag ? BSK_MEDIA_RECORDING_STARTED
+			    : BSK_MEDIA_RECORDING_STOPPED,
+		   NULL);
 	return 0;
 }
 
@@ -1355,14 +1351,18 @@ bsk_status bsk_call_reject(bsk_engine *engine, bsk_call_id call,
 			   uint16_t sip_status, const char *reason,
 			   bsk_error *err)
 {
-	struct call_arg ca = { call, false, sip_status ? sip_status : 486,
-			       reason ? reason : "Busy Here", 0, 0, 0 };
+	struct call_arg ca = { call,
+			       false,
+			       sip_status ? sip_status : 486,
+			       reason ? reason : "Busy Here",
+			       0,
+			       0,
+			       0 };
 	return run_call(engine, hangup_op, &ca, err, "reject");
 }
 
 
-bsk_status bsk_call_hangup(bsk_engine *engine, bsk_call_id call,
-			   bsk_error *err)
+bsk_status bsk_call_hangup(bsk_engine *engine, bsk_call_id call, bsk_error *err)
 {
 	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
 	return run_call(engine, hangup_op, &ca, err, "hangup");
@@ -1439,13 +1439,11 @@ bsk_status bsk_call_request_keyframe(bsk_engine *engine, bsk_call_id call,
 }
 
 
-bsk_status bsk_call_set_video_max_bitrate(bsk_engine *engine,
-					  bsk_call_id call,
+bsk_status bsk_call_set_video_max_bitrate(bsk_engine *engine, bsk_call_id call,
 					  uint32_t bitrate_bps, bsk_error *err)
 {
 	struct call_arg ca = { call, false, 0, NULL, bitrate_bps, 0, 0 };
-	return run_call(engine, video_bitrate_op, &ca, err,
-			"video bitrate");
+	return run_call(engine, video_bitrate_op, &ca, err, "video bitrate");
 }
 
 
