@@ -47,6 +47,7 @@ struct bsk_call_ctx {
 	bool remote_hold;
 	bool rtp_established;
 	bool early_preview;
+	bool preview_video;
 	bool muted;
 	char dtmf_queue[BSK_MAX_DTMF];
 	size_t dtmf_pos;

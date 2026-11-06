@@ -128,10 +128,14 @@ jobs:
             kill "$PEER_PID" 2>/dev/null || true
             exit 1
           fi
-          wait "$PEER_PID"
+          PEER_RC=0
+          wait "$PEER_PID" || PEER_RC=$?
           cat "$OUT/peer.out"
-          grep -q "peer: PASS" "$OUT/peer.out"
-          grep -c "REGISTER sip" "$OUT/registrar-trace.txt"
+          echo "REGISTER requests seen by the registrar: $(grep -c 'REGISTER sip' "$OUT/registrar-trace.txt" || true)"
+          if [[ "$PEER_RC" != 0 ]] || ! grep -q "peer: PASS" "$OUT/peer.out"; then
+            grep -E "CHECK|call|SIP/2.0|INVITE" "$OUT/peer.err" | tail -40 || true
+            exit 1
+          fi
       - name: Upload XCFramework
         uses: actions/upload-artifact@v4
         with:

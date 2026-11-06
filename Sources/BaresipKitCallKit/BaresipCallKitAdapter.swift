@@ -36,6 +36,7 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
     private var uuidByCall: [BaresipCallID: UUID] = [:]
     private var callByUUID: [UUID: BaresipCallID] = [:]
     private var pendingAnswers: Set<UUID> = []
+    private var outgoing: Set<UUID> = []
     private var pendingIncoming: [UUID: (remoteURI: String?, video: Bool)] = [:]
     private var eventTask: Task<Void, Never>?
 
@@ -107,6 +108,7 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
         guard let uuid = uuidByCall.removeValue(forKey: call) else { return nil }
         callByUUID[uuid] = nil
         pendingAnswers.remove(uuid)
+        outgoing.remove(uuid)
         return uuid
     }
 
@@ -141,11 +143,16 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
             }
         case .call(let call, let state, let error):
             guard let uuid = uuid(for: call) else { return }
+            let isOutgoing = lock.withLock { outgoing.contains(uuid) }
             switch state {
             case .outgoingRinging, .earlyMedia:
-                provider.reportOutgoingCall(with: uuid, startedConnectingAt: Date())
+                if isOutgoing {
+                    provider.reportOutgoingCall(with: uuid, startedConnectingAt: Date())
+                }
             case .connected, .streamsRunning:
-                provider.reportOutgoingCall(with: uuid, connectedAt: Date())
+                if isOutgoing {
+                    provider.reportOutgoingCall(with: uuid, connectedAt: Date())
+                }
             case .ended, .failed:
                 let reason: CXCallEndedReason
                 if let error, error.sipStatus == 486 || error.sipStatus == 600 {
@@ -185,6 +192,7 @@ public final class BaresipCallKitAdapter: NSObject, CXProviderDelegate, @uncheck
         Task {
             do {
                 let id = try await engine.makeCall(destination: action.handle.value, video: action.isVideo)
+                lock.withLock { _ = outgoing.insert(action.callUUID) }
                 bind(id, action.callUUID)
                 action.fulfill()
             } catch {

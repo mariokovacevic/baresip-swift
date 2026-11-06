@@ -43,6 +43,9 @@ final class CallModel: ObservableObject {
     private var pathMonitor: NWPathMonitor?
     private var lastPath: String?
     private var engineTLS: TLSSnapshot?
+    private var pendingApply = false
+    private var registeredSettings: SIPSettings?
+    private var previewAudioActive = false
     private let uiTest = ProcessInfo.processInfo.environment["BSK_UITEST"] == "1"
 
     var caSummaries: [String] { PEM.summaries(caCertificates) }
@@ -110,19 +113,25 @@ final class CallModel: ObservableObject {
         SettingsStore.turnPassword = turnPassword
         SettingsStore.caCertificates = caCertificates
         SettingsStore.clientCertificate = clientCertificate
-        if currentTLS != engineTLS {
-            if currentCall != nil {
-                append("certificates changed; they apply after the current call")
-            } else {
-                await restartEngine()
-            }
+        if currentCall != nil {
+            pendingApply = true
+            append("settings saved; they apply after the current call")
+            return
+        }
+        await applySaved()
+    }
+
+    private func applySaved() async {
+        if savedTLS != engineTLS {
+            await restartEngine()
         }
         await register()
     }
 
     func register() async {
         guard let engine else { return }
-        guard settings.isComplete else {
+        let saved = SettingsStore.load()
+        guard saved.isComplete else {
             registrationError = "Domain and username are required."
             return
         }
@@ -133,11 +142,13 @@ final class CallModel: ObservableObject {
                 try await engine.removeAccount(accountID)
                 self.accountID = nil
             }
-            let id = try await engine.addAccount(accountConfiguration())
+            let id = try await engine.addAccount(accountConfiguration(saved, password: SettingsStore.password,
+                                                                      turnPassword: SettingsStore.turnPassword))
             accountID = id
+            registeredSettings = saved
             push?.bind(accountID: id)
             try await engine.register(accountID: id)
-            append("registering \(settings.aor) via \(settings.registrar)")
+            append("registering \(saved.aor) via \(saved.registrar)")
         } catch {
             registrationError = "\(error)"
             append("register failed: \(error)")
@@ -174,12 +185,23 @@ final class CallModel: ObservableObject {
         guard let engine, let incoming, !previewing else { return }
         let video = incoming.hasVideo || incomingEarlyVideo
         do {
+            await activatePreviewAudio()
             try await engine.sendProgress(callID: incoming.id, earlyVideo: video)
             previewing = true
             videoEnabled = video
             append("previewing \(incoming.remoteURI) (they do not hear or see you)")
         } catch {
             append("preview failed: \(error)")
+        }
+    }
+
+    private func activatePreviewAudio() async {
+        guard !previewAudioActive, let audio else { return }
+        do {
+            try await audio.activate()
+            previewAudioActive = true
+        } catch {
+            append("audio for preview unavailable: \(error)")
         }
     }
 
@@ -254,11 +276,13 @@ final class CallModel: ObservableObject {
         try? audio?.setSpeakerEnabled(on)
     }
 
-    private var currentTLS: TLSSnapshot {
-        TLSSnapshot(ca: caCertificates, client: clientCertificate, pins: settings.pinList)
+    private var savedTLS: TLSSnapshot {
+        TLSSnapshot(ca: SettingsStore.caCertificates, client: SettingsStore.clientCertificate,
+                    pins: SettingsStore.load().pinList)
     }
 
-    private func accountConfiguration() -> BaresipAccountConfiguration {
+    private func accountConfiguration(_ settings: SIPSettings, password: String,
+                                      turnPassword: String) -> BaresipAccountConfiguration {
         var nat = BaresipNATConfiguration()
         if settings.useICE {
             nat.mode = .ice
@@ -281,7 +305,7 @@ final class CallModel: ObservableObject {
                                            authPassword: password,
                                            mediaEncryption: settings.mediaEncryption,
                                            nat: nat,
-                                           answerEarlyMedia: settings.autoPreview ?? false)
+                                           answerEarlyMedia: settings.autoPreview)
     }
 
     private func normalizedDestination(_ raw: String) -> String {
@@ -292,7 +316,7 @@ final class CallModel: ObservableObject {
         if value.contains("@") {
             return "sip:\(value)"
         }
-        return "sip:\(value)@\(settings.domain.trimmed)"
+        return "sip:\(value)@\((registeredSettings ?? settings).domain.trimmed)"
     }
 
     private func startEngine() async {
@@ -305,13 +329,14 @@ final class CallModel: ObservableObject {
                 config.audio = BaresipAudioConfiguration(sourceModule: "ausine", playerModule: "aufile",
                                                          playerDevice: NSTemporaryDirectory() + "speaker.wav")
             }
-            config.tls = BaresipTLSConfiguration(caCertificatesPEM: caCertificates,
-                                                 clientCertificatePEM: clientCertificate,
-                                                 pinnedSPKISHA256: settings.pinList)
+            let tls = savedTLS
+            config.tls = BaresipTLSConfiguration(caCertificatesPEM: tls.ca,
+                                                 clientCertificatePEM: tls.client,
+                                                 pinnedSPKISHA256: tls.pins)
             let engine = try BaresipEngine(configuration: config)
             engine.setLogHandler(BaresipOSLog.handler(subsystem: "com.example.BaresipKitSample"))
             self.engine = engine
-            engineTLS = currentTLS
+            engineTLS = tls
             eventTask = Task { [weak self] in
                 for await event in engine.events {
                     await self?.handle(event)
@@ -325,7 +350,7 @@ final class CallModel: ObservableObject {
             push = BaresipPushKitAdapter(engine: engine, appID: "com.example.BaresipKitSample") { [weak self] payload in
                 await self?.pushArrived(payload)
             }
-            append("engine started, core \(BaresipEngine.coreVersion), CA \(caCertificates == nil ? "system" : "custom"), client certificate \(clientCertificate == nil ? "none" : "set"), pins \(settings.pinList.count)")
+            append("engine started, core \(BaresipEngine.coreVersion), CA \(tls.ca == nil ? "system" : "custom"), client certificate \(tls.client == nil ? "none" : "set"), pins \(tls.pins.count)")
         } catch {
             append("engine start failed: \(error)")
         }
@@ -402,9 +427,10 @@ final class CallModel: ObservableObject {
             incoming = info
             incomingEarlyVideo = earlyVideo
             currentCall = info.id
-            if settings.autoPreview == true {
+            if registeredSettings?.autoPreview == true && callState == nil {
                 previewing = true
                 videoEnabled = info.hasVideo || earlyVideo
+                await activatePreviewAudio()
             }
             append("incoming call from \(info.remoteURI)\(earlyVideo ? " (early video offered)" : "")")
         case .call(let call, let state, let error):
@@ -422,10 +448,14 @@ final class CallModel: ObservableObject {
                 videoEnabled = false
                 previewing = false
                 incoming = nil
-                if currentTLS != engineTLS {
+                if previewAudioActive {
+                    previewAudioActive = false
+                    await audio?.deactivate()
+                }
+                if pendingApply {
+                    pendingApply = false
                     Task { [weak self] in
-                        await self?.restartEngine()
-                        await self?.register()
+                        await self?.applySaved()
                     }
                 }
             }

@@ -16,7 +16,30 @@ struct SIPSettings: Codable, Equatable {
     var stunURI = ""
     var turnURI = ""
     var turnUser = ""
-    var autoPreview: Bool?
+    var autoPreview = false
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = SIPSettings.defaults
+        domain = try c.decodeIfPresent(String.self, forKey: .domain) ?? d.domain
+        port = try c.decodeIfPresent(String.self, forKey: .port) ?? d.port
+        transport = try c.decodeIfPresent(BaresipTransport.self, forKey: .transport) ?? d.transport
+        username = try c.decodeIfPresent(String.self, forKey: .username) ?? d.username
+        authUser = try c.decodeIfPresent(String.self, forKey: .authUser) ?? d.authUser
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? d.displayName
+        outboundProxy = try c.decodeIfPresent(String.self, forKey: .outboundProxy) ?? d.outboundProxy
+        mediaEncryption = try c.decodeIfPresent(BaresipMediaEncryption.self, forKey: .mediaEncryption) ?? d.mediaEncryption
+        pins = try c.decodeIfPresent(String.self, forKey: .pins) ?? d.pins
+        useICE = try c.decodeIfPresent(Bool.self, forKey: .useICE) ?? d.useICE
+        stunURI = try c.decodeIfPresent(String.self, forKey: .stunURI) ?? d.stunURI
+        turnURI = try c.decodeIfPresent(String.self, forKey: .turnURI) ?? d.turnURI
+        turnUser = try c.decodeIfPresent(String.self, forKey: .turnUser) ?? d.turnUser
+        autoPreview = try c.decodeIfPresent(Bool.self, forKey: .autoPreview) ?? d.autoPreview
+    }
+
+    private static let defaults = SIPSettings()
 
     var isComplete: Bool {
         !domain.trimmed.isEmpty && !username.trimmed.isEmpty

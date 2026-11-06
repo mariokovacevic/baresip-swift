@@ -27,6 +27,7 @@ enum CertificateError: LocalizedError {
 struct PEMBlock {
     let label: String
     let der: Data
+    let encrypted: Bool
 }
 
 enum PEM {
@@ -35,17 +36,24 @@ enum PEM {
         var result: [PEMBlock] = []
         var label: String?
         var body = ""
+        var encrypted = false
         for rawLine in text.components(separatedBy: .newlines) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("-----BEGIN "), line.hasSuffix("-----") {
                 label = String(line.dropFirst(11).dropLast(5))
                 body = ""
+                encrypted = false
             } else if line.hasPrefix("-----END "), let current = label {
                 if let der = Data(base64Encoded: body) {
-                    result.append(PEMBlock(label: current, der: der))
+                    result.append(PEMBlock(label: current, der: der,
+                                           encrypted: encrypted || current.hasPrefix("ENCRYPTED")))
                 }
                 label = nil
-            } else if label != nil, !line.contains(":") {
+            } else if label != nil, line.contains(":") {
+                if line.hasPrefix("Proc-Type:") && line.contains("ENCRYPTED") || line.hasPrefix("DEK-Info:") {
+                    encrypted = true
+                }
+            } else if label != nil {
                 body += line
             }
         }
@@ -78,11 +86,11 @@ enum PEM {
         let all = blocks(data)
         let certs = all.filter { $0.label == "CERTIFICATE" }
         guard !certs.isEmpty else { throw CertificateError.noCertificate }
-        if all.contains(where: { $0.label == "ENCRYPTED PRIVATE KEY" }) {
-            throw CertificateError.encryptedKey
-        }
         guard let key = all.first(where: { $0.label.hasSuffix("PRIVATE KEY") }) else {
             throw CertificateError.noPrivateKey
+        }
+        if key.encrypted {
+            throw CertificateError.encryptedKey
         }
         for cert in certs where SecCertificateCreateWithData(nil, cert.der as CFData) == nil {
             throw CertificateError.invalidCertificate

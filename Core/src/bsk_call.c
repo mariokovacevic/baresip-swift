@@ -422,6 +422,8 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 
 
 static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video);
+static bool other_call_active(const bsk_engine *e,
+			      const struct bsk_call_ctx *c);
 
 
 void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
@@ -448,7 +450,7 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		bev.u.call_incoming.early_video =
 			call_early_video_available(call);
 		bsk_emit(e, &bev);
-		if (a && a->answer_early_media)
+		if (a && a->answer_early_media && !other_call_active(e, c))
 			(void)start_preview(e, c, true);
 		return;
 	}
@@ -805,19 +807,45 @@ static struct ua *call_ua(bsk_engine *e, struct bsk_call_ctx *c)
 }
 
 
+static enum sdp_dir preview_vdir(const struct bsk_call_ctx *c)
+{
+	return c->preview_video && call_has_video(c->call) ?
+		SDP_RECVONLY : SDP_INACTIVE;
+}
+
+
 static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video)
 {
 	int err;
 
-	err = call_progress_dir(c->call, SDP_RECVONLY,
-				video && call_has_video(c->call) ?
-				SDP_RECVONLY : SDP_INACTIVE);
+	c->preview_video = video;
+	err = call_progress_dir(c->call, SDP_RECVONLY, preview_vdir(c));
 	if (err && err != EAGAIN)
 		return err;
 
 	c->early_preview = true;
 	emit_state(e, c, BSK_CALL_EARLY_MEDIA, NULL);
 	return 0;
+}
+
+
+static bool other_call_active(const bsk_engine *e,
+			      const struct bsk_call_ctx *c)
+{
+	struct le *le;
+
+	for (le = e->calls.head; le; le = le->next) {
+		const struct bsk_call_ctx *o = le->data;
+
+		if (o == c || !o->call)
+			continue;
+		if (o->state == BSK_CALL_ENDED || o->state == BSK_CALL_FAILED ||
+		    o->state == BSK_CALL_RELEASED)
+			continue;
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -833,13 +861,18 @@ static int answer_op(bsk_engine *e, void *arg)
 		return EALREADY;
 
 	c->video = ca->flag;
-	if (c->early_preview) {
+	if (c->early_preview)
 		call_set_mdir(c->call, SDP_SENDRECV,
 			      ca->flag ? SDP_SENDRECV : SDP_INACTIVE);
+
+	err = ua_answer(call_ua(e, c), c->call,
+			ca->flag ? VIDMODE_ON : VIDMODE_OFF);
+	if (err && c->early_preview)
+		call_set_mdir(c->call, SDP_RECVONLY, preview_vdir(c));
+	else if (!err)
 		c->early_preview = false;
-	}
-	return ua_answer(call_ua(e, c), c->call,
-			 ca->flag ? VIDMODE_ON : VIDMODE_OFF);
+
+	return err;
 }
 
 

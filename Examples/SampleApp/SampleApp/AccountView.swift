@@ -115,9 +115,7 @@ struct AccountView: View {
             }
 
             Section {
-                Toggle("Preview incoming calls automatically", isOn: Binding(
-                    get: { model.settings.autoPreview ?? false },
-                    set: { model.settings.autoPreview = $0 }))
+                Toggle("Preview incoming calls automatically", isOn: $model.settings.autoPreview)
             } header: {
                 Text("Incoming calls")
             } footer: {
