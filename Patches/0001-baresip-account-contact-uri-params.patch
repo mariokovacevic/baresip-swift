@@ -1,0 +1,180 @@
+diff --git a/include/baresip.h b/include/baresip.h
+index 3c0d2c4..dea4a37 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -151,6 +151,8 @@ bool account_mwi(const struct account *acc);
+ bool account_call_transfer(const struct account *acc);
+ bool account_rtcp_mux(const struct account *acc);
+ const char *account_extra(const struct account *acc);
++int account_set_contact_params(struct account *acc, const char *cparams);
++const char *account_contact_params(const struct account *acc);
+ int account_uri_complete_strdup(const struct account *acc, char **strp,
+ 				const struct pl *uri);
+ int account_uri_complete(const struct account *acc, struct mbuf *buf,
+@@ -977,6 +979,7 @@ int  ua_print_status(struct re_printf *pf, const struct ua *ua);
+ int  ua_print_supported(struct re_printf *pf, const struct ua *ua);
+ int  ua_update_account(struct ua *ua);
+ int  ua_register(struct ua *ua);
++int  ua_set_contact_params(struct ua *ua, const char *cparams);
+ int  ua_fallback(struct ua *ua);
+ void ua_unregister(struct ua *ua);
+ void ua_stop_register(struct ua *ua);
+diff --git a/src/account.c b/src/account.c
+index fecaeb5..80dd461 100644
+--- a/src/account.c
++++ b/src/account.c
+@@ -46,6 +46,7 @@ static void destructor(void *arg)
+ 	mem_deref(acc->viddisp_dev);
+ 	mem_deref(acc->cert);
+ 	mem_deref(acc->extra);
++	mem_deref(acc->cparams);
+ 	mem_deref(acc->uas_user);
+ 	mem_deref(acc->uas_pass);
+ }
+@@ -1910,6 +1911,44 @@ const char *account_extra(const struct account *acc)
+ }
+ 
+ 
++/**
++ * Set Contact URI parameters that are added to the Contact header of
++ * REGISTER requests. The string must be a pre-formatted list of
++ * "name=value" pairs separated by ';' without a leading ';'.
++ * The parameters are applied on the next (re-)registration.
++ *
++ * @param acc     User-Agent account
++ * @param cparams Contact URI parameters, NULL to clear
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int account_set_contact_params(struct account *acc, const char *cparams)
++{
++	if (!acc)
++		return EINVAL;
++
++	acc->cparams = mem_deref(acc->cparams);
++
++	if (str_isset(cparams))
++		return str_dup(&acc->cparams, cparams);
++
++	return 0;
++}
++
++
++/**
++ * Get the Contact URI parameters of an account
++ *
++ * @param acc User-Agent account
++ *
++ * @return Contact URI parameters or NULL
++ */
++const char *account_contact_params(const struct account *acc)
++{
++	return acc ? acc->cparams : NULL;
++}
++
++
+ /**
+  * Auto complete a SIP uri, add scheme and domain if missing
+  *
+diff --git a/src/core.h b/src/core.h
+index 440842e..6c8b90b 100644
+--- a/src/core.h
++++ b/src/core.h
+@@ -87,6 +87,7 @@ struct account {
+ 	char *viddisp_dev;
+ 	uint32_t autelev_pt;         /**< Payload type for telephone-events  */
+ 	char *extra;                 /**< Extra parameters                   */
++	char *cparams;               /**< Contact URI parameters (REGISTER)  */
+ 	char *uas_user;              /**< UAS authentication username        */
+ 	char *uas_pass;              /**< UAS authentication password        */
+ 	bool rtcp_mux;               /**< RTCP multiplexing                  */
+@@ -229,6 +230,7 @@ int  reg_add(struct list *lst, struct ua *ua, int regid);
+ int  reg_register(struct reg *reg, const char *reg_uri,
+ 		    const char *params, uint32_t regint, const char *outbound);
+ void reg_unregister(struct reg *reg);
++int  reg_set_contact_params(struct reg *reg, const char *cparams);
+ void reg_stop(struct reg *reg);
+ bool reg_isok(const struct reg *reg);
+ bool reg_failed(const struct reg *reg);
+diff --git a/src/reg.c b/src/reg.c
+index 2ce1d71..9ac0741 100644
+--- a/src/reg.c
++++ b/src/reg.c
+@@ -259,6 +259,9 @@ int reg_register(struct reg *reg, const char *reg_uri, const char *params,
+ 	if (err)
+ 		return err;
+ 
++	if (acc && str_isset(acc->cparams))
++		err = sipreg_set_contact_params(reg->sipreg, acc->cparams);
++
+ 	if (acc && acc->rwait)
+ 		err = sipreg_set_rwait(reg->sipreg, acc->rwait);
+ 
+@@ -280,6 +283,24 @@ int reg_register(struct reg *reg, const char *reg_uri, const char *params,
+ }
+ 
+ 
++int reg_set_contact_params(struct reg *reg, const char *cparams)
++{
++	int err;
++
++	if (!reg)
++		return EINVAL;
++
++	if (!reg->sipreg)
++		return 0;
++
++	err = sipreg_set_contact_params(reg->sipreg, cparams);
++	if (err)
++		return err;
++
++	return sipreg_send(reg->sipreg);
++}
++
++
+ void reg_unregister(struct reg *reg)
+ {
+ 	if (!reg)
+diff --git a/src/ua.c b/src/ua.c
+index 501cc8e..e85883c 100644
+--- a/src/ua.c
++++ b/src/ua.c
+@@ -265,6 +265,38 @@ int ua_register(struct ua *ua)
+ }
+ 
+ 
++/**
++ * Update the Contact URI parameters of a User-Agent. The value is
++ * stored on the account and applied to every active registration
++ * client, which immediately sends a REGISTER with the new Contact.
++ * No unregister is sent and the registration client is not recreated.
++ *
++ * @param ua      User-Agent
++ * @param cparams Contact URI parameters, NULL to clear
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int ua_set_contact_params(struct ua *ua, const char *cparams)
++{
++	struct le *le;
++	int err;
++
++	if (!ua)
++		return EINVAL;
++
++	err = account_set_contact_params(ua->acc, cparams);
++	if (err)
++		return err;
++
++	for (le = ua->regl.head; le; le = le->next) {
++		err |= reg_set_contact_params(le->data,
++					      account_contact_params(ua->acc));
++	}
++
++	return err;
++}
++
++
+ /**
+  * Start fallback registration checks (Cisco-keep-alive) of a User-Agent. These
+  * are in the sense of RFC3261 REGISTER requests with expire set to zero. A

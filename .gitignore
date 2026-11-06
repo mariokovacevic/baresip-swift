@@ -60,3 +60,9 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+# BaresipKit build outputs
+Build/.deps/
+Build/out/
+Tools/ContactParameterProof/build/
+Tools/ContactParameterProof/trace*.txt
