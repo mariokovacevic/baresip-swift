@@ -127,6 +127,7 @@ static int run_relay(const char *host, const char *ca, size_t ca_len)
 	cfg.tls.ca_pem_len = ca_len;
 	cfg.log_level = BSK_LOG_INFO;
 	cfg.ice_relay_only = true;
+	cfg.log_sip_trace = true;
 
 	CHECK_OK(bsk_engine_create(&cfg, on_event, NULL, &e, &err), &err);
 	bsk_engine_set_log_handler(e, test_log, "relay ");
