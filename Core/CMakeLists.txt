@@ -37,7 +37,10 @@ add_library(baresipkitcore STATIC ${BSK_SOURCES})
 
 target_include_directories(baresipkitcore
   PUBLIC include
-  PRIVATE ${BARESIP_INCLUDE_DIR} src/apple ${OPENSSL_INCLUDE_DIR}
+  PRIVATE src/apple
+)
+target_include_directories(baresipkitcore SYSTEM
+  PRIVATE ${BARESIP_INCLUDE_DIR} ${OPENSSL_INCLUDE_DIR}
 )
 if(APPLE)
   target_compile_definitions(baresipkitcore PRIVATE BSK_HAVE_APPLE_VIDEO=1)
@@ -46,7 +49,7 @@ if(APPLE)
     "-framework VideoToolbox" "-framework Foundation")
 endif()
 target_compile_definitions(baresipkitcore PRIVATE ${BARESIPKIT_RE_DEFINITIONS})
-target_compile_options(baresipkitcore PRIVATE -Wall -Wextra -Wshadow -Wno-unused-parameter -Werror=uninitialized -Werror=implicit-function-declaration -Werror=incompatible-pointer-types)
+target_compile_options(baresipkitcore PRIVATE -Wall -Wextra -Wshadow -Werror)
 target_link_libraries(baresipkitcore PUBLIC ${BARESIP_LIBRARY} libre::libre)
 
 if(BARESIPKIT_EXTRA_LIBS)
