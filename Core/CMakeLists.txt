@@ -17,9 +17,14 @@ endif()
 
 set(BSK_SOURCES
   src/bsk_engine.c
+  src/bsk_engine_control.c
+  src/bsk_config.c
+  src/bsk_status.c
   src/bsk_log.c
   src/bsk_account.c
   src/bsk_call.c
+  src/bsk_call_media.c
+  src/bsk_call_ops.c
   src/bsk_video.c
   src/bsk_tls.c
   src/bsk_rate.c
