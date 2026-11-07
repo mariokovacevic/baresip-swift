@@ -11,6 +11,90 @@ from fake_registrar import build_response, check_digest, header, REALM
 
 HOST = os.environ.get("REGISTRAR_HOST", "127.0.0.1")
 PORT = int(os.environ.get("REGISTRAR_PORT", "5081"))
+DEFAULT_SIP_PORT = 5060
+
+tls_connections = {}
+tls_lock = threading.Lock()
+udp_socket = None
+
+
+def split_message(raw):
+    head, _, body = raw.partition(b"\r\n\r\n")
+    return head.decode(errors="replace").split("\r\n"), body
+
+
+def join_message(lines, body):
+    return ("\r\n".join(lines) + "\r\n\r\n").encode() + body
+
+
+def uri_target(uri):
+    m = re.search(r"sips?:(?:[^@;>]+@)?([^:;>]+)(?::(\d+))?([^>]*)", uri)
+    host, port, params = m.group(1), m.group(2), m.group(3)
+    transport = "tls" if "transport=tls" in params.lower() or uri.startswith("sips:") else "udp"
+    return host, int(port) if port else DEFAULT_SIP_PORT, transport
+
+
+def send(transport, host, port, data, trace):
+    trace.write("---- proxy -> %s %s:%d ----\n%s\n" % (transport, host, port, data.split(b"\r\n\r\n")[0].decode(errors="replace")))
+    trace.flush()
+    if transport == "tls":
+        with tls_lock:
+            conn = tls_connections.get((host, port))
+            if conn:
+                conn.sendall(data)
+                return
+    udp_socket.sendto(data, (host, port))
+
+
+def is_own_route(line):
+    return line.lower().startswith("route:") and (":%d" % PORT) in line and HOST in line
+
+
+def forward_request(raw, trace):
+    lines, body = split_message(raw)
+    host, port, transport = uri_target(lines[0].split(" ")[1])
+    lines = [l for l in lines if not is_own_route(l)]
+    branch = "z9hG4bK-proxy-" + os.urandom(6).hex()
+    lines.insert(1, "Via: SIP/2.0/UDP %s:%d;branch=%s;rport" % (HOST, PORT, branch))
+    to = header("\r\n".join(lines) + "\r\n", "To") or ""
+    if lines[0].startswith("INVITE ") and ";tag=" not in to:
+        lines.insert(2, "Record-Route: <sip:%s:%d;transport=udp;lr>" % (HOST, PORT))
+    send(transport, host, port, join_message(lines, body), trace)
+
+
+def route_response(raw, trace):
+    lines, body = split_message(raw)
+    vias = [i for i, l in enumerate(lines) if l.lower().startswith("via:")]
+    if not vias or "z9hG4bK-proxy-" not in lines[vias[0]]:
+        return
+    del lines[vias[0]]
+    if len(vias) < 2:
+        return
+    via = lines[vias[1] - 1]
+    m = re.search(r"SIP/2\.0/(\w+)\s+([^:;\s]+)(?::(\d+))?", via)
+    transport = m.group(1).lower()
+    received = re.search(r"received=([^;\s]+)", via)
+    host = received.group(1) if received else m.group(2)
+    rport = re.search(r"rport=(\d+)", via)
+    port = int(rport.group(1)) if rport else int(m.group(3) or DEFAULT_SIP_PORT)
+    send("tls" if transport == "tls" else "udp", host, port, join_message(lines, body), trace)
+
+
+def dispatch(raw, trace):
+    if raw.startswith(b"SIP/2.0"):
+        route_response(raw, trace)
+    else:
+        forward_request(raw, trace)
+
+
+def udp_loop(trace):
+    while True:
+        try:
+            data, addr = udp_socket.recvfrom(65535)
+        except OSError:
+            return
+        trace.write("---- udp %s:%d -> proxy ----\n%s\n" % (addr[0], addr[1], data.split(b"\r\n\r\n")[0].decode(errors="replace")))
+        dispatch(data, trace)
 
 
 def handle(conn, trace, nonce):
@@ -28,10 +112,14 @@ def handle(conn, trace, nonce):
                 clen = int(header(req, "Content-Length") or "0")
                 if len(rest) < clen:
                     break
+                body = rest[:clen]
                 buf = rest[clen:]
                 trace.write("---- tls %s -> registrar ----\n%s" % (conn.getpeername()[0], req))
+                with tls_lock:
+                    tls_connections[conn.getpeername()[:2]] = conn
                 if not req.startswith("REGISTER "):
-                    resp = build_response(req, "405 Method Not Allowed")
+                    dispatch(head + b"\r\n\r\n" + body, trace)
+                    continue
                 else:
                     auth = header(req, "Authorization")
                     if not auth or not check_digest(auth, "REGISTER"):
@@ -45,7 +133,8 @@ def handle(conn, trace, nonce):
                         exp = m.group(1) if m else (header(req, "Expires") or "3600")
                         contact_echo = re.sub(r";expires=\d+", "", contact)
                         resp = build_response(req, "200 OK", "Contact: %s;expires=%s\r\n" % (contact_echo, exp))
-                conn.sendall(resp.encode())
+                with tls_lock:
+                    conn.sendall(resp.encode())
                 trace.write("---- registrar -> tls ----\n%s" % resp)
                 trace.flush()
     except (socket.timeout, ssl.SSLError, ConnectionResetError, OSError):
@@ -71,6 +160,10 @@ def main():
     srv.settimeout(float(os.environ.get("REGISTRAR_IDLE_TIMEOUT", "6")))
     nonce = os.urandom(8).hex()
     trace = open(trace_path, "w")
+    global udp_socket
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.bind((HOST, PORT))
+    threading.Thread(target=udp_loop, args=(trace,), daemon=True).start()
     handled = 0
     failed_handshakes = 0
     while True:
