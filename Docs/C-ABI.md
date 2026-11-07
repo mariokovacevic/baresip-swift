@@ -52,5 +52,4 @@ Header: `Core/include/baresip_kit.h`. The header compiles as C11 and C++17 with 
 ## Open points for review
 
 1. Audio I/O injection (external audio source/sink) is deliberately left out of revision 0.1; adding it means exposing `ausrc`/`auplay` style callbacks on media threads.
-2. `bsk_engine_config.tls.pinned_spki_sha256_base64` depends on the planned libre verify-hook patch; until then it returns `BSK_ERR_UNSUPPORTED` when non-empty.
-3. Whether `bsk_call_make` should accept per-call custom headers (baresip supports `call_set_custom_hdrs`). Proposed: yes, in revision 0.2.
+2. Whether `bsk_call_make` should accept per-call custom headers (baresip supports `call_set_custom_hdrs`). Proposed: yes, in revision 0.2.

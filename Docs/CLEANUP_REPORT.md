@@ -19,6 +19,7 @@ The code quality and open-source readiness pass described in [CLEANUP_AUDIT.md](
 - Every `@unchecked Sendable` and every unsafe pointer boundary has a `// SAFETY:` note naming the invariant. CallKit actions and push payloads cross into tasks through a documented box.
 - No force unwraps, `try!` or `fatalError` outside tests; the UI test no longer uses an implicitly unwrapped optional.
 - The C facade compiles with `-Wall -Wextra -Wshadow -Werror`; third-party headers are included as system headers.
+- `bsk_call.c` is split into call state and events (`bsk_call.c`), operations (`bsk_call_ops.c`) and media (`bsk_call_media.c`); `bsk_engine.c` into the engine thread (`bsk_engine.c`), lifecycle hooks (`bsk_engine_control.c`), configuration (`bsk_config.c`) and status and capabilities (`bsk_status.c`). Shared helpers carry the `bsk_call_` and `bsk_engine_` prefixes in private headers.
 - Magic numbers in the touched code became named constants (SIP status codes in the CallKit adapter, recorder timing, time unit conversions).
 
 ### Tooling
@@ -66,6 +67,7 @@ Reported separately because they change behavior:
 - `BaresipCallKitAdapter` kept itself alive through its event loop.
 - `reject(callID:statusCode:)` trapped for status codes outside `UInt16`.
 - Unknown media events from a newer core were reported as `.audioStarted`.
+- `bsk_capabilities()` still listed H.264, ICE restart and TLS pinning as planned or unsupported, and missed TURN over TCP and TLS, SIP MESSAGE, recording and adaptive bitrate; a unit test now checks the list.
 - In the CallKit adapter, a `where` clause in a multi-pattern `case` would have reported outgoing progress for incoming calls; it was rewritten so the condition applies to every pattern.
 
 ## Intentionally left
@@ -74,7 +76,7 @@ Reported separately because they change behavior:
 - The C tests stay in `Tests/Core`, `Tests/Fuzz` and `Tests/Integration`; they are C programs and shell scripts, not XCTest targets.
 - `Tools/ContactParameterProof` stays: CI uses its TLS registrar for the sample app UI test.
 - The release workflow is started manually with a version instead of on tag pushes. SwiftPM needs the XCFramework's URL and checksum inside the tagged `Package.swift`, so the workflow builds the framework first, commits the checksum, then creates the tag and the release.
-- Large C files (`bsk_call.c`, `bsk_engine.c`, `vidtoolbox.c`) were formatted but not split. Splitting them touches every internal function's linkage and is best done as its own change with the C test suite as a safety net.
+- `vidtoolbox.c` (the H.264 encoder and decoder) was formatted but not split: it is a single baresip codec module whose encoder and decoder share its state and registration.
 
 ## Open risks
 

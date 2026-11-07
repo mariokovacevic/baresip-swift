@@ -25,9 +25,17 @@ Built from pinned upstream sources by `Build/build-xcframework.sh` with the patc
 
 | File | Responsibility |
 |---|---|
-| `bsk_engine.c` | engine thread running libre's `re_main`, synchronous call marshalling through an `mqueue`, start/stop, lifecycle hooks (push wake-up, suspend/resume, network change, audio session) |
+| `bsk_engine.c` | engine thread running libre's `re_main`, synchronous call marshalling through an `mqueue`, create, start, stop and destroy |
+| `bsk_engine_control.c` | lifecycle hooks: push wake-up, suspend and resume, network change, audio session |
+| `bsk_config.c` | copying the engine configuration and generating the baresip configuration and TLS setup |
+| `bsk_status.c` | version, status strings, errors and the capability list |
 | `bsk_account.c` | accounts, registration state machine, Contact URI parameters with in-place updates |
-| `bsk_call.c` | calls, the 14-state call machine, DTMF sequences, hold/resume, mute, media direction, transfer, statistics, ICE events |
+| `bsk_call.c` | the 14-state call machine, call events, incoming transfers, early media preview, ICE events, placing calls |
+| `bsk_call_ops.c` | call operations: answer, reject, hang up, hold, active call, DTMF sequences, mute, media direction, camera, recording, transfers, info and statistics |
+| `bsk_call_media.c` | ICE restart, the adaptive video bitrate loop and media statistics |
+| `bsk_message.c` | SIP MESSAGE sending and receiving |
+| `bsk_record.c` | call recording to stereo WAV |
+| `bsk_rate.c` | the loss-based video bitrate controller |
 | `bsk_video.c` | frame sinks (remote via a `vidisp`, local via a `vidfilt` tap), camera preview, device list |
 | `bsk_tls.c` | SPKI SHA-256 pinning on top of the libre verify handler (patch 0004) |
 | `bsk_log.c` | log routing with redaction of Digest responses, push tokens and passwords, SIP trace routing |

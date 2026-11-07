@@ -33,6 +33,7 @@ All notable changes to this project are documented here. The format follows
 
 - `BaresipCallKitAdapter` could not be released because its event loop kept a strong reference.
 - `reject(callID:statusCode:reason:)` trapped for status codes outside `UInt16`.
+- `bsk_capabilities()` and `BaresipEngine.capabilities` reported implemented features as planned or unsupported.
 
 ## [0.1.0]
 
