@@ -162,7 +162,7 @@ jobs:
             -destination "id=${SIM_UDID}" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= 2>&1 \
             | tee "$OUT/uitest.log" | grep -E "Test Case|error:|XCTAssert|failed|TEST (SUCCEEDED|FAILED)" || true
           if ! grep -q "TEST SUCCEEDED" "$OUT/uitest.log"; then
-            grep -A120 "not found in:" "$OUT/uitest.log" | head -150 || true
+            grep -E -A140 "not found in:|not hittable in:" "$OUT/uitest.log" | head -170 || true
             tail -60 "$OUT/uitest.log"
             echo "--- registrar trace"; tail -60 "$OUT/registrar-trace.txt" || true
             echo "--- peer"; cat "$OUT/peer.out"; grep -E "CHECK|call|SIP/2.0|INVITE" "$OUT/peer.err" | tail -40 || true

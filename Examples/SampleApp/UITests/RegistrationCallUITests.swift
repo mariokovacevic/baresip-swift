@@ -54,6 +54,11 @@ final class RegistrationCallUITests: XCTestCase {
     private func openAccount() {
         let link = app.buttons["account.link"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
+        dismissSystemPrompts()
+        if !link.isHittable {
+            XCTFail("account.link not hittable in:\n\(app.debugDescription)")
+            return
+        }
         link.tap()
         XCTAssertTrue(field("account.domain").waitForExistence(timeout: 5))
     }
@@ -72,6 +77,7 @@ final class RegistrationCallUITests: XCTestCase {
     }
 
     private func type(_ text: String, into field: XCUIElement) {
+        dismissSystemPrompts()
         scrollTo(field)
         guard field.exists else {
             XCTFail("\(field) not found in:\n\(app.debugDescription)")
@@ -117,6 +123,15 @@ final class RegistrationCallUITests: XCTestCase {
         let notNow = app.buttons["Not Now"]
         if notNow.waitForExistence(timeout: 3) {
             notNow.tap()
+        }
+    }
+
+    private func dismissSystemPrompts() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for owner in [app, springboard] {
+            for label in ["Not Now", "Allow", "OK"] where owner.buttons[label].exists {
+                owner.buttons[label].tap()
+            }
         }
     }
 
