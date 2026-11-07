@@ -37,7 +37,7 @@ Consumers add the package by URL in Xcode (File > Add Package Dependencies) once
 
 ## Releasing
 
-Run the **Release** workflow from the Actions tab with a version such as `1.0.0`. It builds the XCFramework on a macOS runner, writes the release URL and checksum into `Package.swift`, commits and tags `v<version>`, and creates a GitHub release with the XCFramework zip and a zip of the license texts. The checksum changes with every rebuild because the archives carry timestamps, so it is always computed from the exact zip that is published.
+Run the **Release** workflow from the Actions tab with a version such as `1.0.0`. It checks out `source_ref` (`main` by default), builds the XCFramework on a macOS runner, writes the release URL and checksum into `Package.swift` in a release commit on top of it, pushes only the tag `v<version>` that points to that commit, and creates a GitHub release with the XCFramework zip, its checksum and a zip of the license texts. The branch itself is not changed: SwiftPM resolves versions by tag. The checksum changes with every rebuild because the archives carry timestamps, so it is always computed from the exact zip that is published.
 
 ## Host build and core tests
 
