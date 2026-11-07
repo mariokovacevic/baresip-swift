@@ -1,5 +1,6 @@
 #include <string.h>
 #include "bsk_internal.h"
+#include "bsk_call_internal.h"
 
 
 struct bsk_call_ctx *bsk_call_find(bsk_engine *engine, bsk_call_id id)
@@ -101,7 +102,7 @@ static bsk_media_direction map_dir(enum sdp_dir dir)
 }
 
 
-static enum sdp_dir unmap_dir(bsk_media_direction dir)
+enum sdp_dir bsk_call_unmap_dir(bsk_media_direction dir)
 {
 	switch (dir) {
 	case BSK_DIR_SENDONLY: return SDP_SENDONLY;
@@ -112,7 +113,7 @@ static enum sdp_dir unmap_dir(bsk_media_direction dir)
 }
 
 
-static void fill_info(struct bsk_call_ctx *c, bsk_call_info *info)
+void bsk_call_fill_info(struct bsk_call_ctx *c, bsk_call_info *info)
 {
 	struct call *call = c->call;
 	const struct aucodec *ac;
@@ -152,8 +153,8 @@ static void fill_info(struct bsk_call_ctx *c, bsk_call_info *info)
 }
 
 
-static void emit_state(bsk_engine *e, struct bsk_call_ctx *c,
-		       bsk_call_state state, const bsk_error *error)
+void bsk_call_emit_state(bsk_engine *e, struct bsk_call_ctx *c,
+			 bsk_call_state state, const bsk_error *error)
 {
 	bsk_event ev;
 
@@ -173,8 +174,8 @@ static void emit_state(bsk_engine *e, struct bsk_call_ctx *c,
 }
 
 
-static void emit_media(bsk_engine *e, struct bsk_call_ctx *c,
-		       bsk_media_event me, const char *detail)
+void bsk_call_emit_media(bsk_engine *e, struct bsk_call_ctx *c,
+			 bsk_media_event me, const char *detail)
 {
 	bsk_event ev;
 	enum sdp_dir adir = SDP_INACTIVE, vdir = SDP_INACTIVE;
@@ -195,7 +196,7 @@ static void emit_media(bsk_engine *e, struct bsk_call_ctx *c,
 }
 
 
-static void apply_audio_activation(bsk_engine *e, struct bsk_call_ctx *c)
+void bsk_call_apply_audio_activation(bsk_engine *e, struct bsk_call_ctx *c)
 {
 	struct audio *au = c->call ? call_audio(c->call) : NULL;
 
@@ -211,192 +212,6 @@ static void apply_audio_activation(bsk_engine *e, struct bsk_call_ctx *c)
 	} else {
 		(void)audio_set_source(au, NULL, NULL);
 		(void)audio_set_player(au, NULL, NULL);
-	}
-}
-
-
-static bool call_uses_ice(const struct bsk_call_ctx *c)
-{
-	const char *mnat;
-
-	if (!c->call)
-		return false;
-
-	mnat = account_medianat(call_account(c->call));
-
-	return mnat && 0 == str_casecmp(mnat, "ice");
-}
-
-
-static int restart_ice(struct bsk_call_ctx *c)
-{
-	int err;
-
-	if (!call_uses_ice(c))
-		return ENOSYS;
-
-	if (!call_refresh_allowed(c->call))
-		return EBUSY;
-
-	err = call_restart_mnat(c->call);
-	if (err == ENOTSUP)
-		return EALREADY;
-
-	return err;
-}
-
-
-static uint32_t video_cap(const bsk_engine *e, const struct bsk_call_ctx *c)
-{
-	if (c->video_max_bitrate && c->video_max_bitrate < e->video_bitrate)
-		return c->video_max_bitrate;
-
-	return e->video_bitrate;
-}
-
-
-static void rate_apply(bsk_engine *e, struct bsk_call_ctx *c, bool force)
-{
-	struct video *v = call_video(c->call);
-	struct stream *vs = video_strm(v);
-	const struct rtcp_stats *rs;
-	uint32_t cap, target;
-
-	if (!vs || !video_bitrate(v))
-		return;
-
-	cap = video_cap(e, c);
-
-	if (!c->rate_init) {
-		bsk_rate_init(&c->rate, video_bitrate(v), e->video_min_bitrate,
-			      cap, bsk_now_ms());
-		c->rate_init = true;
-	}
-
-	bsk_rate_set_max(&c->rate, cap);
-
-	if (!e->video_adaptive) {
-		c->rate.current = cap;
-	} else if (!force) {
-		rs = stream_rtcp_stats(vs);
-		if (rs)
-			(void)bsk_rate_update(&c->rate, rs->tx.sent,
-					      rs->tx.lost, bsk_now_ms());
-	}
-
-	target = c->rate.current;
-	if (target && target != video_bitrate(v))
-		(void)video_set_bitrate(v, target);
-}
-
-
-void bsk_calls_rate_tick(bsk_engine *engine)
-{
-	struct le *le;
-
-	for (le = engine->calls.head; le; le = le->next) {
-		struct bsk_call_ctx *c = le->data;
-
-		if (!c->call)
-			continue;
-		if (!engine->video_adaptive && !c->video_max_bitrate)
-			continue;
-
-		rate_apply(engine, c, false);
-	}
-}
-
-
-void bsk_calls_audio_changed(bsk_engine *engine)
-{
-	struct le *le;
-
-	for (le = engine->calls.head; le; le = le->next)
-		apply_audio_activation(engine, le->data);
-}
-
-
-static void fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
-{
-	struct stream *as, *vs;
-	const struct rtcp_stats *rs;
-	struct jbuf_stat js;
-
-	memset(st, 0, sizeof(*st));
-	st->id = c->id;
-
-	if (!c->call)
-		return;
-
-	as = audio_strm(call_audio(c->call));
-	vs = video_strm(call_video(c->call));
-
-	if (as) {
-		st->audio.tx_packets = stream_metric_get_tx_n_packets(as);
-		st->audio.rx_packets = stream_metric_get_rx_n_packets(as);
-		st->audio.tx_bytes = stream_metric_get_tx_n_bytes(as);
-		st->audio.rx_bytes = stream_metric_get_rx_n_bytes(as);
-		st->audio.tx_bitrate_bps = stream_metric_get_tx_bitrate(as);
-		st->audio.rx_bitrate_bps = stream_metric_get_rx_bitrate(as);
-		st->audio.secure = stream_is_secure(as);
-		rs = stream_rtcp_stats(as);
-		if (rs) {
-			st->audio.rx_lost = rs->rx.lost;
-			st->audio.rx_jitter_ms = rs->rx.jit / 1000;
-			st->audio.rtt_ms = rs->rtt / 1000;
-			if (rs->rx.sent + (uint32_t)rs->rx.lost)
-				st->audio.rx_fraction_lost_permille =
-					(uint32_t)((uint64_t)rs->rx.lost *
-						   1000 /
-						   (rs->rx.sent + rs->rx.lost));
-		}
-		if (0 == stream_jbuf_stats(as, &js))
-			st->audio.jitter_buffer_delay_ms = js.c_delay;
-	}
-
-	if (vs) {
-		st->video.tx_packets = stream_metric_get_tx_n_packets(vs);
-		st->video.rx_packets = stream_metric_get_rx_n_packets(vs);
-		st->video.tx_bytes = stream_metric_get_tx_n_bytes(vs);
-		st->video.rx_bytes = stream_metric_get_rx_n_bytes(vs);
-		st->video.tx_bitrate_bps = stream_metric_get_tx_bitrate(vs);
-		st->video.rx_bitrate_bps = stream_metric_get_rx_bitrate(vs);
-		st->video.secure = stream_is_secure(vs);
-		st->video_target_bitrate_bps =
-			video_bitrate(call_video(c->call));
-		rs = stream_rtcp_stats(vs);
-		if (rs) {
-			st->video.rx_lost = rs->rx.lost;
-			st->video.rx_jitter_ms = rs->rx.jit / 1000;
-			st->video.rtt_ms = rs->rtt / 1000;
-		}
-	}
-
-	st->ice_state = c->ice_state;
-	st->local_candidate = c->ice_local_type;
-	st->remote_candidate = c->ice_remote_type;
-	str_ncpy(st->local_address, c->ice_local_addr,
-		 sizeof(st->local_address));
-	str_ncpy(st->remote_address, c->ice_remote_addr,
-		 sizeof(st->remote_address));
-
-	{
-		double loss = st->audio.rx_fraction_lost_permille / 10.0;
-		double delay = st->audio.rtt_ms / 2.0 +
-			       st->audio.jitter_buffer_delay_ms + 20.0;
-		double r = 93.2;
-		if (delay > 160.0)
-			r -= 0.024 * delay + 0.11 * (delay - 177.3);
-		else
-			r -= 0.024 * delay;
-		r -= 11.0 + 40.0 * loss / (loss + 10.0);
-		if (r < 0)
-			r = 0;
-		if (r > 100)
-			r = 100;
-		st->mos_estimate =
-			(float)(1.0 + 0.035 * r +
-				r * (r - 60.0) * (100.0 - r) * 7.0e-6);
 	}
 }
 
@@ -421,16 +236,17 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 
 	if (c->recording) {
 		(void)bsk_record_stop(&c->recording);
-		emit_media(e, c, BSK_MEDIA_RECORDING_STOPPED, NULL);
+		bsk_call_emit_media(e, c, BSK_MEDIA_RECORDING_STOPPED, NULL);
 	}
-	emit_state(e, c, failed ? BSK_CALL_FAILED : BSK_CALL_ENDED, &error);
+	bsk_call_emit_state(e, c, failed ? BSK_CALL_FAILED : BSK_CALL_ENDED,
+			    &error);
 	c->call = NULL;
-	emit_state(e, c, BSK_CALL_RELEASED, NULL);
+	bsk_call_emit_state(e, c, BSK_CALL_RELEASED, NULL);
 	mem_deref(c);
 }
 
 
-static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video);
+int bsk_call_start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video);
 
 
 static void follow_transfer(bsk_engine *e, struct bsk_call_ctx *c,
@@ -492,7 +308,7 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		bsk_event_init(&bev, BSK_EVENT_CALL_INCOMING);
 		bev.account = c->account;
 		bev.call = c->id;
-		fill_info(c, &bev.u.call_incoming.info);
+		bsk_call_fill_info(c, &bev.u.call_incoming.info);
 		bev.u.call_incoming.early_video =
 			call_early_video_available(call);
 		bsk_emit(e, &bev);
@@ -505,7 +321,7 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 			return;
 		}
 		if (a && a->answer_early_media && !other_call_active(e, c))
-			(void)start_preview(e, c, true);
+			(void)bsk_call_start_preview(e, c, true);
 		return;
 	}
 
@@ -514,52 +330,58 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 
 	switch (ev) {
 	case BEVENT_CALL_OUTGOING:
-		emit_state(e, c, BSK_CALL_OUTGOING_INIT, NULL);
+		bsk_call_emit_state(e, c, BSK_CALL_OUTGOING_INIT, NULL);
 		break;
 
 	case BEVENT_CALL_RINGING:
-		emit_state(e, c, BSK_CALL_OUTGOING_RINGING, NULL);
+		bsk_call_emit_state(e, c, BSK_CALL_OUTGOING_RINGING, NULL);
 		break;
 
 	case BEVENT_CALL_PROGRESS:
-		emit_state(e, c, BSK_CALL_EARLY_MEDIA, NULL);
+		bsk_call_emit_state(e, c, BSK_CALL_EARLY_MEDIA, NULL);
 		if (call_early_video_available(call))
-			emit_media(e, c, BSK_MEDIA_EARLY_VIDEO_AVAILABLE, NULL);
+			bsk_call_emit_media(
+				e, c, BSK_MEDIA_EARLY_VIDEO_AVAILABLE, NULL);
 		break;
 
 	case BEVENT_CALL_ANSWERED:
 	case BEVENT_CALL_ESTABLISHED:
 		if (c->state != BSK_CALL_CONNECTED &&
 		    c->state != BSK_CALL_STREAMS_RUNNING)
-			emit_state(e, c, BSK_CALL_CONNECTED, NULL);
+			bsk_call_emit_state(e, c, BSK_CALL_CONNECTED, NULL);
 		if (c->rtp_established && c->state == BSK_CALL_CONNECTED)
-			emit_state(e, c, BSK_CALL_STREAMS_RUNNING, NULL);
-		apply_audio_activation(e, c);
+			bsk_call_emit_state(e, c, BSK_CALL_STREAMS_RUNNING,
+					    NULL);
+		bsk_call_apply_audio_activation(e, c);
 		break;
 
 	case BEVENT_CALL_RTPESTAB:
 		c->rtp_established = true;
-		emit_media(e, c, BSK_MEDIA_AUDIO_STARTED, text);
+		bsk_call_emit_media(e, c, BSK_MEDIA_AUDIO_STARTED, text);
 		if (c->state == BSK_CALL_CONNECTED)
-			emit_state(e, c, BSK_CALL_STREAMS_RUNNING, NULL);
+			bsk_call_emit_state(e, c, BSK_CALL_STREAMS_RUNNING,
+					    NULL);
 		break;
 
 	case BEVENT_CALL_HOLD:
 		c->remote_hold = true;
-		emit_media(e, c, BSK_MEDIA_REMOTE_HOLD, NULL);
+		bsk_call_emit_media(e, c, BSK_MEDIA_REMOTE_HOLD, NULL);
 		if (!c->local_hold)
-			emit_state(e, c, BSK_CALL_PAUSED_BY_REMOTE, NULL);
+			bsk_call_emit_state(e, c, BSK_CALL_PAUSED_BY_REMOTE,
+					    NULL);
 		break;
 
 	case BEVENT_CALL_RESUME:
 		c->remote_hold = false;
-		emit_media(e, c, BSK_MEDIA_REMOTE_RESUME, NULL);
+		bsk_call_emit_media(e, c, BSK_MEDIA_REMOTE_RESUME, NULL);
 		if (!c->local_hold) {
-			emit_state(e, c, BSK_CALL_STREAMS_RUNNING, NULL);
+			bsk_call_emit_state(e, c, BSK_CALL_STREAMS_RUNNING,
+					    NULL);
 			if (call_has_video(call)) {
 				video_req_keyframe(call_video(call));
-				emit_media(e, c, BSK_MEDIA_KEYFRAME_REQUESTED,
-					   "remote resume");
+				bsk_call_emit_media(
+					e, c, BSK_MEDIA_KEYFRAME_REQUESTED,
+					"remote resume");
 			}
 		}
 		break;
@@ -567,18 +389,21 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 	case BEVENT_CALL_REMOTE_SDP:
 		if (text && 0 == str_casecmp(text, "answer")) {
 			if (c->state == BSK_CALL_PAUSING)
-				emit_state(e, c, BSK_CALL_PAUSED, NULL);
+				bsk_call_emit_state(e, c, BSK_CALL_PAUSED,
+						    NULL);
 			else if (c->state == BSK_CALL_RESUMING) {
-				emit_state(e, c, BSK_CALL_STREAMS_RUNNING,
-					   NULL);
+				bsk_call_emit_state(
+					e, c, BSK_CALL_STREAMS_RUNNING, NULL);
 				if (call_has_video(call)) {
 					video_req_keyframe(call_video(call));
-					emit_media(e, c,
-						   BSK_MEDIA_KEYFRAME_REQUESTED,
-						   "local resume");
+					bsk_call_emit_media(
+						e, c,
+						BSK_MEDIA_KEYFRAME_REQUESTED,
+						"local resume");
 				}
 			} else if (c->state == BSK_CALL_UPDATING)
-				emit_state(e, c, c->steady_state, NULL);
+				bsk_call_emit_state(e, c, c->steady_state,
+						    NULL);
 		}
 		break;
 
@@ -595,7 +420,8 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 	}
 
 	case BEVENT_CALL_MENC:
-		emit_media(e, c, BSK_MEDIA_ENCRYPTION_ESTABLISHED, text);
+		bsk_call_emit_media(e, c, BSK_MEDIA_ENCRYPTION_ESTABLISHED,
+				    text);
 		break;
 
 	case BEVENT_CALL_TRANSFER:
@@ -619,7 +445,7 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		bsk_event_init(&sev, BSK_EVENT_CALL_STATISTICS);
 		sev.account = c->account;
 		sev.call = c->id;
-		fill_stats(c, &sev.u.statistics.stats);
+		bsk_call_fill_stats(c, &sev.u.statistics.stats);
 		bsk_emit(e, &sev);
 		break;
 	}
@@ -802,7 +628,7 @@ static int make_op(bsk_engine *e, void *arg)
 		c = call_ctx_alloc(e, call, a->id, true);
 		if (!c)
 			return ENOMEM;
-		emit_state(e, c, BSK_CALL_OUTGOING_INIT, NULL);
+		bsk_call_emit_state(e, c, BSK_CALL_OUTGOING_INIT, NULL);
 	}
 	c->video = ma->video;
 	ma->id = c->id;
@@ -834,57 +660,32 @@ bsk_status bsk_call_make(bsk_engine *engine, bsk_account_id account,
 }
 
 
-struct call_arg {
-	bsk_call_id id;
-	bool flag;
-	uint16_t code;
-	const char *str;
-	uint32_t u32a;
-	uint32_t u32b;
-	bsk_media_direction dir;
-};
-
-
-static struct bsk_call_ctx *ctx_or_enoent(bsk_engine *e, bsk_call_id id,
-					  int *err)
-{
-	struct bsk_call_ctx *c = bsk_call_find(e, id);
-
-	if (!c || !c->call) {
-		*err = ENOENT;
-		return NULL;
-	}
-
-	*err = 0;
-	return c;
-}
-
-
-static struct ua *call_ua(bsk_engine *e, struct bsk_call_ctx *c)
+struct ua *bsk_call_owning_ua(bsk_engine *e, struct bsk_call_ctx *c)
 {
 	struct bsk_account_ctx *a = bsk_account_find(e, c->account);
 	return a ? a->ua : call_get_ua(c->call);
 }
 
 
-static enum sdp_dir preview_vdir(const struct bsk_call_ctx *c)
+enum sdp_dir bsk_call_preview_vdir(const struct bsk_call_ctx *c)
 {
 	return c->preview_video && call_has_video(c->call) ? SDP_RECVONLY
 							   : SDP_INACTIVE;
 }
 
 
-static int start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video)
+int bsk_call_start_preview(bsk_engine *e, struct bsk_call_ctx *c, bool video)
 {
 	int err;
 
 	c->preview_video = video;
-	err = call_progress_dir(c->call, SDP_RECVONLY, preview_vdir(c));
+	err = call_progress_dir(c->call, SDP_RECVONLY,
+				bsk_call_preview_vdir(c));
 	if (err && err != EAGAIN)
 		return err;
 
 	c->early_preview = true;
-	emit_state(e, c, BSK_CALL_EARLY_MEDIA, NULL);
+	bsk_call_emit_state(e, c, BSK_CALL_EARLY_MEDIA, NULL);
 	return 0;
 }
 
@@ -905,673 +706,4 @@ static bool other_call_active(const bsk_engine *e, const struct bsk_call_ctx *c)
 	}
 
 	return false;
-}
-
-
-static int answer_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-	if (c->state != BSK_CALL_INCOMING && c->state != BSK_CALL_EARLY_MEDIA)
-		return EALREADY;
-
-	c->video = ca->flag;
-	if (c->early_preview)
-		call_set_mdir(c->call, SDP_SENDRECV,
-			      ca->flag ? SDP_SENDRECV : SDP_INACTIVE);
-
-	err = ua_answer(call_ua(e, c), c->call,
-			ca->flag ? VIDMODE_ON : VIDMODE_OFF);
-	if (err && c->early_preview)
-		call_set_mdir(c->call, SDP_RECVONLY, preview_vdir(c));
-	else if (!err)
-		c->early_preview = false;
-
-	return err;
-}
-
-
-static int progress_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-	if (c->outgoing ||
-	    (c->state != BSK_CALL_INCOMING && c->state != BSK_CALL_EARLY_MEDIA))
-		return EALREADY;
-
-	return start_preview(e, c, ca->flag);
-}
-
-
-static int hangup_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-
-	ua_hangup(call_ua(e, c), c->call, ca->code, ca->str);
-	return 0;
-}
-
-
-static int hold_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-	if (c->local_hold == ca->flag)
-		return 0;
-
-	err = call_hold(c->call, ca->flag);
-	if (err)
-		return err;
-
-	c->local_hold = ca->flag;
-	emit_state(e, c, ca->flag ? BSK_CALL_PAUSING : BSK_CALL_RESUMING, NULL);
-
-	return 0;
-}
-
-
-static int set_active_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-	struct le *le;
-
-	if (!c)
-		return err;
-
-	for (le = e->calls.head; le; le = le->next) {
-		struct bsk_call_ctx *o = le->data;
-		if (o == c || !o->call || o->local_hold)
-			continue;
-		if (o->state == BSK_CALL_CONNECTED ||
-		    o->state == BSK_CALL_STREAMS_RUNNING ||
-		    o->state == BSK_CALL_PAUSED_BY_REMOTE) {
-			if (0 == call_hold(o->call, true)) {
-				o->local_hold = true;
-				emit_state(e, o, BSK_CALL_PAUSING, NULL);
-			}
-		}
-	}
-
-	if (c->local_hold) {
-		err = call_hold(c->call, false);
-		if (err)
-			return err;
-		c->local_hold = false;
-		emit_state(e, c, BSK_CALL_RESUMING, NULL);
-	}
-
-	call_set_current(ua_calls(call_ua(e, c)), c->call);
-	return 0;
-}
-
-
-static void dtmf_timer(void *arg);
-
-
-static void dtmf_next(bsk_engine *e, struct bsk_call_ctx *c)
-{
-	char digit;
-
-	if (!c->call || c->dtmf_pos >= c->dtmf_len) {
-		c->dtmf_len = 0;
-		c->dtmf_pos = 0;
-		return;
-	}
-
-	digit = c->dtmf_queue[c->dtmf_pos];
-	if (0 == call_send_digit(c->call, digit)) {
-		bsk_event ev;
-		bsk_event_init(&ev, BSK_EVENT_CALL_DTMF);
-		ev.account = c->account;
-		ev.call = c->id;
-		ev.u.dtmf.digit = digit;
-		ev.u.dtmf.via_sip_info =
-			account_dtmfmode(call_account(c->call)) ==
-			DTMFMODE_SIP_INFO;
-		bsk_emit(e, &ev);
-	}
-	c->dtmf_tone_on = true;
-	tmr_start(&c->tmr_dtmf, c->dtmf_duration_ms, dtmf_timer, c);
-}
-
-
-static void dtmf_timer(void *arg)
-{
-	struct bsk_call_ctx *c = arg;
-	bsk_engine *e = bsk_global_engine();
-
-	if (!e || !c->call)
-		return;
-
-	if (c->dtmf_tone_on) {
-		(void)call_send_digit(c->call, KEYCODE_REL);
-		c->dtmf_tone_on = false;
-		c->dtmf_pos++;
-		if (c->dtmf_pos < c->dtmf_len)
-			tmr_start(&c->tmr_dtmf, c->dtmf_gap_ms, dtmf_timer, c);
-		else {
-			c->dtmf_len = 0;
-			c->dtmf_pos = 0;
-		}
-		return;
-	}
-
-	dtmf_next(e, c);
-}
-
-
-static int dtmf_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-	size_t len, i;
-
-	if (!c)
-		return err;
-
-	len = strlen(ca->str);
-	if (!len || len > BSK_MAX_DTMF)
-		return EINVAL;
-	for (i = 0; i < len; i++) {
-		if (!strchr("0123456789*#ABCDabcd", ca->str[i]))
-			return EINVAL;
-	}
-	if (c->dtmf_len)
-		return EBUSY;
-
-	memcpy(c->dtmf_queue, ca->str, len);
-	c->dtmf_len = len;
-	c->dtmf_pos = 0;
-	c->dtmf_duration_ms = ca->u32a ? ca->u32a : 160;
-	c->dtmf_gap_ms = ca->u32b ? ca->u32b : 80;
-
-	dtmf_next(e, c);
-	return 0;
-}
-
-
-static int mute_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-
-	c->muted = ca->flag;
-	audio_mute(call_audio(c->call), ca->flag);
-	return 0;
-}
-
-
-static int audio_dir_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-
-	call_set_audio_ldir(c->call, unmap_dir(ca->dir));
-	err = call_modify(c->call);
-	if (!err)
-		emit_state(e, c, BSK_CALL_UPDATING, NULL);
-	return err;
-}
-
-
-static int video_dir_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-
-	err = call_set_video_dir(c->call, unmap_dir(ca->dir));
-	if (!err)
-		emit_state(e, c, BSK_CALL_UPDATING, NULL);
-	return err;
-}
-
-
-static int camera_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-	if (!call_video(c->call))
-		return ENOSYS;
-
-	video_vidsrc_set_device(call_video(c->call), ca->str);
-	return 0;
-}
-
-
-static int keyframe_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-	if (!call_video(c->call))
-		return ENOSYS;
-
-	video_req_keyframe(call_video(c->call));
-	emit_media(e, c, BSK_MEDIA_KEYFRAME_REQUESTED, "application");
-	return 0;
-}
-
-
-static int video_bitrate_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-
-	c->video_max_bitrate = ca->u32a;
-
-	if (!video_strm(call_video(c->call)))
-		return 0;
-
-	rate_apply(e, c, true);
-	return 0;
-}
-
-
-static int ice_restart_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-
-	return restart_ice(c);
-}
-
-
-static int record_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-	if (!call_audio(c->call))
-		return ENOSYS;
-
-	if (ca->flag)
-		err = bsk_record_start(call_audio(c->call), ca->str,
-				       &c->recording);
-	else
-		err = bsk_record_stop(&c->recording);
-	if (err)
-		return err;
-
-	emit_media(e, c,
-		   ca->flag ? BSK_MEDIA_RECORDING_STARTED
-			    : BSK_MEDIA_RECORDING_STOPPED,
-		   NULL);
-	return 0;
-}
-
-
-struct attended_arg {
-	bsk_call_id call;
-	bsk_call_id target;
-};
-
-
-static int attended_op(bsk_engine *e, void *arg)
-{
-	struct attended_arg *aa = arg;
-	struct bsk_call_ctx *c = bsk_call_find(e, aa->call);
-	struct bsk_call_ctx *t = bsk_call_find(e, aa->target);
-
-	if (!c || !t || !c->call || !t->call)
-		return ENOENT;
-	if (c == t)
-		return EINVAL;
-
-	return call_replace_transfer(c->call, t->call);
-}
-
-
-static int transfer_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	int err;
-	struct bsk_call_ctx *c = ctx_or_enoent(e, ca->id, &err);
-
-	if (!c)
-		return err;
-
-	return call_transfer(c->call, ca->str);
-}
-
-
-static int info_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	struct bsk_call_ctx *c = bsk_call_find(e, ca->id);
-
-	if (!c)
-		return ENOENT;
-
-	fill_info(c, (bsk_call_info *)ca->str);
-	return 0;
-}
-
-
-static int stats_op(bsk_engine *e, void *arg)
-{
-	struct call_arg *ca = arg;
-	struct bsk_call_ctx *c = bsk_call_find(e, ca->id);
-
-	if (!c)
-		return ENOENT;
-
-	fill_stats(c, (bsk_call_statistics *)ca->str);
-	return 0;
-}
-
-
-static bsk_status run_call(bsk_engine *engine, bsk_op_fn *fn,
-			   struct call_arg *ca, bsk_error *err,
-			   const char *what)
-{
-	int ret;
-
-	bsk_error_clear(err);
-
-	if (!engine || ca->id == BSK_ID_NONE)
-		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
-				     NULL, NULL);
-
-	ret = bsk_run(engine, fn, ca);
-	if (ret)
-		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
-				     NULL, "%s failed: %m", what, ret);
-
-	return BSK_OK;
-}
-
-
-bsk_status bsk_call_answer(bsk_engine *engine, bsk_call_id call, bool video,
-			   bsk_error *err)
-{
-	struct call_arg ca = { call, video, 0, NULL, 0, 0, 0 };
-	return run_call(engine, answer_op, &ca, err, "answer");
-}
-
-
-bsk_status bsk_call_progress(bsk_engine *engine, bsk_call_id call,
-			     bool early_video, bsk_error *err)
-{
-	struct call_arg ca = { call, early_video, 0, NULL, 0, 0, 0 };
-	return run_call(engine, progress_op, &ca, err, "progress");
-}
-
-
-bsk_status bsk_call_reject(bsk_engine *engine, bsk_call_id call,
-			   uint16_t sip_status, const char *reason,
-			   bsk_error *err)
-{
-	struct call_arg ca = { call,
-			       false,
-			       sip_status ? sip_status : 486,
-			       reason ? reason : "Busy Here",
-			       0,
-			       0,
-			       0 };
-	return run_call(engine, hangup_op, &ca, err, "reject");
-}
-
-
-bsk_status bsk_call_hangup(bsk_engine *engine, bsk_call_id call, bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
-	return run_call(engine, hangup_op, &ca, err, "hangup");
-}
-
-
-bsk_status bsk_call_hold(bsk_engine *engine, bsk_call_id call, bool hold,
-			 bsk_error *err)
-{
-	struct call_arg ca = { call, hold, 0, NULL, 0, 0, 0 };
-	return run_call(engine, hold_op, &ca, err, hold ? "hold" : "resume");
-}
-
-
-bsk_status bsk_call_set_active(bsk_engine *engine, bsk_call_id call,
-			       bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
-	return run_call(engine, set_active_op, &ca, err, "set active");
-}
-
-
-bsk_status bsk_call_send_dtmf(bsk_engine *engine, bsk_call_id call,
-			      const char *digits, uint32_t duration_ms,
-			      uint32_t gap_ms, bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, digits, duration_ms, gap_ms, 0 };
-
-	if (!str_isset(digits))
-		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
-				     NULL, "digits required");
-
-	return run_call(engine, dtmf_op, &ca, err, "dtmf");
-}
-
-
-bsk_status bsk_call_set_microphone_muted(bsk_engine *engine, bsk_call_id call,
-					 bool muted, bsk_error *err)
-{
-	struct call_arg ca = { call, muted, 0, NULL, 0, 0, 0 };
-	return run_call(engine, mute_op, &ca, err, "mute");
-}
-
-
-bsk_status bsk_call_set_audio_direction(bsk_engine *engine, bsk_call_id call,
-					bsk_media_direction dir, bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, 0, 0, dir };
-	return run_call(engine, audio_dir_op, &ca, err, "audio direction");
-}
-
-
-bsk_status bsk_call_set_video_direction(bsk_engine *engine, bsk_call_id call,
-					bsk_media_direction dir, bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, 0, 0, dir };
-	return run_call(engine, video_dir_op, &ca, err, "video direction");
-}
-
-
-bsk_status bsk_call_set_camera(bsk_engine *engine, bsk_call_id call,
-			       const char *device, bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, device, 0, 0, 0 };
-	return run_call(engine, camera_op, &ca, err, "set camera");
-}
-
-
-bsk_status bsk_call_request_keyframe(bsk_engine *engine, bsk_call_id call,
-				     bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
-	return run_call(engine, keyframe_op, &ca, err, "keyframe request");
-}
-
-
-bsk_status bsk_call_set_video_max_bitrate(bsk_engine *engine, bsk_call_id call,
-					  uint32_t bitrate_bps, bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, bitrate_bps, 0, 0 };
-	return run_call(engine, video_bitrate_op, &ca, err, "video bitrate");
-}
-
-
-bsk_status bsk_call_restart_ice(bsk_engine *engine, bsk_call_id call,
-				bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
-	return run_call(engine, ice_restart_op, &ca, err, "ICE restart");
-}
-
-
-bsk_status bsk_call_record_start(bsk_engine *engine, bsk_call_id call,
-				 const char *path, bsk_error *err)
-{
-	struct call_arg ca = { call, true, 0, path, 0, 0, 0 };
-
-	if (!str_isset(path)) {
-		bsk_error_clear(err);
-		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
-				     NULL, "path required");
-	}
-
-	return run_call(engine, record_op, &ca, err, "record start");
-}
-
-
-bsk_status bsk_call_record_stop(bsk_engine *engine, bsk_call_id call,
-				bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, NULL, 0, 0, 0 };
-	return run_call(engine, record_op, &ca, err, "record stop");
-}
-
-
-bsk_status bsk_call_transfer_attended(bsk_engine *engine, bsk_call_id call,
-				      bsk_call_id target_call, bsk_error *err)
-{
-	struct attended_arg aa = { call, target_call };
-	int ret;
-
-	bsk_error_clear(err);
-
-	if (!engine)
-		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
-				     NULL, NULL);
-
-	ret = bsk_run(engine, attended_op, &aa);
-	if (ret)
-		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
-				     NULL, "attended transfer failed: %m", ret);
-
-	return BSK_OK;
-}
-
-
-bsk_status bsk_call_transfer(bsk_engine *engine, bsk_call_id call,
-			     const char *target_uri, bsk_error *err)
-{
-	struct call_arg ca = { call, false, 0, target_uri, 0, 0, 0 };
-
-	if (!str_isset(target_uri))
-		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
-				     NULL, "target required");
-
-	return run_call(engine, transfer_op, &ca, err, "transfer");
-}
-
-
-bsk_status bsk_call_get_info(const bsk_engine *engine, bsk_call_id call,
-			     bsk_call_info *out)
-{
-	struct call_arg ca = { call, false, 0, (const char *)out, 0, 0, 0 };
-	int ret;
-
-	if (!engine || !out)
-		return BSK_ERR_INVALID_ARGUMENT;
-
-	ret = bsk_run((bsk_engine *)engine, info_op, &ca);
-	return bsk_status_from_errno(ret);
-}
-
-
-bsk_status bsk_call_get_statistics(const bsk_engine *engine, bsk_call_id call,
-				   bsk_call_statistics *out)
-{
-	struct call_arg ca = { call, false, 0, (const char *)out, 0, 0, 0 };
-	int ret;
-
-	if (!engine || !out)
-		return BSK_ERR_INVALID_ARGUMENT;
-
-	ret = bsk_run((bsk_engine *)engine, stats_op, &ca);
-	return bsk_status_from_errno(ret);
-}
-
-
-struct list_arg {
-	bsk_call_id *ids;
-	size_t capacity;
-	size_t count;
-};
-
-
-static int list_op(bsk_engine *e, void *arg)
-{
-	struct list_arg *la = arg;
-	struct le *le;
-
-	la->count = 0;
-	for (le = e->calls.head; le; le = le->next) {
-		struct bsk_call_ctx *c = le->data;
-		if (la->ids && la->count < la->capacity)
-			la->ids[la->count] = c->id;
-		la->count++;
-	}
-
-	return 0;
-}
-
-
-size_t bsk_call_list(const bsk_engine *engine, bsk_call_id *ids,
-		     size_t capacity)
-{
-	struct list_arg la = { ids, capacity, 0 };
-
-	if (!engine)
-		return 0;
-
-	(void)bsk_run((bsk_engine *)engine, list_op, &la);
-	return la.count;
 }
