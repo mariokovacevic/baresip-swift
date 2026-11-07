@@ -43,7 +43,7 @@ Add the package in Xcode (File > Add Package Dependencies) or in `Package.swift`
 
 Then add the products you need: `BaresipKit`, and optionally `BaresipKitAudio`, `BaresipKitVideo`, `BaresipKitCallKit` and `BaresipKitPushKit`.
 
-Until the first tagged release publishes the XCFramework, build it locally once with `Build/build-xcframework.sh`; `Package.swift` picks up `Build/out/BaresipKitCore.xcframework` automatically. See [CONTRIBUTING.md](CONTRIBUTING.md).
+The C core comes as a prebuilt XCFramework attached to each GitHub release, so no local build is needed. To work on the SDK itself, build the core with `Build/build-xcframework.sh`; see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Example: register and call
 
