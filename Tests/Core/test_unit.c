@@ -81,6 +81,46 @@ static void test_redaction(void)
 }
 
 
+static bool has_capability(const char *caps, const char *name)
+{
+	size_t len = strlen(name);
+	const char *p = caps;
+
+	while ((p = strstr(p, name)) != NULL) {
+		bool starts = p == caps || p[-1] == ' ';
+		bool ends = p[len] == '\0' || p[len] == ' ';
+
+		if (starts && ends)
+			return true;
+		p += len;
+	}
+
+	return false;
+}
+
+
+static void test_capabilities(void)
+{
+	char caps[1024];
+	static const char *implemented[] = {
+		"ice.restart",
+		"tls.pinning",
+		"video.h264.videotoolbox",
+		"nat.turn-tcp",
+		"nat.turn-tls",
+		"message.sip",
+		"call.recording",
+		"call.transfer.attended",
+	};
+	size_t i;
+
+	CHECK(bsk_capabilities(caps, sizeof(caps)) < sizeof(caps));
+	for (i = 0; i < sizeof(implemented) / sizeof(implemented[0]); i++)
+		CHECK(has_capability(caps, implemented[i]));
+	CHECK(!has_capability(caps, "ice.restart:unsupported"));
+}
+
+
 static void test_status_strings(void)
 {
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
@@ -88,6 +128,7 @@ static void test_status_strings(void)
 	      strcmp(bsk_status_string(BSK_ERR_AUTH), "authentication failed"));
 	CHECK(bsk_abi_version() == 6);
 	CHECK(bsk_capabilities(NULL, 0) > 0);
+	test_capabilities();
 }
 
 
