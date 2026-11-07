@@ -41,6 +41,21 @@ README (feature status table, requirements, installation, example), CONTRIBUTING
 - `.mailmap` maps the work e-mail address in three early commits to the personal address, so `git log` and GitHub show one identity.
 - Example data uses `example.com`, `example.invalid` and the RFC 5737 documentation ranges; no real host names, IP addresses, phone numbers or credentials were found in the tree or in the history.
 
+## Verification
+
+CI run 57 on `61cc3c6` passed every job:
+
+- the lint job (clang-format, SwiftFormat and SwiftLint in strict mode)
+- the Swift package build for the simulator and a device in Swift 6 mode, with warnings as errors
+- DocC for all five products, with warnings as errors
+- the C core tests on macOS, including H.264 through VideoToolbox, and on Linux under ASan and UBSan, plus the libFuzzer run
+- XCTest on an iPhone simulator (18 tests)
+- the sample app build for the simulator and a device, with warnings as errors
+- the sample app UI test, which registers over TLS with a private CA, checks that a wrong pin fails, registers again, calls a peer and hangs up
+- the Asterisk and coturn integration suite
+
+The UI test needed fixes in the test and its fixtures, not in the SDK: fields are found by identifier, the lazy form is scrolled in short steps, the system password prompt is dismissed, and the TLS test registrar forwards calls to the peer as a minimal stateless proxy.
+
 ## Bugs fixed along the way
 
 Reported separately because they change behavior:
@@ -64,7 +79,6 @@ Reported separately because they change behavior:
 ## Open risks
 
 - CallKit, PushKit and the camera are only built and unit-tested in CI; they need the device checklist in `Docs/DeviceTesting.md`.
-- The sample app UI test (TLS registration, pinning, a call to a host peer) is new in CI and was being stabilized during this pass; see the latest CI run for its state.
 - SwiftLint and SwiftFormat are installed from Homebrew at their latest versions in CI. A new release can add a rule and fail the lint job; pin them if that becomes a problem.
 
 ## Awaiting approval
