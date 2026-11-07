@@ -110,6 +110,14 @@ final class RegistrationCallUITests: XCTestCase {
         scrollTo(button)
         XCTAssertTrue(button.isEnabled, "save button disabled")
         button.tap()
+        dismissPasswordSavePrompt()
+    }
+
+    private func dismissPasswordSavePrompt() {
+        let notNow = app.buttons["Not Now"]
+        if notNow.waitForExistence(timeout: 3) {
+            notNow.tap()
+        }
     }
 
     private func waitForRegistration(containing text: String, timeout: TimeInterval) {
