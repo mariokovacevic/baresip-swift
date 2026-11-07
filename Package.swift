@@ -2,8 +2,8 @@
 import Foundation
 import PackageDescription
 
-let coreReleaseURL = ""
-let coreReleaseChecksum = ""
+let coreReleaseURL = "https://github.com/mariokovacevic/baresip-swift/releases/download/v1.0.0/BaresipKitCore.xcframework.zip"
+let coreReleaseChecksum = "02297d35f2b2192ab254cc10b2b23c6bf0e8ad44a8bd73f3881135e6f9b83be6"
 
 let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let localCorePath = "Build/out/BaresipKitCore.xcframework"
