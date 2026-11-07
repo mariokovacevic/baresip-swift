@@ -83,7 +83,10 @@ Reported separately because they change behavior:
 - CallKit, PushKit and the camera are only built and unit-tested in CI; they need the device checklist in `Docs/DeviceTesting.md`.
 - SwiftLint and SwiftFormat are installed from Homebrew at their latest versions in CI. A new release can add a rule and fail the lint job; pin them if that becomes a problem.
 
+## History
+
+`main` holds the initial commit and one squashed commit for version 1.0.0, so the development history, including the three commits with the work e-mail address, is not part of `main`. It remains only on the development branch `claude/zen-keller-jl2mtg`; deleting that branch removes it from the public repository.
+
 ## Awaiting approval
 
-- History rewrite: not done. `.mailmap` covers how the history is displayed. Removing the old address from the commit objects needs `git filter-repo` and a force push of every branch, including `main`; see section 10 of the audit.
 - API proposals that break source compatibility without an alias: value-first setter arguments, transfer method names, and nesting `BaresipStatus` in `BaresipError` (listed in `API_CHANGES.md`).

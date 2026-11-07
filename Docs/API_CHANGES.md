@@ -1,8 +1,7 @@
 # Public API changes
 
-Changes to the public Swift API since the code quality pass. BaresipKit is pre-1.0; renamed
-symbols keep a deprecated alias for at least one minor release so existing code still compiles,
-with a fix-it to the new name.
+Changes to the public Swift API. Renamed symbols keep a deprecated alias for at least one minor
+release, so existing code still compiles, with a fix-it to the new name.
 
 ## Renamed
 
@@ -32,7 +31,7 @@ with a fix-it to the new name.
 
 ## Proposed, not applied
 
-These would make the API more consistent but break source compatibility without an easy alias. They are listed for a decision before 1.0.
+These would make the API more consistent but break source compatibility without an easy alias. They are kept for a future major version.
 
 - Value-first argument order for every setter: `setVideoMaxBitrate(callID:bitsPerSecond:)` would become `setVideoMaxBitrate(_:callID:)`, matching `setMicrophoneMuted(_:callID:)`.
 - Transfer naming: `transfer(callID:to:)` (blind) and `transferAttended(callID:to:)` could become `blindTransfer(callID:to:)` and `attendedTransfer(callID:replacing:)`.

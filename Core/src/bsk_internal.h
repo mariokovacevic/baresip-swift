@@ -11,7 +11,7 @@
 #include "baresip_kit.h"
 #include "bsk_rate.h"
 
-#define BSK_VERSION_STRING "0.1.0"
+#define BSK_VERSION_STRING "1.0.0"
 
 #define BSK_MAX_MODULES 32
 #define BSK_MAX_DTMF 64

@@ -38,7 +38,7 @@ What CI covers and what it does not is listed in [Docs/Limitations.md](Docs/Limi
 Add the package in Xcode (File > Add Package Dependencies) or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/mariokovacevic/baresip-swift.git", from: "0.1.0")
+.package(url: "https://github.com/mariokovacevic/baresip-swift.git", from: "1.0.0")
 ```
 
 Then add the products you need: `BaresipKit`, and optionally `BaresipKitAudio`, `BaresipKitVideo`, `BaresipKitCallKit` and `BaresipKitPushKit`.

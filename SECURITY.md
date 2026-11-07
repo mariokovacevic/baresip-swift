@@ -13,7 +13,7 @@ date with you. Fixes are released as a patch version and described in `CHANGELOG
 
 ## Supported versions
 
-Until 1.0, only the latest release receives security fixes.
+Only the latest release receives security fixes.
 
 ## Scope
 

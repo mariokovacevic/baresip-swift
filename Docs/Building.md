@@ -32,12 +32,12 @@ The script clones each pinned source (`Build/versions.env`), verifies the commit
 Consumers add the package by URL in Xcode (File > Add Package Dependencies) once a release exists:
 
 ```swift
-.package(url: "https://github.com/mariokovacevic/baresip-swift.git", from: "0.1.0")
+.package(url: "https://github.com/mariokovacevic/baresip-swift.git", from: "1.0.0")
 ```
 
 ## Releasing
 
-Run the **Release** workflow from the Actions tab with a version such as `0.1.0`. It builds the XCFramework on a macOS runner, writes the release URL and checksum into `Package.swift`, commits and tags `v<version>`, and creates a GitHub release with the XCFramework zip and a zip of the license texts. The checksum changes with every rebuild because the archives carry timestamps, so it is always computed from the exact zip that is published.
+Run the **Release** workflow from the Actions tab with a version such as `1.0.0`. It builds the XCFramework on a macOS runner, writes the release URL and checksum into `Package.swift`, commits and tags `v<version>`, and creates a GitHub release with the XCFramework zip and a zip of the license texts. The checksum changes with every rebuild because the archives carry timestamps, so it is always computed from the exact zip that is published.
 
 ## Host build and core tests
 
