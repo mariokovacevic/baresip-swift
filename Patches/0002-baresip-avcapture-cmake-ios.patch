@@ -1,0 +1,12 @@
+diff --git a/modules/avcapture/CMakeLists.txt b/modules/avcapture/CMakeLists.txt
+index 89ea0a4..8ea8c2a 100644
+--- a/modules/avcapture/CMakeLists.txt
++++ b/modules/avcapture/CMakeLists.txt
+@@ -1,6 +1,6 @@
+ project(avcapture)
+ 
+-if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
++if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin|iOS")
+   return()
+ endif()
+ 

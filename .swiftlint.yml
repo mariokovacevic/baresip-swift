@@ -1,0 +1,85 @@
+# SwiftLint rules for BaresipKit.
+#
+# Defaults stay on; the thresholds below are raised only where the SDK's shape needs it:
+# configuration initializers mirror every stored property, and C struct fields keep their names.
+
+included:
+  - Sources
+  - Tests/BaresipKitTests
+  - Examples/SampleApp
+
+opt_in_rules:
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - discouraged_optional_boolean
+  - empty_count
+  - first_where
+  - contains_over_first_not_nil
+  - fatal_error_message
+  - unowned_variable_capture
+  - private_over_fileprivate
+  - redundant_nil_coalescing
+  - toggle_bool
+  - unused_optional_binding
+  - yoda_condition
+
+trailing_comma:
+  mandatory_comma: true
+
+line_length:
+  warning: 120
+  error: 160
+  ignores_comments: true
+
+file_length:
+  warning: 400
+  error: 600
+
+type_body_length:
+  warning: 300
+  error: 400
+
+function_body_length:
+  warning: 60
+  error: 100
+
+# Configuration initializers take one argument per setting, with defaults.
+function_parameter_count:
+  warning: 8
+  error: 20
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+  ignores_case_statements: true
+
+identifier_name:
+  min_length: 2
+  excluded:
+    - id
+    - ca
+    - to
+    - ok
+
+type_name:
+  max_length: 50
+
+nesting:
+  type_level: 2
+
+large_tuple:
+  warning: 3
+  error: 4
+
+implicitly_unwrapped_optional:
+  severity: warning
+
+custom_rules:
+  no_print:
+    name: "No print"
+    regex: "\\bprint\\("
+    excluded: "Tests|Examples"
+    match_kinds:
+      - identifier
+    message: "Use the engine log handler instead of print."
+    severity: error

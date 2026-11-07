@@ -1,0 +1,94 @@
+From e409fb75d79a95d1402f72f4e2057666fc07b254 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Fri, 6 Nov 2026 16:55:12 +0000
+Subject: [PATCH] video: set the encoder bitrate during a call
+
+Add video_set_bitrate() and video_bitrate() so an application can adapt
+the encoder's target bitrate to network conditions, for example from
+RTCP loss reports, without renegotiating the call. The new bitrate is
+passed to the running encoder through its update handler.
+---
+ include/baresip.h |  2 ++
+ src/video.c       | 53 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 55 insertions(+)
+
+diff --git a/include/baresip.h b/include/baresip.h
+index ffa9a3a..10dde9b 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -1513,6 +1513,8 @@ struct stream *video_strm(const struct video *v);
+ const struct vidcodec *video_codec(const struct video *vid, bool tx);
+ void video_sdp_attr_decode(struct video *v);
+ void video_req_keyframe(struct video *vid);
++int  video_set_bitrate(struct video *v, uint32_t bitrate);
++uint32_t video_bitrate(const struct video *v);
+ 
+ double video_calc_seconds(uint64_t rtp_ts);
+ double video_timestamp_to_seconds(uint64_t timestamp);
+diff --git a/src/video.c b/src/video.c
+index 32bf5c3..ffbb918 100644
+--- a/src/video.c
++++ b/src/video.c
+@@ -1956,6 +1956,59 @@ const struct vidcodec *video_codec(const struct video *vid, bool tx)
+  *
+  * @param vid Video object
+  */
++/**
++ * Set the target bitrate of the running video encoder
++ *
++ * @param v       Video object
++ * @param bitrate Encoder bitrate in [bit/s]
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int video_set_bitrate(struct video *v, uint32_t bitrate)
++{
++	struct vtx *vtx;
++	int err = 0;
++
++	if (!v || !bitrate)
++		return EINVAL;
++
++	vtx = &v->vtx;
++
++	mtx_lock(vtx->lock_enc);
++
++	v->cfg.bitrate = bitrate;
++
++	if (vtx->vc && vtx->enc && vtx->vc->encupdh) {
++		struct videnc_param prm;
++
++		prm.bitrate = bitrate;
++		prm.pktsize = PKT_SIZE;
++		prm.fps     = get_fps(v);
++		prm.max_fs  = -1;
++
++		err = vtx->vc->encupdh(&vtx->enc, vtx->vc, &prm, NULL,
++				       packet_handler, v);
++	}
++
++	mtx_unlock(vtx->lock_enc);
++
++	return err;
++}
++
++
++/**
++ * Get the target bitrate of the video encoder
++ *
++ * @param v Video object
++ *
++ * @return Encoder bitrate in [bit/s]
++ */
++uint32_t video_bitrate(const struct video *v)
++{
++	return v ? v->cfg.bitrate : 0;
++}
++
++
+ void video_req_keyframe(struct video *vid)
+ {
+ 	if (!vid)
+-- 
+2.43.0
+

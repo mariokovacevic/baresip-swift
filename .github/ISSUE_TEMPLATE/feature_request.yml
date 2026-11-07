@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest a capability or an API change.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What you are trying to do and why the current API does not cover it.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: The API or behavior you would like, with a short code example if it helps.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: textarea
+    id: standards
+    attributes:
+      label: Standards and interoperability
+      description: Relevant RFCs, and the SIP servers or clients you need to work with.
