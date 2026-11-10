@@ -1,0 +1,16 @@
+services:
+  asterisk:
+    image: andrius/asterisk:23.5.0_debian-trixie-1b724ca@sha256:921d1fdc86d328fa3b9e73aee13d40599fe335ce6edefd31c7874729c3582d95
+    network_mode: host
+    volumes:
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./asterisk/keys:/etc/asterisk/keys:ro
+  coturn:
+    image: coturn/coturn:4.6.3
+    network_mode: host
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+      - ./asterisk/keys:/etc/coturn/keys:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]

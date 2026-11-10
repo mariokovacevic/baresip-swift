@@ -1,0 +1,61 @@
+diff --git a/modules/ice/ice.c b/modules/ice/ice.c
+index 295c16f..baf0741 100644
+--- a/modules/ice/ice.c
++++ b/modules/ice/ice.c
+@@ -262,6 +262,8 @@ static int start_gathering(struct mnat_media *m,
+ 	unsigned i;
+ 	int err = 0;
+ 
++	module_event("ice", "gathering", NULL, NULL, "sdpm=%p", m->sdpm);
++
+ 	/* for each component */
+ 	for (i=0; i<2; i++) {
+ 		struct comp *comp = &m->compv[i];
+@@ -688,6 +690,8 @@ static void gather_handler(int err, uint16_t scode, const char *reason,
+ 	if (err || scode) {
+ 		warning("ice: gather error: %m (%u %s)\n",
+ 			err, scode, reason);
++		module_event("ice", "failed", NULL, NULL,
++			     "sdpm=%p err=%m scode=%u", m->sdpm, err, scode);
+ 	}
+ 	else {
+ 		refresh_laddr(m,
+@@ -730,13 +734,28 @@ static void conncheck_handler(int err, bool update, void *arg)
+ 
+ 	if (err) {
+ 		warning("ice: connectivity check failed: %m\n", err);
++		module_event("ice", "failed", NULL, NULL, "sdpm=%p err=%m",
++			     m->sdpm, err);
+ 	}
+ 	else {
+ 		const struct ice_cand *cand1, *cand2;
++		const struct ice_cand *lcand;
+ 		bool changed;
+ 
+ 		m->complete = true;
+ 
++		lcand = icem_selected_lcand(m->icem, 1);
++		cand1 = icem_selected_rcand(m->icem, 1);
++		if (lcand && cand1) {
++			module_event("ice", "connected", NULL, NULL,
++				     "sdpm=%p ltype=%s rtype=%s laddr=%J raddr=%J",
++				     m->sdpm,
++				     ice_cand_type2name(icem_cand_type(lcand)),
++				     ice_cand_type2name(icem_cand_type(cand1)),
++				     icem_lcand_addr(lcand),
++				     icem_lcand_addr(cand1));
++		}
++
+ 		changed = refresh_laddr(m,
+ 					icem_selected_laddr(m->icem, 1),
+ 					icem_selected_laddr(m->icem, 2));
+@@ -809,6 +828,9 @@ static int ice_start(struct mnat_sess *sess)
+ 				err = icem_conncheck_start(m->icem);
+ 				if (err)
+ 					return err;
++
++				module_event("ice", "checking", NULL, NULL,
++					     "sdpm=%p", m->sdpm);
+ 			}
+ 
+ 			/* set the pair states

@@ -1,0 +1,38 @@
+From a07a8f7f9423d2b7f97fc60af1718ce3283b0160 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Mon, 9 Nov 2026 13:58:29 +0100
+Subject: [PATCH] avcapture: build for iOS before 17
+
+For an iOS deployment target below 17.0 the device discovery listed
+AVCaptureDeviceTypeExternalUnknown, which exists only on macOS, so the
+module did not compile. External cameras are supported on iOS from 17.0
+only; before that, list the built-in wide-angle cameras alone.
+---
+ modules/avcapture/avcapture.m | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/modules/avcapture/avcapture.m b/modules/avcapture/avcapture.m
+index d2063fe..f09c6c5 100644
+--- a/modules/avcapture/avcapture.m
++++ b/modules/avcapture/avcapture.m
+@@ -169,6 +169,8 @@ static void vidframe_set_pixbuf(struct vidframe *f, const CVImageBufferRef b)
+ #if (__IPHONE_OS_VERSION_MIN_REQUIRED >= 170000 || \
+      __MAC_OS_X_VERSION_MIN_REQUIRED >= 140000)
+ 			  AVCaptureDeviceTypeExternal]
++#elif TARGET_OS_IPHONE
++			  ]
+ #else
+ 			  AVCaptureDeviceTypeExternalUnknown]
+ #endif
+@@ -457,6 +459,8 @@ static int module_init(void)
+ #if (__IPHONE_OS_VERSION_MIN_REQUIRED >= 170000 || \
+      __MAC_OS_X_VERSION_MIN_REQUIRED >= 140000)
+ 			  AVCaptureDeviceTypeExternal]
++#elif TARGET_OS_IPHONE
++			  ]
+ #else
+ 			  AVCaptureDeviceTypeExternalUnknown]
+ #endif
+-- 
+2.51.0
+

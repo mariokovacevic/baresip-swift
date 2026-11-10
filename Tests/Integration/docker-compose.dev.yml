@@ -1,0 +1,4 @@
+services:
+  coturn:
+    volumes:
+      - ./coturn/turnserver.dev.conf:/etc/coturn/turnserver.conf:ro

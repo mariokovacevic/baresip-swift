@@ -1,0 +1,4 @@
+module BaresipKitBridge {
+    header "bsk_bridge.h"
+    export *
+}

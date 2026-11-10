@@ -1,0 +1,35 @@
+From 07a6bdfae9502ac2a7ef70136dbd6ca3be5985a8 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Mon, 9 Nov 2026 12:32:01 +0100
+Subject: [PATCH] audio: open the NAT pinhole for receive-only audio
+
+The natpinhole account option sends empty RTP packets while a stream
+only receives, so that NATs and media relays that learn the endpoint
+from the first packet (such as rtpengine) can forward the peer's media.
+Only video used it. Early media previews are typically audio recvonly,
+and stay silent behind such relays. Open the pinhole for receive-only
+audio as well; it stops when the first RTP packet arrives or the
+direction changes.
+---
+ src/audio.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/audio.c b/src/audio.c
+index 76fa128..3037862 100644
+--- a/src/audio.c
++++ b/src/audio.c
+@@ -1209,6 +1209,11 @@ int audio_update(struct audio *a)
+ 		stop_tx(&a->tx, a);
+ 	}
+ 
++	if (dir == SDP_RECVONLY)
++		stream_open_natpinhole(a->strm);
++	else
++		stream_stop_natpinhole(a->strm);
++
+ 	if (a->tx.ac && aurecv_codec(a->aur)) {
+ 
+ 		if (!a->started) {
+-- 
+2.51.0
+

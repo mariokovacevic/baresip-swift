@@ -1,0 +1,53 @@
+diff --git a/modules/avcapture/avcapture.m b/modules/avcapture/avcapture.m
+index fd57cef..d2063fe 100644
+--- a/modules/avcapture/avcapture.m
++++ b/modules/avcapture/avcapture.m
+@@ -23,7 +23,11 @@ static struct vidsrc *vidsrc;
+ {
+ 	AVCaptureSession *sess;
+ 	AVCaptureDeviceInput *input;
++#if TARGET_OS_IPHONE
++	AVCaptureInput *screenInput;
++#else
+ 	AVCaptureScreenInput *screenInput;
++#endif
+ 	AVCaptureVideoDataOutput *output;
+ 	struct vidsrc_st *vsrc;
+ 	struct vidsz vsz;
+@@ -213,7 +217,9 @@ static void vidframe_set_pixbuf(struct vidframe *f, const CVImageBufferRef b)
+ 	info("avcapture: device=%s %dx%d\n", name, sz->w, sz->h);
+ 
+ 	if (name && !strcmp(name, "screen")) {
++#if !TARGET_OS_IPHONE
+ 		screenInput = [[AVCaptureScreenInput alloc] init];
++#endif
+ 	}
+ 	else {
+ 		dev = [avcap get_device:[avcap get_position:name]];
+@@ -307,6 +313,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
+ 	AVCaptureDevice *dev;
+ 
+ 	if (!strcmp(name, "screen")) {
++#if !TARGET_OS_IPHONE
+ 		if (screenInput)
+ 			return;
+ 		if (input) {
+@@ -317,6 +324,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
+ 			[sess addInput:screenInput];
+ 			[sess commitConfiguration];
+ 		}
++#endif
+ 		return;
+ 	}
+ 
+@@ -469,8 +477,10 @@ static int module_init(void)
+ 			goto out;
+ 	}
+ 
++#if !TARGET_OS_IPHONE
+ 	debug("avcapture: found video device 'screen'\n");
+ 	err = mediadev_add(&vidsrc->dev_list, "screen");
++#endif
+ 
+  out:
+ 	[pool drain];

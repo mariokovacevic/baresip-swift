@@ -1,0 +1,157 @@
+diff --git a/src/sip/request.c b/src/sip/request.c
+index 7ff0fb4..192d0d5 100644
+--- a/src/sip/request.c
++++ b/src/sip/request.c
+@@ -76,8 +76,14 @@ static void destructor(void *arg)
+ 		req->reqp  = NULL;
+ 		req->sendh = NULL;
+ 		req->resph = NULL;
+-		sip_request_cancel(mem_ref(req));
+-		return;
++		sip_request_cancel(req);
++
++		/* a transaction that waits for the final response keeps
++		   the request, without one nothing would release it */
++		if (req->ct) {
++			mem_ref(req);
++			return;
++		}
+ 	}
+ 
+ 	list_flush(&req->cachel);
+diff --git a/test/sip.c b/test/sip.c
+index 31ec2f7..ad664df 100644
+--- a/test/sip.c
++++ b/test/sip.c
+@@ -752,6 +752,107 @@ out:
+ }
+ 
+ 
++static void release_tmr_handler(void *arg)
++{
++	(void)arg;
++	re_cancel();
++}
++
++
++/* closed sockets are released by the main loop */
++static int release_poll(void)
++{
++	struct tmr tmr;
++	int err;
++
++	tmr_init(&tmr);
++	tmr_start(&tmr, 1, release_tmr_handler, NULL);
++	err = re_main(NULL);
++	tmr_cancel(&tmr);
++
++	return err;
++}
++
++
++int test_sip_request_release(void)
++{
++	struct memstat before = {0, 0}, after = {0, 0};
++	struct sip_request *req = NULL;
++	struct sip_dialog *dlg = NULL;
++	struct sip_auth *auth = NULL;
++	struct udp_sock *us = NULL;
++	struct sip *sip = NULL;
++	struct sa laddr, peer;
++	char uri[64];
++	char touri[64];
++	bool have_stat = false;
++	int i;
++	int err;
++
++	err = sa_set_str(&laddr, "127.0.0.1", 0);
++	TEST_ERR(err);
++
++	/* a peer that never answers */
++	err = udp_listen(&us, &laddr, NULL, NULL);
++	TEST_ERR(err);
++
++	err = udp_local_get(us, &peer);
++	TEST_ERR(err);
++
++	re_snprintf(uri, sizeof(uri), "sip:%J;transport=UDP", &peer);
++	re_snprintf(touri, sizeof(touri), "sip:test@%J", &peer);
++
++	err = sip_dialog_alloc(&dlg, uri, touri, NULL, touri, NULL, 0);
++	TEST_ERR(err);
++
++	err = sip_auth_alloc(&auth, NULL, NULL, false);
++	TEST_ERR(err);
++
++	err = sip_alloc(&sip, NULL, 32, 32, 32, "retest", NULL, NULL);
++	TEST_ERR(err);
++
++	err = sip_transp_add(sip, SIP_TRANSP_UDP, &laddr);
++	TEST_ERR(err);
++
++	/* a request that is released before any response must not stay
++	   allocated until the SIP stack is closed */
++	for (i = 0; i < 20; i++) {
++
++		if (i == 4) {
++			err = release_poll();
++			TEST_ERR(err);
++			have_stat = 0 == mem_get_stat(&before);
++		}
++
++		err = sip_drequestf(&req, sip, true, "OPTIONS", dlg, 0,
++				    auth, NULL, NULL, NULL, "");
++		TEST_ERR(err);
++
++		req = mem_deref(req);
++	}
++
++	err = release_poll();
++	TEST_ERR(err);
++
++	if (have_stat) {
++		err = mem_get_stat(&after);
++		TEST_ERR(err);
++		TEST_EQUALS(before.blocks_cur, after.blocks_cur);
++	}
++
++out:
++	mem_deref(req);
++	mem_deref(dlg);
++	mem_deref(auth);
++	if (sip)
++		sip_close(sip, true);
++	mem_deref(sip);
++	mem_deref(us);
++
++	return err;
++}
++
++
+ int test_sip_drequestf_network(void)
+ {
+ 	struct sa laddr;
+diff --git a/test/test.c b/test/test.c
+index c9ed4c5..a979e59 100644
+--- a/test/test.c
++++ b/test/test.c
+@@ -200,6 +200,7 @@ static const struct test tests[] = {
+ 	TEST(test_sip_apply),
+ 	TEST(test_sip_auth),
+ 	TEST(test_sip_drequestf),
++	TEST(test_sip_request_release),
+ 	TEST(test_sip_dns),
+ 	TEST(test_sip_hdr),
+ 	TEST(test_sip_param),
+diff --git a/test/test.h b/test/test.h
+index bc212fd..c9b9e4e 100644
+--- a/test/test.h
++++ b/test/test.h
+@@ -311,6 +311,7 @@ int test_sha1(void);
+ int test_sip_addr(void);
+ int test_sip_auth(void);
+ int test_sip_drequestf(void);
++int test_sip_request_release(void);
+ int test_sip_apply(void);
+ int test_sip_hdr(void);
+ int test_sip_msg(void);

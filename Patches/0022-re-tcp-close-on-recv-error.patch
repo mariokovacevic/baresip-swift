@@ -1,0 +1,32 @@
+diff --git a/src/tcp/tcp.c b/src/tcp/tcp.c
+index 20871dc..2bff3dc 100644
+--- a/src/tcp/tcp.c
++++ b/src/tcp/tcp.c
+@@ -397,15 +397,20 @@ static void tcp_recv_handler(int flags, void *arg)
+ 	}
+ 	else if (n < 0) {
+ 		err = RE_ERRNO_SOCK;
+-		DEBUG_WARNING("recv handler: recv(): %m\n", err);
++		if (err == EAGAIN || err == EINTR)
++			goto out;
+ #ifdef WIN32
+-		if (err == WSAECONNRESET || err == WSAECONNABORTED) {
+-			mem_deref(mb);
+-			conn_close(tc, err);
+-			return;
+-		}
++		if (err == WSAEWOULDBLOCK || err == WSAEINTR)
++			goto out;
+ #endif
+-		goto out;
++#if defined (EWOULDBLOCK) && EWOULDBLOCK != EAGAIN
++		if (err == EWOULDBLOCK)
++			goto out;
++#endif
++		DEBUG_WARNING("recv handler: recv(): %m\n", err);
++		mem_deref(mb);
++		conn_close(tc, err);
++		return;
+ 	}
+ 
+ 	mb->end = n;

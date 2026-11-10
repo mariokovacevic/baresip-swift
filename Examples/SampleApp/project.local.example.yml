@@ -1,0 +1,23 @@
+# Template for a local variant of the sample. Copy to project.local.yml (next to project.yml),
+# fill in your bundle identifier and team, and generate with: xcodegen --spec project.local.yml
+# project.local.yml and Local/ are ignored by git.
+include:
+  - path: project.yml
+    relativePaths: true
+targets:
+  BaresipKitSample:
+    sources:
+      - path: Local/Sources
+    entitlements:
+      path: Local/App.entitlements
+      properties:
+        aps-environment: development
+    info:
+      path: SampleApp/Info.plist
+      properties:
+        UIBackgroundModes: [remote-notification]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.app
+        DEVELOPMENT_TEAM: ABCDE12345
+        CODE_SIGN_STYLE: Automatic

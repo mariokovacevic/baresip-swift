@@ -1,0 +1,66 @@
+From f8c476455bdf3ac3559ce82b51c49ace3b5070b2 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Mon, 9 Nov 2026 21:14:53 +0000
+Subject: [PATCH] sipreg: fix leak in sipreg_set_contact_params() and allow
+ clearing
+
+sipreg_set_contact_params() overwrote the stored parameters without
+freeing them, so a second call leaked the old string, and it returned
+EINVAL for NULL, so the parameters could not be removed again.
+
+Free the old value first and accept NULL to clear the parameters.
+Extend the sipreg test to set, clear and replace the parameters before
+registering.
+---
+ src/sipreg/reg.c |  7 ++++++-
+ test/sipreg.c    | 10 ++++++++++
+ 2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/sipreg/reg.c b/src/sipreg/reg.c
+index a7cd5fa..c6f0612 100644
+--- a/src/sipreg/reg.c
++++ b/src/sipreg/reg.c
+@@ -583,7 +583,7 @@ void sipreg_set_srcport(struct sipreg *reg, uint16_t srcport)
+  * Set contact URI optional parameters
+  *
+  * @param reg      SIP registration client
+- * @param cparams  Contact URI optional parameters
++ * @param cparams  Contact URI optional parameters, NULL to clear
+  *
+  * @return 0 if success, otherwise errorcode
+  */
+@@ -592,5 +592,10 @@ int sipreg_set_contact_params(struct sipreg *reg, const char *cparams)
+ 	if (!reg)
+ 		return EINVAL;
+ 
++	reg->cparams = mem_deref(reg->cparams);
++
++	if (!cparams)
++		return 0;
++
+ 	return str_dup(&reg->cparams, cparams);
+ }
+diff --git a/test/sipreg.c b/test/sipreg.c
+index b0233d8..cbac2ce 100644
+--- a/test/sipreg.c
++++ b/test/sipreg.c
+@@ -159,6 +159,16 @@ static int reg_test(enum sip_transp tp, uint16_t srcport)
+ 		      sip_resp_handler, &test, NULL, "X-Custom: 1234\r\n");
+ 	TEST_ERR(err);
+ 
++	/* a new value replaces the old one, NULL clears it */
++	err = sipreg_set_contact_params(reg, "old-param=1");
++	TEST_ERR(err);
++
++	err = sipreg_set_contact_params(reg, NULL);
++	TEST_ERR(err);
++
++	err = sipreg_set_contact_params(reg, "old-param=2");
++	TEST_ERR(err);
++
+ 	err = sipreg_set_contact_params(reg, CPARAMS);
+ 	TEST_ERR(err);
+ 
+-- 
+2.43.0
+

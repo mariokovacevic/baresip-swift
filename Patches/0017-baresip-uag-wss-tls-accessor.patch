@@ -1,0 +1,38 @@
+diff --git a/include/baresip.h b/include/baresip.h
+index a3a771d..f0942e4 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -1052,6 +1052,7 @@ struct sip  *uag_sip(void);
+ struct list *uag_list(void);
+ uint32_t     uag_call_count(void);
+ struct tls  *uag_tls(void);
++struct tls  *uag_wss_tls(void);
+ struct sipsess_sock  *uag_sipsess_sock(void);
+ struct sipevent_sock *uag_sipevent_sock(void);
+ struct call *uag_call_find(const char *id);
+diff --git a/src/uag.c b/src/uag.c
+index 41d036f..3fa20d2 100644
+--- a/src/uag.c
++++ b/src/uag.c
+@@ -1224,6 +1224,21 @@ struct tls *uag_tls(void)
+ }
+ 
+ 
++/**
++ * Get the global TLS Context of the secure WebSocket transport
++ *
++ * @return TLS Context, NULL if the transport is not in use
++ */
++struct tls *uag_wss_tls(void)
++{
++#ifdef USE_TLS
++	return uag.wss_tls;
++#else
++	return NULL;
++#endif
++}
++
++
+ /**
+  * Setter UAG nodial flag
+  *
