@@ -1,0 +1,126 @@
+# Sanitized SIP trace captured by fake_registrar.py
+# Registrar: udp/192.0.2.2:5080  realm=example.invalid
+
+---- [01] t=0.481s  192.0.2.2:45819 -> registrar ----
+REGISTER sip:192.0.2.2:5080;transport=udp SIP/2.0
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bKabfb411fdee0fb9b;rport
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=0000000000000000000000000000000000000000000000000000000000000001:remote&1111111111111111111111111111111111111111111111111111111111111111:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=4
+Max-Forwards: 70
+To: <sip:alice@192.0.2.2:5080>
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+Call-ID: 1c5ccd0a27944673
+CSeq: 43628 REGISTER
+User-Agent: contact-proof-baresip/0.1
+Allow: INVITE,ACK,BYE,CANCEL,OPTIONS,NOTIFY,INFO,MESSAGE,UPDATE,REFER
+Content-Length: 0
+
+---- [01] registrar -> 192.0.2.2:45819 ----
+SIP/2.0 401 Unauthorized
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bKabfb411fdee0fb9b;rport
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+To: <sip:alice@192.0.2.2:5080>;tag=reg-16185a54
+Call-ID: 1c5ccd0a27944673
+CSeq: 43628 REGISTER
+WWW-Authenticate: Digest realm="example.invalid", nonce="6b08621bc030ecec", algorithm=MD5, qop="auth"
+Content-Length: 0
+
+---- [02] t=0.482s  192.0.2.2:45819 -> registrar ----
+REGISTER sip:192.0.2.2:5080;transport=udp SIP/2.0
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bKe15d6f9c3a1d1b3d;rport
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=0000000000000000000000000000000000000000000000000000000000000001:remote&1111111111111111111111111111111111111111111111111111111111111111:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=4
+Max-Forwards: 70
+Authorization: Digest username="alice", realm="example.invalid", nonce="6b08621bc030ecec", uri="sip:192.0.2.2:5080;transport=udp", response="2a7d73d92b1511ea8ed9bd658d672463", cnonce="2410716abba31aea", qop=auth, nc=00000001, algorithm=MD5
+To: <sip:alice@192.0.2.2:5080>
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+Call-ID: 1c5ccd0a27944673
+CSeq: 43629 REGISTER
+User-Agent: contact-proof-baresip/0.1
+Allow: INVITE,ACK,BYE,CANCEL,OPTIONS,NOTIFY,INFO,MESSAGE,UPDATE,REFER
+Content-Length: 0
+
+---- [02] registrar -> 192.0.2.2:45819 ----
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bKe15d6f9c3a1d1b3d;rport
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+To: <sip:alice@192.0.2.2:5080>;tag=reg-a1474b5f
+Call-ID: 1c5ccd0a27944673
+CSeq: 43629 REGISTER
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=0000000000000000000000000000000000000000000000000000000000000001:remote&1111111111111111111111111111111111111111111111111111111111111111:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=4
+Date: Fri, 06 Nov 2026 09:52:01 GMT
+Content-Length: 0
+
+---- [03] t=0.483s  192.0.2.2:45819 -> registrar ----
+REGISTER sip:192.0.2.2:5080;transport=udp SIP/2.0
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bK6b454e7822660c25;rport
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=4
+Max-Forwards: 70
+Authorization: Digest username="alice", realm="example.invalid", nonce="6b08621bc030ecec", uri="sip:192.0.2.2:5080;transport=udp", response="91aa287972a60971497d3201a0f838db", cnonce="9b1c50efd3b25f05", qop=auth, nc=00000002, algorithm=MD5
+To: <sip:alice@192.0.2.2:5080>
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+Call-ID: 1c5ccd0a27944673
+CSeq: 43630 REGISTER
+User-Agent: contact-proof-baresip/0.1
+Allow: INVITE,ACK,BYE,CANCEL,OPTIONS,NOTIFY,INFO,MESSAGE,UPDATE,REFER
+Content-Length: 0
+
+---- [03] registrar -> 192.0.2.2:45819 ----
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bK6b454e7822660c25;rport
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+To: <sip:alice@192.0.2.2:5080>;tag=reg-6233613b
+Call-ID: 1c5ccd0a27944673
+CSeq: 43630 REGISTER
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=4
+Date: Fri, 06 Nov 2026 09:52:01 GMT
+Content-Length: 0
+
+---- [04] t=4.087s  192.0.2.2:45819 -> registrar ----
+REGISTER sip:192.0.2.2:5080;transport=udp SIP/2.0
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bK1dc42eaf07ae4114;rport
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=4
+Max-Forwards: 70
+Authorization: Digest username="alice", realm="example.invalid", nonce="6b08621bc030ecec", uri="sip:192.0.2.2:5080;transport=udp", response="ff2116315ac35f295b0bd598f1012e1e", cnonce="a60a2a12448af81e", qop=auth, nc=00000003, algorithm=MD5
+To: <sip:alice@192.0.2.2:5080>
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+Call-ID: 1c5ccd0a27944673
+CSeq: 43631 REGISTER
+User-Agent: contact-proof-baresip/0.1
+Allow: INVITE,ACK,BYE,CANCEL,OPTIONS,NOTIFY,INFO,MESSAGE,UPDATE,REFER
+Content-Length: 0
+
+---- [04] registrar -> 192.0.2.2:45819 ----
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bK1dc42eaf07ae4114;rport
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+To: <sip:alice@192.0.2.2:5080>;tag=reg-43dc3be9
+Call-ID: 1c5ccd0a27944673
+CSeq: 43631 REGISTER
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=4
+Date: Fri, 06 Nov 2026 09:52:04 GMT
+Content-Length: 0
+
+---- [05] t=4.088s  192.0.2.2:45819 -> registrar ----
+REGISTER sip:192.0.2.2:5080;transport=udp SIP/2.0
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bK35dea0e0f655f1ec;rport
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=0
+Max-Forwards: 70
+Authorization: Digest username="alice", realm="example.invalid", nonce="6b08621bc030ecec", uri="sip:192.0.2.2:5080;transport=udp", response="80dd2523c6c3cdea2c144ce8eb862873", cnonce="7c3e58f3192e2ed3", qop=auth, nc=00000004, algorithm=MD5
+To: <sip:alice@192.0.2.2:5080>
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+Call-ID: 1c5ccd0a27944673
+CSeq: 43632 REGISTER
+User-Agent: contact-proof-baresip/0.1
+Allow: INVITE,ACK,BYE,CANCEL,OPTIONS,NOTIFY,INFO,MESSAGE,UPDATE,REFER
+Content-Length: 0
+
+---- [05] registrar -> 192.0.2.2:45819 ----
+SIP/2.0 200 OK
+Via: SIP/2.0/UDP 192.0.2.2:45819;branch=z9hG4bK35dea0e0f655f1ec;rport
+From: "Alice" <sip:alice@192.0.2.2:5080>;tag=bc77cb9bf2d36722
+To: <sip:alice@192.0.2.2:5080>;tag=reg-2f56fce9
+Call-ID: 1c5ccd0a27944673
+CSeq: 43632 REGISTER
+Contact: <sip:alice@192.0.2.2:45819;app-id=com.example.proof;pn-type=apple;pn-tok=2222222222222222222222222222222222222222222222222222222222222222:remote&3333333333333333333333333333333333333333333333333333333333333333:voip;pn-silent=1;pn-timeout=0;pn-channel=calls>;expires=0
+Date: Fri, 06 Nov 2026 09:52:04 GMT
+Content-Length: 0
+

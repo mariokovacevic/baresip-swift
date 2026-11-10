@@ -1,0 +1,238 @@
+From ff260ddf07e6ca252bbd65282b79c8666921e363 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Mon, 9 Nov 2026 12:33:06 +0100
+Subject: [PATCH] call: picture fast update over SIP INFO (RFC 5168)
+
+Some video endpoints, such as door stations, send a new key frame only
+when asked with a SIP INFO picture_fast_update request and ignore RTCP
+PLI/FIR, so the receiver shows no picture until the next periodic key
+frame.
+
+Answer an incoming picture_fast_update INFO by requesting a key frame
+from the encoder. Add call_send_picture_update() to send the request,
+and the vfu_info account parameter: when set, the request is also sent
+over SIP INFO whenever the video receiver asks for a new picture. Add
+video_set_picup_handler() so the call learns about those requests.
+---
+ include/baresip.h |  4 +++
+ src/account.c     |  1 +
+ src/call.c        | 91 +++++++++++++++++++++++++++++++++++++++++++++++
+ src/core.h        |  1 +
+ src/video.c       | 24 +++++++++++++
+ 5 files changed, 121 insertions(+)
+
+diff --git a/include/baresip.h b/include/baresip.h
+index 6a49736..a3a771d 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -244,6 +244,7 @@ void call_set_video_ldir(struct call *call, enum sdp_dir dir);
+ int  call_set_video_dir(struct call *call, enum sdp_dir dir);
+ int  call_update_media(struct call *call);
+ int  call_send_digit(struct call *call, char key);
++int  call_send_picture_update(struct call *call);
+ bool call_has_audio(const struct call *call);
+ bool call_has_video(const struct call *call);
+ bool call_early_video_available(const struct call *call);
+@@ -1522,6 +1523,9 @@ const struct vidcodec *video_codec(const struct video *vid, bool tx);
+ void video_sdp_attr_decode(struct video *v);
+ void video_req_keyframe(struct video *vid);
+ int  video_set_bitrate(struct video *v, uint32_t bitrate);
++typedef void (video_picup_h)(void *arg);
++void video_set_picup_handler(struct video *v, video_picup_h *picuph,
++			     void *arg);
+ uint32_t video_bitrate(const struct video *v);
+ 
+ double video_calc_seconds(uint64_t rtp_ts);
+diff --git a/src/account.c b/src/account.c
+index 36708c5..8e815f6 100644
+--- a/src/account.c
++++ b/src/account.c
+@@ -149,6 +149,7 @@ static int media_decode(struct account *acc, const struct pl *prm)
+ 	err |= param_u32(&acc->ptime,     prm, "ptime");
+ 	err |= param_bool(&acc->rtcp_mux, prm, "rtcp_mux");
+ 	err |= param_bool(&acc->pinhole, prm,  "natpinhole");
++	err |= param_bool(&acc->vfu_info, prm, "vfu_info");
+ 
+ 	return err;
+ }
+diff --git a/src/call.c b/src/call.c
+index 5636f68..b70557c 100644
+--- a/src/call.c
++++ b/src/call.c
+@@ -92,6 +92,7 @@ struct call {
+ 
+ static int send_invite(struct call *call);
+ static int send_dtmf_info(struct call *call, char key);
++static void picup_info_handler(void *arg);
+ 
+ 
+ static const char *state_name(enum call_state st)
+@@ -776,6 +777,10 @@ int call_streams_alloc(struct call *call)
+ 				  video_error_handler, call);
+ 		if (err)
+ 			return err;
++
++		if (acc->vfu_info)
++			video_set_picup_handler(call->video,
++						picup_info_handler, call);
+ 	}
+ 
+ 	FOREACH_STREAM {
+@@ -2172,6 +2177,25 @@ static void sipsess_info_handler(struct sip *sip, const struct sip_msg *msg,
+ 			}
+ 		}
+ 	}
++	else if (msg_ctype_cmp(&msg->ctyp, "application",
++				"media_control+xml")) {
++
++		struct pl body;
++
++		pl_set_mbuf(&body, msg->mb);
++
++		/* RFC 5168 */
++		if (re_regex(body.p, body.l, "picture_fast_update")) {
++			(void)sip_reply(sip, msg, 488, "Not Acceptable Here");
++			return;
++		}
++
++		info("call: received SIP INFO picture fast update\n");
++
++		(void)sip_reply(sip, msg, 200, "OK");
++
++		video_req_keyframe(call->video);
++	}
+ 	else if (call_emit_sip_info(call, msg) || !mbuf_get_left(msg->mb)) {
+ 		(void)sip_reply(sip, msg, 200, "OK");
+ 	}
+@@ -3603,3 +3627,70 @@ bool call_sdp_change_allowed(const struct call *call)
+ 		|| (sdp_state == SDP_NEG_NONE
+ 		|| sdp_state == SDP_NEG_REMOTE_OFFER);
+ }
++
++
++static void picup_resp_handler(int err, const struct sip_msg *msg, void *arg)
++{
++	(void)arg;
++
++	if (err)
++		warning("call: sending picture update INFO failed (%m)\n",
++			err);
++	else if (msg && msg->scode >= 300)
++		warning("call: sending picture update INFO failed (%u %r)\n",
++			msg->scode, &msg->reason);
++}
++
++
++/**
++ * Ask the peer for a new video picture with a SIP INFO request (RFC 5168)
++ *
++ * Some video endpoints answer only this request and ignore RTCP PLI/FIR.
++ *
++ * @param call Call object
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int call_send_picture_update(struct call *call)
++{
++	static const char xml[] =
++		"<?xml version=\"1.0\" encoding=\"utf-8\" ?>\r\n"
++		"<media_control>\r\n"
++		" <vc_primitive>\r\n"
++		"  <to_encoder>\r\n"
++		"   <picture_fast_update/>\r\n"
++		"  </to_encoder>\r\n"
++		" </vc_primitive>\r\n"
++		"</media_control>\r\n";
++	struct mbuf *body;
++	int err;
++
++	if (!call || !call->sess)
++		return EINVAL;
++
++	body = mbuf_alloc(sizeof(xml));
++	if (!body)
++		return ENOMEM;
++
++	err = mbuf_write_str(body, xml);
++	mbuf_set_pos(body, 0);
++
++	if (!err)
++		err = sipsess_info(call->sess, "application/media_control+xml",
++				   body, picup_resp_handler, call);
++
++	mem_deref(body);
++
++	return err;
++}
++
++
++static void picup_info_handler(void *arg)
++{
++	struct call *call = arg;
++	int err;
++
++	err = call_send_picture_update(call);
++	if (err && err != ENOTCONN)
++		warning("call: picture update INFO failed (%m)\n", err);
++}
+diff --git a/src/core.h b/src/core.h
+index 41c70b2..4d89873 100644
+--- a/src/core.h
++++ b/src/core.h
+@@ -92,6 +92,7 @@ struct account {
+ 	char *uas_pass;              /**< UAS authentication password        */
+ 	bool rtcp_mux;               /**< RTCP multiplexing                  */
+ 	bool pinhole;                /**< NAT pinhole flag                   */
++	bool vfu_info;               /**< Picture updates by SIP INFO        */
+ 	bool catchall;               /**< Catch all inbound requests         */
+ 	struct list custom_hdrs;     /**< Static outbound SIP headers        */
+ };
+diff --git a/src/video.c b/src/video.c
+index 77f6dcf..0371c3b 100644
+--- a/src/video.c
++++ b/src/video.c
+@@ -169,6 +169,8 @@ struct video {
+ 	bool nack_pli;          /**< Send NACK/PLI to peer                */
+ 	video_err_h *errh;      /**< Error handler                        */
+ 	void *arg;              /**< Error handler argument               */
++	video_picup_h *picuph;  /**< Picture update request handler       */
++	void *picup_arg;        /**< Picture update handler argument      */
+ };
+ 
+ 
+@@ -698,6 +700,9 @@ static void request_picture_update(struct vrx *vrx)
+ 	/* send RTCP FIR to peer */
+ 	send_fir(v->strm, v->nack_pli);
+ 
++	if (v->picuph)
++		v->picuph(v->picup_arg);
++
+ 	++vrx->n_picup;
+ }
+ 
+@@ -2016,3 +2021,22 @@ void video_req_keyframe(struct video *vid)
+ 	vid->vtx.picup = true;
+ 	mtx_unlock(vid->vtx.lock_enc);
+ }
++
++
++/**
++ * Set a handler that is called whenever the video receiver asks the peer
++ * for a new picture, in addition to the RTCP PLI/FIR it sends
++ *
++ * @param v      Video object
++ * @param picuph Picture update request handler, or NULL
++ * @param arg    Handler argument
++ */
++void video_set_picup_handler(struct video *v, video_picup_h *picuph,
++			     void *arg)
++{
++	if (!v)
++		return;
++
++	v->picuph    = picuph;
++	v->picup_arg = arg;
++}
+-- 
+2.51.0
+

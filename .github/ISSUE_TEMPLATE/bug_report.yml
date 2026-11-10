@@ -1,0 +1,51 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Before attaching logs or SIP traces, remove passwords, Authorization
+        headers, push tokens, phone numbers and real host names. BaresipKit already redacts digest
+        responses and push tokens in its own log output.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Configure an account with TLS to sip:example.com
+        2. Call sip:bob@example.com with video
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: BaresipKit version or commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device, iOS and Xcode version
+      placeholder: iPhone 15, iOS 18.1, Xcode 16.1
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: SIP server
+      placeholder: Asterisk 23, FreeSWITCH 1.10, a hosted PBX, ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs or SIP trace
+      description: Engine log with `logSIPTrace` enabled, redacted.
+      render: text

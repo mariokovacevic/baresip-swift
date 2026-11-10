@@ -1,0 +1,41 @@
+From d4faa2137cf832d3ee17bdebdbace12fb6f20901 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Fri, 6 Nov 2026 17:34:45 +0000
+Subject: [PATCH] vidfilt: skip filters without a handler for the direction
+
+A video filter that only processes outgoing frames still got an empty
+entry in the decoder filter list, and a non-empty list makes the video
+receiver copy every decoded frame before display. Filters are now added
+to the encoder or decoder list only when they handle that direction,
+which removes the copy for receive-only and send-only filters.
+---
+ src/vidfilt.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/vidfilt.c b/src/vidfilt.c
+index a7ec835..bf68987 100644
+--- a/src/vidfilt.c
++++ b/src/vidfilt.c
+@@ -65,6 +65,9 @@ int vidfilt_enc_append(struct list *filtl, void **ctx,
+ 	struct vidfilt_enc_st *st = NULL;
+ 	int err;
+ 
++	if (!vf->encupdh && !vf->ench)
++		return 0;
++
+ 	if (vf->encupdh) {
+ 		err = vf->encupdh(&st, ctx, vf, prm, vid);
+ 		if (err)
+@@ -109,6 +112,9 @@ int vidfilt_dec_append(struct list *filtl, void **ctx,
+ 	struct vidfilt_dec_st *st = NULL;
+ 	int err;
+ 
++	if (!vf->decupdh && !vf->dech)
++		return 0;
++
+ 	if (vf->decupdh) {
+ 		err = vf->decupdh(&st, ctx, vf, prm, vid);
+ 		if (err)
+-- 
+2.43.0
+

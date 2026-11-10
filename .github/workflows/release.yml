@@ -1,0 +1,143 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release, e.g. 0.1.0"
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
+jobs:
+  release:
+    name: Build XCFramework and publish the release
+    runs-on: macos-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      VERSION: ${{ inputs.version }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ASSET_NAMES: BaresipKitCore.xcframework.zip BaresipKitCore-licenses.zip checksum.txt
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Validate the version, the branch and the CI result
+        id: plan
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::The version must look like 1.2.3 or 1.2.3-beta.1."
+            exit 1
+          fi
+          if [[ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]]; then
+            echo "::error::Run the release from $DEFAULT_BRANCH, not from $GITHUB_REF."
+            exit 1
+          fi
+          TAG="v$VERSION"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "The tag $TAG exists: checking and publishing its release instead of building again."
+            echo "resume=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "resume=false" >> "$GITHUB_OUTPUT"
+          CONCLUSION="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // "missing"')"
+          if [[ "$CONCLUSION" != success ]]; then
+            echo "::error::The latest CI run for $GITHUB_SHA is '${CONCLUSION:-still running}', not 'success'."
+            exit 1
+          fi
+      - name: Install CMake
+        if: steps.plan.outputs.resume == 'false'
+        run: cmake --version || brew install cmake
+      - name: Build XCFramework (default module set)
+        if: steps.plan.outputs.resume == 'false'
+        run: MODULE_SET=default JOBS=4 Build/build-xcframework.sh
+      - name: Collect license texts
+        if: steps.plan.outputs.resume == 'false'
+        run: |
+          mkdir -p Build/out/licenses
+          cp LICENSE Build/out/licenses/BaresipKit-LICENSE
+          cp Build/.deps/re/LICENSE Build/out/licenses/libre-LICENSE
+          cp Build/.deps/baresip/LICENSE Build/out/licenses/baresip-LICENSE
+          cp Build/.deps/openssl/LICENSE.txt Build/out/licenses/OpenSSL-LICENSE.txt
+          cp Build/.deps/opus/COPYING Build/out/licenses/Opus-COPYING
+          cp Core/third_party/g722/LICENSE Build/out/licenses/libg722-LICENSE
+          cp THIRD_PARTY_NOTICES.md Build/out/licenses/
+          (cd Build/out && zip -qr BaresipKitCore-licenses.zip licenses)
+      - name: Upload the assets to a draft release
+        if: steps.plan.outputs.resume == 'false'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          if IS_DRAFT="$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)"; then
+            if [[ "$IS_DRAFT" != true ]]; then
+              echo "::error::A published release $TAG exists without its tag. Delete it or choose another version."
+              exit 1
+            fi
+            gh release delete "$TAG" --yes
+          fi
+          CHECKSUM="$(cat Build/out/checksum.txt)"
+          PRERELEASE=()
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE=(--prerelease)
+          fi
+          gh release create "$TAG" --draft "${PRERELEASE[@]}" --title "BaresipKit $VERSION" \
+            --notes "BaresipKitCore XCFramework (iOS device arm64, iOS simulator arm64, macOS arm64). SPM checksum: $CHECKSUM. Pinned upstream versions: see Build/versions.env." \
+            Build/out/BaresipKitCore.xcframework.zip \
+            Build/out/BaresipKitCore-licenses.zip \
+            Build/out/checksum.txt
+      - name: Point Package.swift at the release asset, commit, tag and push atomically
+        if: steps.plan.outputs.resume == 'false'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          CHECKSUM="$(cat Build/out/checksum.txt)"
+          URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TAG/BaresipKitCore.xcframework.zip"
+          sed -i '' "s|^let coreReleaseURL = \".*\"|let coreReleaseURL = \"${URL}\"|" Package.swift
+          sed -i '' "s|^let coreReleaseChecksum = \".*\"|let coreReleaseChecksum = \"${CHECKSUM}\"|" Package.swift
+          grep -n "coreRelease" Package.swift
+          grep -q "^let coreReleaseChecksum = \"${CHECKSUM}\"" Package.swift
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "chore(release): point BaresipKitCore at the $TAG asset"
+          git tag "$TAG"
+          git push --atomic origin "HEAD:refs/heads/$DEFAULT_BRANCH" "refs/tags/$TAG"
+      - name: Check the assets of the release that belongs to the existing tag
+        if: steps.plan.outputs.resume == 'true'
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: |
+          REMEDY="Its Package.swift cannot be satisfied by a new build. Delete the tag (git push --delete origin $TAG) and run the release again, or release a new version."
+          if ! ASSETS="$(gh release view "$TAG" --json assets --jq '.assets[].name')"; then
+            echo "::error::The tag $TAG exists but has no release. $REMEDY"
+            exit 1
+          fi
+          for NAME in $ASSET_NAMES; do
+            if ! grep -qx "$NAME" <<< "$ASSETS"; then
+              echo "::error::The release $TAG has no asset $NAME. $REMEDY"
+              exit 1
+            fi
+          done
+          gh release download "$TAG" --pattern BaresipKitCore.xcframework.zip --dir "$RUNNER_TEMP/release"
+          EXPECTED="$(git show "refs/tags/$TAG:Package.swift" | sed -n 's/^let coreReleaseChecksum = "\(.*\)"$/\1/p')"
+          ACTUAL="$(swift package compute-checksum "$RUNNER_TEMP/release/BaresipKitCore.xcframework.zip")"
+          if [[ -z "$EXPECTED" || "$EXPECTED" != "$ACTUAL" ]]; then
+            echo "::error::The asset of $TAG has checksum $ACTUAL, its Package.swift expects '$EXPECTED'. $REMEDY"
+            exit 1
+          fi
+      - name: Publish the release
+        env:
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: gh release edit "$TAG" --draft=false --verify-tag

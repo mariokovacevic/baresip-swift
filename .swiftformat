@@ -1,0 +1,16 @@
+--swiftversion 6.0
+--indent 4
+--maxwidth 120
+--wraparguments preserve
+--wrapparameters preserve
+--wrapcollections preserve
+--wrapconditions preserve
+--wrapreturntype preserve
+--closingparen balanced
+--commas always
+--semicolons never
+--self remove
+--importgrouping alpha
+--stripunusedargs closure-only
+--header ignore
+--disable wrapMultilineStatementBraces,preferForLoop,redundantReturn,redundantType,docComments,blankLinesAtStartOfScope,blankLinesAtEndOfScope,organizeDeclarations,extensionAccessControl,markTypes,sortImports,hoistPatternLet

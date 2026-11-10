@@ -1,0 +1,17 @@
+/// The engine's reaction to a network change; see ``BaresipEngine/networkDidChange(reregister:updateCalls:)``.
+public struct BaresipNetworkEvent: Sendable, Equatable {
+    /// Whether SIP transports were recreated on a new local address.
+    public let transportsReset: Bool
+    /// The local address in use after the change.
+    public let localAddress: String
+
+    /// Creates a network event.
+    ///
+    /// - Parameters:
+    ///   - transportsReset: Whether transports were recreated.
+    ///   - localAddress: The local address.
+    public init(transportsReset: Bool, localAddress: String) {
+        self.transportsReset = transportsReset
+        self.localAddress = localAddress
+    }
+}

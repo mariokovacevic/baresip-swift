@@ -1,0 +1,144 @@
+diff --git a/src/sipreg/reg.c b/src/sipreg/reg.c
+index c6f0612..2ebceca 100644
+--- a/src/sipreg/reg.c
++++ b/src/sipreg/reg.c
+@@ -333,6 +333,9 @@ static int request(struct sipreg *reg, bool reset_ls)
+ 		sip_loopstate_reset(&reg->ls);
+ 	}
+ 
++	/* a request that is still pending is replaced by the new one */
++	reg->req = mem_deref(reg->req);
++
+ 	return sip_drequestf(&reg->req, reg->sip, true, "REGISTER", reg->dlg,
+ 			     0, reg->auth, send_handler, response_handler, reg,
+ 			     "%s"
+diff --git a/test/sipreg.c b/test/sipreg.c
+index cbac2ce..0bac938 100644
+--- a/test/sipreg.c
++++ b/test/sipreg.c
+@@ -214,6 +214,93 @@ static int reg_test(enum sip_transp tp, uint16_t srcport)
+ }
+ 
+ 
++static void overlap_resp_handler(int err, const struct sip_msg *msg,
++				 void *arg)
++{
++	struct test *test = arg;
++	(void)msg;
++
++	if (err) {
++		test->err = err;
++		re_cancel();
++		return;
++	}
++
++	++test->n_resp;
++
++	/* wait for a response to the replaced request */
++	tmr_start(&test->tmr, 100, tmr_handler, test);
++}
++
++
++int test_sipreg_overlap(void)
++{
++	struct test test;
++	struct sip_server *srv = NULL;
++	struct sipreg *reg = NULL;
++	struct sip *sip = NULL;
++	char reg_uri[256];
++	int err;
++
++	memset(&test, 0, sizeof(test));
++	test.tp = SIP_TRANSP_UDP;
++
++	err = sip_server_alloc(&srv);
++	TEST_ERR(err);
++
++	err = sipstack_fixture(&sip);
++	TEST_ERR(err);
++
++	err = sip_server_uri(srv, reg_uri, sizeof(reg_uri), test.tp);
++	TEST_ERR(err);
++
++	err = sipreg_alloc(&reg, sip, reg_uri, "sip:x@test", NULL,
++			   "sip:x@test", 3600, "x", NULL, 0, 0, NULL, NULL,
++			   false, overlap_resp_handler, &test, NULL, NULL);
++	TEST_ERR(err);
++
++	/* the second request replaces the first one, which is unanswered */
++	err = sipreg_send(reg);
++	TEST_ERR(err);
++
++	err = sipreg_send(reg);
++	TEST_ERR(err);
++
++	err = re_main_timeout(1000);
++	TEST_ERR(err);
++
++	TEST_ERR(test.err);
++	TEST_EQUALS(1, test.n_resp);
++	ASSERT_TRUE(sipreg_registered(reg));
++
++	/* the client may be released while a replaced request and its
++	   successor are unanswered */
++	err = sipreg_send(reg);
++	TEST_ERR(err);
++
++	err = sipreg_send(reg);
++	TEST_ERR(err);
++
++	reg = mem_deref(reg);
++
++	tmr_start(&test.tmr, 200, tmr_handler, &test);
++	err = re_main_timeout(1000);
++	TEST_ERR(err);
++
++ out:
++	tmr_cancel(&test.tmr);
++
++	mem_deref(reg);
++
++	sip_close(sip, true);
++	mem_deref(sip);
++
++	mem_deref(srv);
++
++	return err;
++}
++
++
+ int test_sipreg_udp(void)
+ {
+ 	return reg_test(SIP_TRANSP_UDP, 0);
+diff --git a/test/test.c b/test/test.c
+index 3fbeab0..c9ed4c5 100644
+--- a/test/test.c
++++ b/test/test.c
+@@ -211,6 +211,7 @@ static const struct test tests[] = {
+ #endif
+ 	TEST(test_fmt_trim),
+ 	TEST(test_sipevent),
++	TEST(test_sipreg_overlap),
+ 	TEST(test_sipreg_tcp),
+ #ifdef USE_TLS
+ 	TEST(test_sipreg_tls),
+@@ -301,6 +302,7 @@ static const struct test tests_integration[] = {
+ 	TEST(test_rtp_listen),
+ 	TEST(test_sip_drequestf_network),
+ 	TEST(test_sipevent_network),
++	TEST(test_sipreg_overlap),
+ 	TEST(test_sipreg_tcp),
+ #ifdef USE_TLS
+ 	TEST(test_sipreg_tls),
+diff --git a/test/test.h b/test/test.h
+index 6a20ce0..bc212fd 100644
+--- a/test/test.h
++++ b/test/test.h
+@@ -323,6 +323,7 @@ int test_sip_transp_add_client_cert(void);
+ int test_sip_transp_wss_verify_host(void);
+ #endif
+ int test_sipevent(void);
++int test_sipreg_overlap(void);
+ int test_sipreg_udp(void);
+ int test_sipreg_tcp(void);
+ #ifdef USE_TLS

@@ -1,0 +1,251 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOST_SANITIZE: address,undefined
+
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
+jobs:
+  lint:
+    name: Lint and format check
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install linters
+        run: |
+          brew install swiftformat swiftlint >/dev/null
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet clang-format==18.1.3
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+      - name: Run Scripts/lint.sh
+        run: |
+          swiftformat --version
+          swiftlint version
+          clang-format --version
+          if ! Scripts/lint.sh; then
+            Scripts/format.sh
+            echo "--- diff produced by Scripts/format.sh"
+            git diff
+            exit 1
+          fi
+
+  linux-core:
+    name: Linux host build, sanitizers, core tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev zlib1g-dev yasm python3 clang libclang-rt-dev
+      - name: Cache pinned sources and built prefix
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/host/prefix
+          key: linux-asan-ubsan-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Build host prefix (full module set, libre and baresip under ASan/UBSan)
+        run: PLATFORM=host MODULE_SET=full SANITIZE="$HOST_SANITIZE" JOBS=4 Build/build-xcframework.sh
+      - name: Run core test suite under ASan/UBSan
+        run: HOSTIP=$(hostname -I | awk '{print $1}') PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Fuzz the facade parsers (libFuzzer, 300k runs)
+        run: CC=clang RUNS=300000 PREFIX=Build/out/host/prefix Tests/Fuzz/run_fuzz.sh
+      - name: Upload traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: linux-core-logs
+          path: Build/out/host/core-tests/*.txt
+
+  macos:
+    name: macOS XCFramework, Swift package, simulator tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+          cmake --version || brew install cmake
+      - name: Cache pinned sources and built prefixes
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/ios-arm64/prefix
+            Build/out/ios-arm64-simulator/prefix
+            Build/out/macos-arm64/prefix
+            Build/out/host/prefix
+          key: macos-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Build XCFramework (default module set)
+        run: MODULE_SET=default JOBS=4 Build/build-xcframework.sh
+      - name: Build Swift package for the simulator and a device, warnings as errors
+        run: |
+          for destination in 'generic/platform=iOS Simulator' 'generic/platform=iOS'; do
+            xcodebuild build -scheme BaresipKit-Package -destination "$destination" \
+              SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 \
+              | tee package.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
+            grep -q "BUILD SUCCEEDED" package.log
+          done
+      - name: Build and test the Swift package on macOS, warnings as errors
+        run: |
+          xcodebuild build -scheme BaresipKit-Package -destination 'platform=macOS' \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 \
+            | tee macos.log | grep -E "error:|warning:|BUILD (SUCCEEDED|FAILED)" || true
+          grep -q "BUILD SUCCEEDED" macos.log
+          xcodebuild test -scheme BaresipKit-Package -destination 'platform=macOS' \
+            SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 \
+            | tee macos-test.log | grep -E "Test Suite|Executed|error:|Test Case .*failed|TEST (SUCCEEDED|FAILED)|Undefined symbols|referenced from|ld: " || true
+          grep -q "TEST SUCCEEDED" macos-test.log
+      - name: Build documentation, warnings as errors
+        run: |
+          for scheme in BaresipKit BaresipKitAudio BaresipKitVideo BaresipKitCallKit BaresipKitPushKit BaresipKitSwiftUI; do
+            status=0
+            xcodebuild docbuild -scheme "$scheme" -destination 'generic/platform=iOS Simulator' \
+              OTHER_DOCC_FLAGS="--warnings-as-errors" > docc.log 2>&1 || status=$?
+            grep -E "error|warning" docc.log | grep -v "^note:" | sort -u | head -80 || true
+            tail -3 docc.log
+            test "$status" = 0
+          done
+      - name: Host build and core tests
+        run: |
+          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+          HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1) PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Run XCTest on a simulator
+        run: |
+          xcrun simctl list runtimes
+          UDID=$(xcrun simctl list devices available --json | python3 -c '
+          import json, re, sys
+          d = json.load(sys.stdin)["devices"]
+          def ver(k):
+              m = re.search(r"iOS-(\d+)-(\d+)", k)
+              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
+          for key in sorted((k for k in d if "iOS" in k), key=ver, reverse=True):
+              phones = [x for x in d[key] if x.get("isAvailable") and x["name"].startswith("iPhone")]
+              if phones:
+                  print(phones[-1]["udid"])
+                  break
+          ')
+          test -n "$UDID"
+          echo "Using simulator: $UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
+          xcodebuild test -scheme BaresipKit-Package -destination "id=${UDID}" SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 | tee xctest.log | grep -E "Test Suite|Executed|error:|Test Case .*failed|TEST (SUCCEEDED|FAILED)" || true
+          grep -q "TEST SUCCEEDED" xctest.log
+      - name: Build the sample app for the simulator
+        run: |
+          brew install xcodegen >/dev/null
+          cd Examples/SampleApp
+          xcodegen generate
+          for destination in 'generic/platform=iOS Simulator' 'generic/platform=iOS'; do
+            xcodebuild build -project BaresipKitSample.xcodeproj -scheme BaresipKitSample \
+              -destination "$destination" CODE_SIGNING_ALLOWED=NO SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 \
+              | tee sample.log | grep -E "error:|warning: .*\.swift|BUILD (SUCCEEDED|FAILED)" || true
+            grep -q "BUILD SUCCEEDED" sample.log
+          done
+      - name: Sample app UI test (TLS registration with a private CA, pinning, call to a host peer)
+        run: |
+          HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1)
+          OUT="$PWD/Build/out/uitest"
+          mkdir -p "$OUT"
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
+            -keyout "$OUT/key.pem" -out "$OUT/cert.pem" -days 2 \
+            -subj "/CN=baresipkit-uitest" -addext "subjectAltName=IP:$HOSTIP" >/dev/null 2>&1
+          REGISTRAR_HOST="$HOSTIP" REGISTRAR_PORT=5081 REGISTRAR_IDLE_TIMEOUT=900 \
+            python3 Tools/ContactParameterProof/tls_registrar.py "$OUT/cert.pem" "$OUT/key.pem" "$OUT/registrar-trace.txt" > "$OUT/registrar.out" 2>&1 &
+          BSK_PEER_TIMEOUT=900 Build/out/host/core-tests/tests/bsk_test_call peer "$HOSTIP" > "$OUT/peer.out" 2> "$OUT/peer.err" &
+          PEER_PID=$!
+          for i in $(seq 1 50); do grep -q READY "$OUT/peer.out" 2>/dev/null && break; sleep 0.2; done
+          xcrun simctl boot "$SIM_UDID" || true
+          cd Examples/SampleApp
+          TEST_RUNNER_BSK_UITEST_HOST="$HOSTIP" TEST_RUNNER_BSK_UITEST_CA_PEM="$(cat "$OUT/cert.pem")" \
+            xcodebuild test -project BaresipKitSample.xcodeproj -scheme BaresipKitSample \
+            -destination "id=${SIM_UDID}" CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= 2>&1 \
+            | tee "$OUT/uitest.log" | grep -E "Test Case|error:|XCTAssert|failed|TEST (SUCCEEDED|FAILED)" || true
+          if ! grep -q "TEST SUCCEEDED" "$OUT/uitest.log"; then
+            grep -E -A140 "not found in:|not hittable in:" "$OUT/uitest.log" | head -170 || true
+            tail -60 "$OUT/uitest.log"
+            echo "--- registrar trace"; tail -60 "$OUT/registrar-trace.txt" || true
+            echo "--- registrar"; tail -20 "$OUT/registrar.out" || true
+            APP_DATA=$(xcrun simctl get_app_container "$SIM_UDID" com.example.BaresipKitSample data 2>/dev/null || true)
+            if [[ -n "$APP_DATA" ]]; then
+              echo "--- app log"; tail -n 150 "$APP_DATA"/Library/Logs/*.log 2>/dev/null || true
+            fi
+            echo "--- crash reports"
+            for report in $(ls -t ~/Library/Logs/DiagnosticReports/BaresipKitSample* 2>/dev/null | head -2); do
+              echo "$report"; head -n 120 "$report"
+            done
+            echo "--- peer"; cat "$OUT/peer.out"; grep -E "CHECK|call|SIP/2.0|INVITE" "$OUT/peer.err" | tail -40 || true
+            kill "$PEER_PID" 2>/dev/null || true
+            exit 1
+          fi
+          PEER_RC=0
+          wait "$PEER_PID" || PEER_RC=$?
+          cat "$OUT/peer.out"
+          echo "REGISTER requests seen by the registrar: $(grep -c 'REGISTER sip' "$OUT/registrar-trace.txt" || true)"
+          if [[ "$PEER_RC" != 0 ]] || ! grep -q "peer: PASS" "$OUT/peer.out"; then
+            grep -E "CHECK|call|SIP/2.0|INVITE" "$OUT/peer.err" | tail -40 || true
+            exit 1
+          fi
+      - name: Upload XCFramework
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: BaresipKitCore.xcframework
+          path: |
+            Build/out/BaresipKitCore.xcframework.zip
+            Build/out/checksum.txt
+            Build/out/sizes.txt
+      - name: Upload UI test logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sample-uitest-logs
+          path: |
+            Build/out/uitest/*.txt
+            Build/out/uitest/*.log
+            Build/out/uitest/*.out
+            Build/out/uitest/*.err
+          if-no-files-found: ignore
+
+  integration:
+    name: Integration against Asterisk and coturn (Docker)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libssl-dev zlib1g-dev yasm python3
+      - name: Cache pinned sources and built prefix
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/host/prefix
+          key: linux-asan-ubsan-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Build host prefix and test binaries (ASan/UBSan)
+        run: |
+          PLATFORM=host MODULE_SET=full SANITIZE="$HOST_SANITIZE" JOBS=4 Build/build-xcframework.sh
+          BUILD_ONLY=1 HOSTIP=$(hostname -I | awk '{print $1}') PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Run integration suite
+        run: |
+          HOSTIP=$(hostname -I | awk '{print $1}')
+          echo "HOSTIP=$HOSTIP"
+          PREFIX=Build/out/host/prefix HOSTIP=$HOSTIP Tests/Integration/run_integration.sh
+

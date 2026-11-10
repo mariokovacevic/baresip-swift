@@ -1,0 +1,204 @@
+diff --git a/include/re_tls.h b/include/re_tls.h
+index 04313c6..09c731a 100644
+--- a/include/re_tls.h
++++ b/include/re_tls.h
+@@ -76,6 +76,9 @@ typedef int (tls_verify_server_h)(int preverify_ok, int depth,
+ 				  void *arg);
+ int tls_set_verify_server_handler(struct tls *tls, tls_verify_server_h *h,
+ 				  void *arg);
++typedef bool (tls_trust_h)(const char *host, const uint8_t *const *derv,
++			   const size_t *lenv, size_t count, void *arg);
++int tls_set_trust_handler(struct tls *tls, tls_trust_h *h, void *arg);
+ int tls_verify_client(struct tls_conn *tc);
+ 
+ int tls_get_issuer(struct tls *tls, struct mbuf *mb);
+diff --git a/src/tls/openssl/tls.c b/src/tls/openssl/tls.c
+index 46dcf0d..9d4b2e3 100644
+--- a/src/tls/openssl/tls.c
++++ b/src/tls/openssl/tls.c
+@@ -50,6 +50,9 @@ struct tls {
+ 	struct list certs;   /**< Certificates for SNI selection       */
+ 	tls_verify_server_h *verify_server_h;
+ 	void *verify_server_arg;
++	tls_trust_h *trust_h;
++	void *trust_arg;
++	bool capath;
+ };
+ 
+ /**
+@@ -408,6 +411,9 @@ int tls_add_cafile_path(struct tls *tls, const char *cafile,
+ 		return ENOENT;
+ 	}
+ 
++	if (capath)
++		tls->capath = true;
++
+ 	return 0;
+ }
+ 
+@@ -1352,6 +1358,165 @@ int tls_set_verify_server_handler(struct tls *tls, tls_verify_server_h *h,
+ }
+ 
+ 
++enum { TLS_TRUST_CHAIN_MAX = 16 };
++
++
++static bool tls_trust_error(int err)
++{
++	switch (err) {
++
++	case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT:
++	case X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
++	case X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE:
++	case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
++	case X509_V_ERR_SELF_SIGNED_CERT_IN_CHAIN:
++	case X509_V_ERR_CERT_UNTRUSTED:
++		return true;
++
++	default:
++		return false;
++	}
++}
++
++
++static bool tls_trust_chain(const struct tls *tls, X509_STORE_CTX *ctx,
++			    const char *host)
++{
++	uint8_t *derv[TLS_TRUST_CHAIN_MAX] = {NULL};
++	size_t lenv[TLS_TRUST_CHAIN_MAX] = {0};
++	STACK_OF(X509) *chain = X509_STORE_CTX_get0_untrusted(ctx);
++	X509 *leaf = X509_STORE_CTX_get0_cert(ctx);
++	size_t count = 0;
++	bool ok = false;
++	int i, len;
++
++	if (!leaf)
++		return false;
++
++	len = i2d_X509(leaf, &derv[count]);
++	if (len <= 0)
++		goto out;
++	lenv[count++] = (size_t)len;
++
++	for (i = 0; i < sk_X509_num(chain); i++) {
++		X509 *cert = sk_X509_value(chain, i);
++
++		if (cert == leaf || 0 == X509_cmp(cert, leaf))
++			continue;
++		if (count >= TLS_TRUST_CHAIN_MAX)
++			goto out;
++
++		len = i2d_X509(cert, &derv[count]);
++		if (len <= 0)
++			goto out;
++		lenv[count++] = (size_t)len;
++	}
++
++	ok = tls->trust_h(host, (const uint8_t *const *)derv, lenv, count,
++			  tls->trust_arg);
++
++ out:
++	for (i = 0; i < TLS_TRUST_CHAIN_MAX; i++)
++		OPENSSL_free(derv[i]);
++	ERR_clear_error();
++
++	return ok;
++}
++
++
++static bool tls_store_empty(const struct tls *tls, X509_STORE_CTX *ctx)
++{
++	X509_STORE *store = X509_STORE_CTX_get0_store(ctx);
++
++	/* certificates of a CA directory are loaded on demand */
++	if (tls->capath)
++		return false;
++
++	if (!store)
++		return true;
++
++	return 0 == sk_X509_OBJECT_num(X509_STORE_get0_objects(store));
++}
++
++
++static int tls_cert_verify_cb(X509_STORE_CTX *ctx, void *arg)
++{
++	const struct tls *tls = arg;
++	X509_VERIFY_PARAM *param;
++	const char *host;
++	char *ip = NULL;
++	SSL *ssl;
++	bool ok;
++
++	ssl = X509_STORE_CTX_get_ex_data(ctx,
++		SSL_get_ex_data_X509_STORE_CTX_idx());
++	if (!tls->trust_h || !ssl || SSL_is_server(ssl) ||
++	    SSL_get_verify_mode(ssl) == SSL_VERIFY_NONE)
++		return X509_verify_cert(ctx);
++
++	if (!tls_store_empty(tls, ctx)) {
++		if (1 == X509_verify_cert(ctx))
++			return 1;
++		if (!tls_trust_error(X509_STORE_CTX_get_error(ctx)))
++			return 0;
++	}
++
++	param = X509_STORE_CTX_get0_param(ctx);
++	host = X509_VERIFY_PARAM_get0_host(param, 0);
++	if (!host)
++		host = ip = X509_VERIFY_PARAM_get1_ip_asc(param);
++	if (!host) {
++		X509_STORE_CTX_set_error(ctx, X509_V_ERR_CERT_UNTRUSTED);
++		return 0;
++	}
++
++	ok = tls_trust_chain(tls, ctx, host);
++	OPENSSL_free(ip);
++	if (!ok) {
++		X509_STORE_CTX_set_error(ctx, X509_V_ERR_CERT_UNTRUSTED);
++		return 0;
++	}
++
++	X509_STORE_CTX_set_error(ctx, X509_V_OK);
++
++	return 1;
++}
++
++
++/**
++ * Set a handler that decides whether a server certificate chain is trusted
++ * when OpenSSL cannot anchor it in its own certificate store, for example by
++ * asking the trust store of the platform. It is used for verified client
++ * connections only. With an empty certificate store the handler replaces
++ * OpenSSL's verification and the verify callbacks are not called. The handler
++ * receives the host name or IP address the connection was made to and the
++ * chain in DER form, leaf first, and must check the chain, its validity and
++ * the host itself.
++ *
++ * @param tls  TLS Context
++ * @param h    Trust handler, NULL to restore the default
++ * @param arg  Handler argument
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int tls_set_trust_handler(struct tls *tls, tls_trust_h *h, void *arg)
++{
++	if (!tls || !tls->ctx)
++		return EINVAL;
++
++	tls->trust_h = h;
++	tls->trust_arg = arg;
++
++	if (h)
++		SSL_CTX_set_cert_verify_callback(tls->ctx,
++						 tls_cert_verify_cb, tls);
++	else
++		SSL_CTX_set_cert_verify_callback(tls->ctx, NULL, NULL);
++
++	return 0;
++}
++
++
+ /**
+  * Enable verification of client certificate
+  *

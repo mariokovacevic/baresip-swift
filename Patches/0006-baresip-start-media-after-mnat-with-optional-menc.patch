@@ -1,0 +1,17 @@
+diff --git a/src/call.c b/src/call.c
+index 6923fbc..1a0c325 100644
+--- a/src/call.c
++++ b/src/call.c
+@@ -502,9 +502,11 @@ static void stream_mnatconn_handler(struct stream *strm, void *arg)
+ 		if (err) {
+ 			call_event_handler(call, CALL_EVENT_CLOSED,
+ 					   "mediaenc failed %m", err);
++			return;
+ 		}
+ 	}
+-	else if (stream_is_ready(strm)) {
++
++	if (stream_is_ready(strm)) {
+ 
+ 		stream_start_rtcp(strm);
+ 

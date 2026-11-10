@@ -1,0 +1,168 @@
+diff --git a/src/sipreg/reg.c b/src/sipreg/reg.c
+index 2ebceca..9d22872 100644
+--- a/src/sipreg/reg.c
++++ b/src/sipreg/reg.c
+@@ -76,12 +76,16 @@ static void destructor(void *arg)
+ 		reg->resph = dummy_handler;
+ 		reg->terminated = true;
+ 
+-		if (reg->req) {
++		/* an unanswered request that removes the binding */
++		if (reg->req && !reg->expires) {
+ 			mem_ref(reg);
+ 			return;
+ 		}
+ 
+-		if (reg->registered && !request(reg, true)) {
++		/* an unanswered request may still create the binding. It
++		   is replaced by the request that removes the binding,
++		   which then leaves before a REGISTER of a new client */
++		if ((reg->req || reg->registered) && !request(reg, true)) {
+ 			mem_ref(reg);
+ 			return;
+ 		}
+@@ -303,11 +307,15 @@ static int send_handler(enum sip_transp tp, struct sa *src,
+ 	(void)contp;
+ 	(void)dst;
+ 
+-	reg->tp = tp;
+ 	if (reg->srcport && tp != SIP_TRANSP_UDP)
+ 		sa_set_port(src, reg->srcport);
+ 
+-	reg->laddr = *src;
++	/* a released client removes the binding that it has created, also
++	   if the local address has changed since */
++	if (!reg->terminated || !sa_isset(&reg->laddr, SA_ADDR)) {
++		reg->tp = tp;
++		reg->laddr = *src;
++	}
+ 	err = mbuf_printf(mb, "Contact: <sip:%s@%J%s%s%s>;expires=%u%s%s",
+ 			  reg->cuser, &reg->laddr, sip_transp_param(reg->tp),
+ 			  reg->cparams ? ";" : "",
+diff --git a/test/sipreg.c b/test/sipreg.c
+index 0bac938..781848c 100644
+--- a/test/sipreg.c
++++ b/test/sipreg.c
+@@ -301,6 +301,90 @@ int test_sipreg_overlap(void)
+ }
+ 
+ 
++static bool is_unregister(const struct sip_msg *msg)
++{
++	const struct sip_hdr *hdr = sip_msg_hdr(msg, SIP_HDR_CONTACT);
++	struct sip_addr addr;
++	struct pl pval;
++
++	if (!hdr || sip_addr_decode(&addr, &hdr->val))
++		return false;
++
++	if (msg_param_decode(&addr.params, "expires", &pval))
++		return false;
++
++	return 0 == pl_u32(&pval);
++}
++
++
++int test_sipreg_release_pending(void)
++{
++	struct test test;
++	struct sip_server *srv = NULL;
++	struct sipreg *reg = NULL;
++	struct sip *sip = NULL;
++	char reg_uri[256];
++	int err;
++
++	memset(&test, 0, sizeof(test));
++	test.tp = SIP_TRANSP_UDP;
++
++	err = sip_server_alloc(&srv);
++	TEST_ERR(err);
++
++	err = sipstack_fixture(&sip);
++	TEST_ERR(err);
++
++	err = sip_server_uri(srv, reg_uri, sizeof(reg_uri), test.tp);
++	TEST_ERR(err);
++
++	err = sipreg_alloc(&reg, sip, reg_uri, "sip:x@test", NULL,
++			   "sip:x@test", 3600, "x", NULL, 0, 0, NULL, NULL,
++			   false, overlap_resp_handler, &test, NULL, NULL);
++	TEST_ERR(err);
++
++	err = sipreg_send(reg);
++	TEST_ERR(err);
++
++	/* the client is replaced while its request is unanswered */
++	reg = mem_deref(reg);
++
++	err = sipreg_alloc(&reg, sip, reg_uri, "sip:x@test", NULL,
++			   "sip:x@test", 3600, "x", NULL, 0, 0, NULL, NULL,
++			   false, overlap_resp_handler, &test, NULL, NULL);
++	TEST_ERR(err);
++
++	err = sipreg_send(reg);
++	TEST_ERR(err);
++
++	err = re_main_timeout(1000);
++	TEST_ERR(err);
++
++	TEST_ERR(test.err);
++	TEST_EQUALS(1, test.n_resp);
++	ASSERT_TRUE(sipreg_registered(reg));
++
++	/* the binding of the released client is removed before the new
++	   client registers, so the registrar keeps the new binding */
++	TEST_EQUALS(3, srv->n_register_req);
++	ASSERT_TRUE(!is_unregister(srv->sip_msgs[0]));
++	ASSERT_TRUE(is_unregister(srv->sip_msgs[1]));
++	ASSERT_TRUE(!is_unregister(srv->sip_msgs[2]));
++
++ out:
++	tmr_cancel(&test.tmr);
++
++	mem_deref(reg);
++
++	sip_close(sip, true);
++	mem_deref(sip);
++
++	mem_deref(srv);
++
++	return err;
++}
++
++
+ int test_sipreg_udp(void)
+ {
+ 	return reg_test(SIP_TRANSP_UDP, 0);
+diff --git a/test/test.c b/test/test.c
+index a979e59..2b3327e 100644
+--- a/test/test.c
++++ b/test/test.c
+@@ -213,6 +213,7 @@ static const struct test tests[] = {
+ 	TEST(test_fmt_trim),
+ 	TEST(test_sipevent),
+ 	TEST(test_sipreg_overlap),
++	TEST(test_sipreg_release_pending),
+ 	TEST(test_sipreg_tcp),
+ #ifdef USE_TLS
+ 	TEST(test_sipreg_tls),
+@@ -304,6 +305,7 @@ static const struct test tests_integration[] = {
+ 	TEST(test_sip_drequestf_network),
+ 	TEST(test_sipevent_network),
+ 	TEST(test_sipreg_overlap),
++	TEST(test_sipreg_release_pending),
+ 	TEST(test_sipreg_tcp),
+ #ifdef USE_TLS
+ 	TEST(test_sipreg_tls),
+diff --git a/test/test.h b/test/test.h
+index c9b9e4e..1a90a73 100644
+--- a/test/test.h
++++ b/test/test.h
+@@ -325,6 +325,7 @@ int test_sip_transp_wss_verify_host(void);
+ #endif
+ int test_sipevent(void);
+ int test_sipreg_overlap(void);
++int test_sipreg_release_pending(void);
+ int test_sipreg_udp(void);
+ int test_sipreg_tcp(void);
+ #ifdef USE_TLS

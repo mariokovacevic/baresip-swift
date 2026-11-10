@@ -1,0 +1,505 @@
+From 0a53892a06d18f5d1cd7304663afade69433e383 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Mon, 9 Nov 2026 22:43:13 +0000
+Subject: [PATCH] ice: allocate TURN relays over TCP and TLS
+
+The ICE module allocated relayed candidates over UDP only, so
+turn:...?transport=tcp and turns: could not be used with ICE. Connect
+to the TURN server over TCP, with TLS for turns:, allocate the relay on
+that connection, send the packets of the component through it with a
+UDP helper and inject relayed data into the UDP socket. The session
+uses the relay-only policy in this mode and never sends on the plain
+UDP socket.
+
+A connection that is refused, fails TLS, times out or is closed before
+the allocation is done completes the request of its component with an
+error, so gathering ends with the remaining candidates or fails. The
+connect, the TLS handshake and the allocation share one timeout. A
+connection that is lost later, a failed refresh and a stream that
+cannot be parsed close the connection and emit the "failed" event
+once per media line.
+---
+ modules/ice/ice.c | 367 +++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 362 insertions(+), 5 deletions(-)
+
+diff --git a/modules/ice/ice.c b/modules/ice/ice.c
+index baf0741..564bfb8 100644
+--- a/modules/ice/ice.c
++++ b/modules/ice/ice.c
+@@ -20,7 +20,8 @@
+ 
+ enum {
+ 	ICE_LAYER = 0,
+-	LPREF_INIT = UINT16_MAX / 2
++	LPREF_INIT = UINT16_MAX / 2,
++	TCP_GATHER_TIMEOUT = 10000  /* connect, TLS and allocation [ms] */
+ };
+ 
+ static struct {
+@@ -40,6 +41,9 @@ struct mnat_sess {
+ 	uint64_t tiebrk;
+ 	bool turn;
+ 	bool offerer;
++	int proto;
++	bool secure;
++	char *host;
+ 	char *user;
+ 	char *pass;
+ 	bool started;
+@@ -55,6 +59,13 @@ struct mnat_media {
+ 		struct sa laddr;
+ 		unsigned id;
+ 		void *sock;
++		struct tcp_conn *tc;
++		struct tls_conn *tlsc;
++		struct turnc *turnc;
++		struct udp_helper *uh;
++		struct mbuf *mb;
++		struct tmr tmr_tcp;
++		bool tcp_gathering;           /* counted in nstun */
+ 	} compv[2];
+ 	struct le le;
+ 	struct mnat_sess *sess;
+@@ -64,6 +75,7 @@ struct mnat_media {
+ 	bool gathered;
+ 	bool complete;
+ 	bool terminated;
++	bool relay_lost;
+ 	int nstun;                   /**< Number of pending STUN candidates  */
+ 	mnat_connected_h *connh;
+ 	void *arg;
+@@ -72,6 +84,7 @@ struct mnat_media {
+ 
+ static void gather_handler(int err, uint16_t scode, const char *reason,
+ 			   void *arg);
++static bool all_gathered(const struct mnat_sess *sess);
+ 
+ 
+ static void call_gather_handler(int err, struct mnat_media *m, uint16_t scode,
+@@ -170,6 +183,66 @@ static int send_binding_request(struct mnat_media *m, struct comp *comp)
+ }
+ 
+ 
++static void tcp_conn_close(struct comp *comp)
++{
++	tmr_cancel(&comp->tmr_tcp);
++
++	if (comp->turnc)
++		(void)icem_set_turn_client(comp->m->icem, comp->id, NULL);
++
++	comp->turnc = mem_deref(comp->turnc);
++	comp->tlsc  = mem_deref(comp->tlsc);
++	comp->tc    = mem_deref(comp->tc);
++	comp->mb    = mem_deref(comp->mb);
++}
++
++
++/*
++ * The TURN connection of a component failed or was lost. While the
++ * component is gathering this completes its request, and gathering
++ * fails when it was the last one: without its relay the component has
++ * no candidate. The handlers called last may close the call.
++ */
++static void tcp_relay_failed(struct comp *comp, int err, uint16_t scode,
++			     const char *reason)
++{
++	struct mnat_media *m = comp->m;
++
++	if (scode)
++		warning("ice: {%u} TURN %s request failed: %u %s\n",
++			comp->id, m->sess->secure ? "TLS" : "TCP", scode,
++			reason);
++	else
++		warning("ice: {%u} TURN %s connection failed: %m\n",
++			comp->id, m->sess->secure ? "TLS" : "TCP", err);
++
++	tcp_conn_close(comp);
++
++	if (comp->tcp_gathering) {
++		comp->tcp_gathering = false;
++
++		if (--m->nstun == 0)
++			gather_handler(err, scode, reason, m);
++
++		return;
++	}
++
++	if (m->relay_lost)
++		return;
++
++	m->relay_lost = true;
++
++	/* the session is not established yet and cannot be anymore */
++	if (!all_gathered(m->sess)) {
++		gather_handler(err, scode, reason, m);
++		return;
++	}
++
++	module_event("ice", "failed", NULL, NULL, "sdpm=%p err=%m scode=%u",
++		     m->sdpm, err, scode);
++}
++
++
+ static void turnc_handler(int err, uint16_t scode, const char *reason,
+ 			  const struct sa *relay, const struct sa *mapped,
+ 			  const struct stun_msg *msg, void *arg)
+@@ -182,6 +255,18 @@ static void turnc_handler(int err, uint16_t scode, const char *reason,
+ 	if (m->terminated)
+ 		return;
+ 
++	if (m->sess->proto == IPPROTO_TCP) {
++
++		/* no fallback to the socket, also when the refresh fails */
++		if (err || scode) {
++			tcp_relay_failed(comp, err, scode, reason);
++			return;
++		}
++
++		tmr_cancel(&comp->tmr_tcp);
++		comp->tcp_gathering = false;
++	}
++
+ 	--m->nstun;
+ 
+ 	/* TURN failed, so we destroy the client */
+@@ -229,6 +314,258 @@ static void turnc_handler(int err, uint16_t scode, const char *reason,
+ }
+ 
+ 
++static bool tcp_send_handler(int *err, struct sa *dst, struct mbuf *mb,
++			     void *arg)
++{
++	enum { HEADROOM = 64 };  /* TURN ChannelData or Send indication */
++	struct comp *comp = arg;
++	struct mbuf *mbr;
++	size_t len;
++
++	/* relay-only: never fall back to the socket, it would reveal the
++	   local address */
++	if (!comp->turnc) {
++		*err = ENOTCONN;
++		return true;
++	}
++
++	if (mb->pos >= HEADROOM) {
++		*err = turnc_send(comp->turnc, dst, mb);
++		return true;
++	}
++
++	len = mbuf_get_left(mb);
++	mbr = mbuf_alloc(HEADROOM + len);
++	if (!mbr) {
++		*err = ENOMEM;
++		return true;
++	}
++
++	mbr->pos = mbr->end = HEADROOM;
++	*err = mbuf_write_mem(mbr, mbuf_buf(mb), len);
++	mbr->pos = HEADROOM;
++	if (!*err)
++		*err = turnc_send(comp->turnc, dst, mbr);
++
++	mem_deref(mbr);
++
++	return true;
++}
++
++
++static void tcp_data_handler(struct comp *comp, const struct sa *src,
++			     struct mbuf *mb_pkt)
++{
++	struct mbuf *mb = mbuf_alloc(mbuf_get_left(mb_pkt));
++
++	if (!mb)
++		return;
++
++	(void)mbuf_write_mem(mb, mbuf_buf(mb_pkt), mbuf_get_left(mb_pkt));
++	mb->pos = 0;
++
++	udp_recv_helper(comp->sock, src, mb, comp->uh);
++
++	mem_deref(mb);
++}
++
++
++static void tcp_recv_handler(struct mbuf *mb_pkt, void *arg)
++{
++	struct comp *comp = arg;
++	/* the handlers below may close the call; keep the media and its
++	   session until we return */
++	struct mnat_media *m = mem_ref(comp->m);
++	struct mnat_sess *sess = mem_ref(m->sess);
++	int err = 0;
++
++	if (comp->mb) {
++		size_t pos = comp->mb->pos;
++
++		/* at most one incomplete message is kept */
++		if (mbuf_get_left(comp->mb) + mbuf_get_left(mb_pkt) >
++		    2 * (0xffff + STUN_HEADER_SIZE)) {
++			err = EOVERFLOW;
++			goto out;
++		}
++
++		comp->mb->pos = comp->mb->end;
++		err = mbuf_write_mem(comp->mb, mbuf_buf(mb_pkt),
++				     mbuf_get_left(mb_pkt));
++		if (err)
++			goto out;
++		comp->mb->pos = pos;
++	}
++	else {
++		comp->mb = mem_ref(mb_pkt);
++	}
++
++	while (mbuf_get_left(comp->mb) >= 4) {
++		struct mbuf *mb = comp->mb;
++		size_t len, plen, pos, end;
++		struct sa src;
++		uint16_t typ;
++		bool closed;
++
++		typ = ntohs(mbuf_read_u16(mb));
++		len = ntohs(mbuf_read_u16(mb));
++		mb->pos -= 4;
++
++		if (typ < 0x4000)
++			len += STUN_HEADER_SIZE;
++		else if (typ < 0x8000)
++			len += 4;
++		else {
++			err = EBADMSG;
++			goto out;
++		}
++
++		/* ChannelData is padded to 4 bytes over TCP; wait for it */
++		plen = (len + 3) & ~(size_t)3;
++		if (mbuf_get_left(mb) < plen)
++			break;
++
++		pos = mb->pos;
++		end = mb->end;
++		mb->end = pos + len;
++
++		/* a message that the TURN client does not accept is
++		   skipped, its length is known */
++		mem_ref(mb);
++		sa_init(&src, AF_UNSPEC);
++		if (!turnc_recv(comp->turnc, &src, mb) &&
++		    mbuf_get_left(mb) && sa_isset(&src, SA_ALL))
++			tcp_data_handler(comp, &src, mb);
++
++		mb->pos = pos + plen;
++		mb->end = end;
++
++		/* the handlers may have closed the connection or the call */
++		closed = comp->mb != mb || mem_nrefs(m) == 1;
++		mem_deref(mb);
++		if (closed)
++			goto done;
++	}
++
++	if (!mbuf_get_left(comp->mb)) {
++		comp->mb = mem_deref(comp->mb);
++	}
++	else if (comp->mb->pos > 0) {
++		/* keep only the incomplete rest, so the buffer does not
++		   grow */
++		struct mbuf *rest = mbuf_alloc(mbuf_get_left(comp->mb));
++
++		if (!rest) {
++			err = ENOMEM;
++			goto out;
++		}
++
++		err = mbuf_write_mem(rest, mbuf_buf(comp->mb),
++				     mbuf_get_left(comp->mb));
++		rest->pos = 0;
++		mem_deref(comp->mb);
++		comp->mb = rest;
++	}
++
++ out:
++	/* the stream cannot be parsed any further, close the connection */
++	if (err)
++		tcp_relay_failed(comp, err, 0, NULL);
++
++ done:
++	mem_deref(m);
++	mem_deref(sess);
++}
++
++
++static void tcp_estab_handler(void *arg)
++{
++	struct comp *comp = arg;
++	struct mnat_media *m = comp->m;
++	int err = EPROTO;
++
++	info("ice: {%u} TURN %s connection established to %J\n", comp->id,
++	     m->sess->secure ? "TLS" : "TCP", &m->sess->srv);
++
++	if (m->sess->secure && !comp->tlsc)
++		goto out;
++
++	err = turnc_alloc(&comp->turnc, stun_conf(icem_stun(m->icem)),
++			  IPPROTO_TCP, comp->tc, 0, &m->sess->srv,
++			  m->sess->user, m->sess->pass, 600,
++			  turnc_handler, comp);
++	if (err)
++		goto out;
++
++	err = icem_set_turn_client(m->icem, comp->id, comp->turnc);
++
++ out:
++	if (err)
++		tcp_relay_failed(comp, err, 0, NULL);
++}
++
++
++static void tcp_close_handler(int err, void *arg)
++{
++	struct comp *comp = arg;
++
++	tcp_relay_failed(comp, err ? err : ECONNRESET, 0, NULL);
++}
++
++
++static void tcp_timeout_handler(void *arg)
++{
++	struct comp *comp = arg;
++
++	tcp_relay_failed(comp, ETIMEDOUT, 0, NULL);
++}
++
++
++static int cand_gather_relayed_tcp(struct mnat_media *m, struct comp *comp)
++{
++	int err;
++
++	if (!comp->uh) {
++		err = udp_register_helper(&comp->uh, comp->sock,
++					  ICE_LAYER - 10, tcp_send_handler,
++					  NULL, comp);
++		if (err)
++			return err;
++	}
++
++	if (m->sess->secure && !uag_tls())
++		return ENOSYS;
++
++	tcp_conn_close(comp);
++
++	err = tcp_connect(&comp->tc, &m->sess->srv, tcp_estab_handler,
++			  tcp_recv_handler, tcp_close_handler, comp);
++	if (err)
++		return err;
++
++	if (m->sess->secure) {
++		err = tls_start_tcp(&comp->tlsc, uag_tls(), comp->tc, 0);
++		if (!err)
++			err = tls_set_verify_server(comp->tlsc,
++						    m->sess->host);
++		if (err) {
++			/* never fall back to an unencrypted connection */
++			comp->tlsc = mem_deref(comp->tlsc);
++			comp->tc = mem_deref(comp->tc);
++			return err;
++		}
++	}
++
++	tmr_start(&comp->tmr_tcp, TCP_GATHER_TIMEOUT, tcp_timeout_handler,
++		  comp);
++	comp->tcp_gathering = true;
++	m->relay_lost = false;
++	++m->nstun;
++
++	return 0;
++}
++
++
+ static int cand_gather_relayed(struct mnat_media *m, struct comp *comp,
+ 			       const char *username, const char *password)
+ {
+@@ -236,6 +573,9 @@ static int cand_gather_relayed(struct mnat_media *m, struct comp *comp,
+ 	const int layer = ICE_LAYER - 10; /* below ICE stack */
+ 	int err;
+ 
++	if (m->sess->proto == IPPROTO_TCP)
++		return cand_gather_relayed_tcp(m, comp);
++
+ 	err = turnc_alloc(&turnc, stun_conf(icem_stun(m->icem)),
+ 			  IPPROTO_UDP, comp->sock, layer, &m->sess->srv,
+ 			  username, password,
+@@ -321,6 +661,7 @@ static void session_destructor(void *arg)
+ 	mem_deref(sess->dnsq);
+ 	mem_deref(sess->user);
+ 	mem_deref(sess->pass);
++	mem_deref(sess->host);
+ 	mem_deref(sess->sdp);
+ }
+ 
+@@ -337,6 +678,12 @@ static void media_destructor(void *arg)
+ 	mem_deref(m->icem);
+ 	for (i=0; i<2; i++) {
+ 		mem_deref(m->compv[i].ct_gath);
++		tmr_cancel(&m->compv[i].tmr_tcp);
++		mem_deref(m->compv[i].uh);
++		mem_deref(m->compv[i].turnc);
++		mem_deref(m->compv[i].tlsc);
++		mem_deref(m->compv[i].tc);
++		mem_deref(m->compv[i].mb);
+ 		mem_deref(m->compv[i].sock);
+ 	}
+ }
+@@ -507,7 +854,7 @@ static int session_alloc(struct mnat_sess **sessp,
+ 
+ 	if (srv) {
+ 		info("ice: new session with %s-server at %s (username=%s)\n",
+-		     srv->scheme == STUN_SCHEME_TURN ? "TURN" : "STUN",
++		     srv->scheme == STUN_SCHEME_STUN ? "STUN" : "TURN",
+ 		     srv->host, user);
+ 
+ 		switch (srv->scheme) {
+@@ -517,6 +864,7 @@ static int session_alloc(struct mnat_sess **sessp,
+ 			break;
+ 
+ 		case STUN_SCHEME_TURN:
++		case STUN_SCHEME_TURNS:
+ 			usage = stun_usage_relay;
+ 			break;
+ 
+@@ -553,10 +901,18 @@ static int session_alloc(struct mnat_sess **sessp,
+ 		goto out;
+ 
+ 	if (srv) {
+-		sess->turn = (srv->scheme == STUN_SCHEME_TURN);
++		sess->turn = (srv->scheme == STUN_SCHEME_TURN ||
++			      srv->scheme == STUN_SCHEME_TURNS);
++		sess->secure = (srv->scheme == STUN_SCHEME_TURNS);
++		sess->proto = sess->secure ? IPPROTO_TCP : srv->proto;
++
++		err = str_dup(&sess->host, srv->host);
++		if (err)
++			goto out;
+ 
+ 		err = stun_server_discover(&sess->dnsq, dnsc,
+-					   usage, stun_proto_udp,
++					   usage, sess->proto == IPPROTO_TCP ?
++					   stun_proto_tcp : stun_proto_udp,
+ 					   af, srv->host, srv->port,
+ 					   dns_handler, sess);
+ 	}
+@@ -887,7 +1243,8 @@ static int media_alloc(struct mnat_media **mp, struct mnat_sess *sess,
+ 
+ 	icem_conf(m->icem)->debug  = LEVEL_DEBUG == log_level_get();
+ 	icem_conf(m->icem)->rc	   = 4;
+-	icem_conf(m->icem)->policy = ice.policy;
++	icem_conf(m->icem)->policy = sess->proto == IPPROTO_TCP ?
++		ICE_POLICY_RELAY : ice.policy;
+ 
+ 	debug("ice: policy = %s\n",
+ 	      ice.policy == ICE_POLICY_RELAY ? "relay" : "all");
+-- 
+2.43.0
+
