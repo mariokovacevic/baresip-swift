@@ -30,7 +30,8 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   `BaresipVideoFrame.makeImage()` and `BaresipVideoView.snapshot()`.
 - Hold, resume, mute (`BaresipCallInfo.isMicrophoneMuted`), DTMF over RFC 4733 and SIP INFO,
   several calls with switching, blind and attended transfer (REFER with Replaces), and following
-  incoming transfers.
+  incoming transfers. A received DTMF digit reports whether it arrived as SIP INFO
+  (`BaresipDTMFEvent.viaSIPInfo`, patch 0023); before, it was always `false`.
 - Door stations and intercoms: every call negotiates video, so the other side's picture is shown
   in audio calls too, and `video` only decides whether the camera is sent; calls without audio
   (`makeCall(…audio:)`, `answer(callID:video:audio:)`); a video-only early media preview

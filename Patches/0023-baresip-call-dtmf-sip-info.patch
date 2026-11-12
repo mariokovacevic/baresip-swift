@@ -1,0 +1,87 @@
+From 7bd71077cec88bbfb3560b5e36d811bff24276cf Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Thu, 12 Nov 2026 10:00:00 +0100
+Subject: [PATCH] call: tell whether a received DTMF digit came from SIP INFO
+
+A DTMF digit received as an RTP telephone-event (RFC 4733) and one
+received in a SIP INFO application/dtmf-relay request both reach the
+application as CALL_DTMF_START and CALL_DTMF_END, so it cannot tell
+which way the peer sent the digit.
+
+Record the source of the digit before the call DTMF handler runs and
+add call_dtmf_sip_info(), which an event handler can call while the
+event is being delivered. It returns true for the start of a SIP INFO
+digit and for the release that its Duration timer reports, and false
+for telephone-events and in-band tones. The bevent text stays as it
+was, so existing consumers are unaffected.
+---
+ include/baresip.h |  1 +
+ src/call.c        | 12 ++++++++++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/include/baresip.h b/include/baresip.h
+index f0942e4..6b672e6 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -244,6 +244,7 @@ void call_set_video_ldir(struct call *call, enum sdp_dir dir);
+ int  call_set_video_dir(struct call *call, enum sdp_dir dir);
+ int  call_update_media(struct call *call);
+ int  call_send_digit(struct call *call, char key);
++bool call_dtmf_sip_info(const struct call *call);
+ int  call_send_picture_update(struct call *call);
+ bool call_has_audio(const struct call *call);
+ bool call_has_video(const struct call *call);
+diff --git a/src/call.c b/src/call.c
+index aae7c38..07438da 100644
+--- a/src/call.c
++++ b/src/call.c
+@@ -84,6 +84,7 @@ struct call {
+ 	enum sdp_dir estvdir;      /**< Established video direction         */
+ 	bool use_video;
+ 	bool use_rtp;
++	bool dtmf_info;
+ 	struct pl *user_data;      /**< User data related to the call       */
+ 	call_sip_info_h *sip_infoh;/**< SIP INFO handler for this call      */
+ 	void *sip_info_arg;        /**< SIP INFO handler argument           */
+@@ -380,6 +381,8 @@ static void audio_event_handler(int key, bool end, void *arg)
+ 
+ 	info("received in-band DTMF event: '%c' (end=%d)\n", key, end);
+ 
++	call->dtmf_info = false;
++
+ 	if (call->dtmfh)
+ 		call->dtmfh(call, end ? KEYCODE_REL : key, call->arg);
+ }
+@@ -1837,6 +1840,12 @@ int call_send_digit(struct call *call, char key)
+ }
+ 
+ 
++bool call_dtmf_sip_info(const struct call *call)
++{
++	return call ? call->dtmf_info : false;
++}
++
++
+ /**
+  * Get the User-Agent for the call
+  *
+@@ -2123,6 +2132,8 @@ static void dtmfend_handler(void *arg)
+ {
+ 	struct call *call = arg;
+ 
++	call->dtmf_info = true;
++
+ 	if (call->dtmfh)
+ 		call->dtmfh(call, KEYCODE_REL, call->arg);
+ }
+@@ -2173,6 +2184,7 @@ static void sipsess_info_handler(struct sip *sip, const struct sip_msg *msg,
+ 			if (call->dtmfh) {
+ 				tmr_start(&call->tmr_dtmf, duration,
+ 					  dtmfend_handler, call);
++				call->dtmf_info = true;
+ 				call->dtmfh(call, s, call->arg);
+ 			}
+ 		}
+-- 
+2.43.0
+

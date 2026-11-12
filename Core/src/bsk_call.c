@@ -569,6 +569,7 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		dev.call = c->id;
 		dev.u.dtmf.digit = text ? text[0] : 0;
 		dev.u.dtmf.end = (ev == BEVENT_CALL_DTMF_END);
+		dev.u.dtmf.via_sip_info = call_dtmf_sip_info(call);
 		bsk_emit(e, &dev);
 		break;
 	}

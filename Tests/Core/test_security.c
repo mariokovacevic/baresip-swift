@@ -13,6 +13,12 @@ static int released_count;
 static int outgoing_seen;
 static int reentrant_status = -1;
 static bsk_call_id last_incoming;
+static struct {
+	char digit;
+	bool end;
+	bool via_sip_info;
+} dtmf_events[8];
+static int dtmf_event_count;
 
 
 static bool mode_is(const char *name)
@@ -28,7 +34,9 @@ static void on_incoming(const bsk_event *ev)
 	__atomic_add_fetch(&incoming_count, 1, __ATOMIC_SEQ_CST);
 	__atomic_store_n(&last_incoming, ev->call, __ATOMIC_SEQ_CST);
 
-	if (mode_is("reentrant") && incoming_count == 1)
+	if (mode_is("dtmf"))
+		CHECK_OK(bsk_call_answer(engine, ev->call, false, &err), &err);
+	else if (mode_is("reentrant") && incoming_count == 1)
 		(void)bsk_call_reject(engine, ev->call, 486, "Busy Here", &err);
 	else if (mode_is("reentrant"))
 		CHECK_OK(bsk_call_answer(engine, ev->call, false, &err), &err);
@@ -55,10 +63,27 @@ static void on_call_state(const bsk_event *ev)
 }
 
 
+static void on_dtmf(const bsk_event *ev)
+{
+	int n = __atomic_load_n(&dtmf_event_count, __ATOMIC_SEQ_CST);
+
+	if (n >= (int)(sizeof(dtmf_events) / sizeof(dtmf_events[0])))
+		return;
+
+	dtmf_events[n].digit = ev->u.dtmf.digit;
+	dtmf_events[n].end = ev->u.dtmf.end;
+	dtmf_events[n].via_sip_info = ev->u.dtmf.via_sip_info;
+	__atomic_store_n(&dtmf_event_count, n + 1, __ATOMIC_SEQ_CST);
+}
+
+
 static void on_event(bsk_engine *e, const bsk_event *ev, void *user)
 {
 	(void)e;
 	(void)user;
+
+	if (ev->type == BSK_EVENT_CALL_DTMF)
+		on_dtmf(ev);
 
 	if (ev->type == BSK_EVENT_CALL_INCOMING)
 		on_incoming(ev);
@@ -245,6 +270,40 @@ static int run_remove_live(const char *host, bool stop)
 }
 
 
+static int four_dtmf_events(struct waiter *x)
+{
+	(void)x;
+	return __atomic_load_n(&dtmf_event_count, __ATOMIC_SEQ_CST) >= 4;
+}
+
+
+static void check_dtmf(int i, char digit, bool end, bool via_sip_info)
+{
+	printf("victim dtmf: event %d digit=%c end=%d via_sip_info=%d\n", i,
+	       dtmf_events[i].digit ? dtmf_events[i].digit : '-',
+	       dtmf_events[i].end, dtmf_events[i].via_sip_info);
+	CHECK(dtmf_events[i].end == end);
+	CHECK(end || dtmf_events[i].digit == digit);
+	CHECK(dtmf_events[i].via_sip_info == via_sip_info);
+}
+
+
+static int run_dtmf(const char *host)
+{
+	(void)start(host, false);
+	CHECK(wait_until(&w, has_connected, 15000));
+	CHECK(wait_until(&w, four_dtmf_events, 10000));
+	check_dtmf(0, '5', false, true);
+	check_dtmf(1, 0, true, true);
+	check_dtmf(2, '7', false, false);
+	check_dtmf(3, 0, true, false);
+	CHECK(wait_until(&w, one_released, 10000));
+	CHECK(__atomic_load_n(&dtmf_event_count, __ATOMIC_SEQ_CST) == 4);
+	finish("SIP INFO digits are marked, RTP events are not");
+	return 0;
+}
+
+
 int main(int argc, char **argv)
 {
 	if (argc < 3) {
@@ -263,6 +322,8 @@ int main(int argc, char **argv)
 		return run_remove_live(argv[2], false);
 	if (mode_is("stop-live"))
 		return run_remove_live(argv[2], true);
+	if (mode_is("dtmf"))
+		return run_dtmf(argv[2]);
 
 	fprintf(stderr, "unknown mode %s\n", mode);
 	return 2;
