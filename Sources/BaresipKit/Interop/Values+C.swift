@@ -1,12 +1,13 @@
 import BaresipKitCore
 
 extension BaresipError {
-    init(_ error: bsk_error) {
+    init(_ error: bsk_error, endReason: bsk_call_end_reason = BSK_END_NORMAL) {
         self.init(code: BaresipError.Code(error.status),
                   systemErrno: error.sys_errno,
                   sipStatus: error.sip_status == 0 ? nil : Int(error.sip_status),
                   sipReason: string(fromCArray: error.sip_reason),
-                  message: string(fromCArray: error.message))
+                  message: string(fromCArray: error.message),
+                  endReason: BaresipCallEndReason(endReason))
     }
 
     init(status: bsk_status, _ error: bsk_error) {
@@ -17,20 +18,7 @@ extension BaresipError {
         self.init(copy)
     }
 
-    init(_ error: bsk_error, endReason: bsk_call_end_reason) {
-        self.init(code: BaresipError.Code(error.status),
-                  systemErrno: error.sys_errno,
-                  sipStatus: error.sip_status == 0 ? nil : Int(error.sip_status),
-                  sipReason: string(fromCArray: error.sip_reason),
-                  message: string(fromCArray: error.message),
-                  endReason: BaresipCallEndReason(endReason))
-    }
-
-    static func optional(_ error: bsk_error) -> BaresipError? {
-        error.status == BSK_OK && error.sip_status == 0 ? nil : BaresipError(error)
-    }
-
-    static func optional(_ error: bsk_error, endReason: bsk_call_end_reason) -> BaresipError? {
+    static func optional(_ error: bsk_error, endReason: bsk_call_end_reason = BSK_END_NORMAL) -> BaresipError? {
         guard error.status != BSK_OK || error.sip_status != 0 || endReason != BSK_END_NORMAL else { return nil }
         return BaresipError(error, endReason: endReason)
     }

@@ -305,7 +305,10 @@ static bool ended_elsewhere(const struct bsk_call_ctx *c, const char *text,
 	if (c->state != BSK_CALL_INCOMING && c->state != BSK_CALL_EARLY_MEDIA)
 		return false;
 
-	return bsk_reason_sip_cause(text, cause, phrase, size);
+	if (!bsk_reason_sip_cause(text, cause, phrase, size))
+		return false;
+
+	return end_reason(*cause) != BSK_END_NORMAL;
 }
 
 

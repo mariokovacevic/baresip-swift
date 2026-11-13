@@ -47,8 +47,11 @@ package struct PushCallLedger {
         var declinedUntil: ContinuousClock.Instant?
     }
 
+    package static let spentLimit = 64
+
     package let matchesPushWithoutCaller: Bool
     private var entries: [Entry] = []
+    private var spent: [UUID] = []
     private var ringing: [BaresipCallID: (remoteURI: String, uuid: UUID?)] = [:]
 
     package init(matchesPushWithoutCaller: Bool) {
@@ -67,7 +70,7 @@ package struct PushCallLedger {
     }
 
     package func knows(_ uuid: UUID) -> Bool {
-        entries.contains { $0.announcement.uuid == uuid }
+        entries.contains { $0.announcement.uuid == uuid } || spent.contains(uuid)
     }
 
     package mutating func add(_ announcement: Announcement, now: ContinuousClock.Instant) {
@@ -79,6 +82,7 @@ package struct PushCallLedger {
     package mutating func discard(_ uuid: UUID) -> Bool {
         guard let index = pendingIndex(of: uuid) else { return false }
         entries.remove(at: index)
+        markSpent(uuid)
         return true
     }
 
@@ -129,6 +133,7 @@ package struct PushCallLedger {
     package mutating func removeAll() {
         entries.removeAll()
         ringing.removeAll()
+        spent.removeAll()
     }
 
     package static func sendsCamera(pushHadVideo: Bool, inviteHasVideo: Bool, sendsCameraOnAnswer: Bool) -> Bool {
@@ -148,9 +153,19 @@ package struct PushCallLedger {
     }
 
     private mutating func forgetExpiredDeclines(now: ContinuousClock.Instant) {
+        var expired: [UUID] = []
         entries.removeAll { entry in
-            guard let deadline = entry.declinedUntil else { return false }
-            return deadline <= now
+            guard let deadline = entry.declinedUntil, deadline <= now else { return false }
+            expired.append(entry.announcement.uuid)
+            return true
+        }
+        expired.forEach { markSpent($0) }
+    }
+
+    private mutating func markSpent(_ uuid: UUID) {
+        spent.append(uuid)
+        if spent.count > Self.spentLimit {
+            spent.removeFirst(spent.count - Self.spentLimit)
         }
     }
 

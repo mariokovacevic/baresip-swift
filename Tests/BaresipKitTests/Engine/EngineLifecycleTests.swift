@@ -62,7 +62,11 @@ final class EngineLifecycleTests: XCTestCase {
         XCTAssertEqual(cfg.minimumSessionTimer, .seconds(90))
 
         cfg.sessionTimer = .seconds(60)
-        XCTAssertThrowsError(try BaresipEngine(configuration: cfg))
+        XCTAssertThrowsError(try BaresipEngine(configuration: cfg)) { error in
+            let error = error as? BaresipError
+            XCTAssertEqual(error?.code, .invalidArgument)
+            XCTAssertTrue(error?.message.contains("session_min_se 90 s is longer than session_expires 60 s") == true)
+        }
 
         cfg.minimumSessionTimer = .seconds(60)
         XCTAssertNoThrow(try BaresipEngine(configuration: cfg))

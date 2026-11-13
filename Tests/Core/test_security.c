@@ -13,8 +13,8 @@ static int released_count;
 static int outgoing_seen;
 static int reentrant_status = -1;
 static bsk_call_id last_incoming;
-static bsk_error ended[3];
-static bsk_call_end_reason end_reasons[3];
+static bsk_error ended[4];
+static bsk_call_end_reason end_reasons[4];
 static int ended_count;
 
 
@@ -49,7 +49,7 @@ static void on_call_state(const bsk_event *ev)
 		__atomic_add_fetch(&connected_count, 1, __ATOMIC_SEQ_CST);
 	if (state == BSK_CALL_RELEASED)
 		__atomic_add_fetch(&released_count, 1, __ATOMIC_SEQ_CST);
-	if (state == BSK_CALL_ENDED && ended_count < 3) {
+	if (state == BSK_CALL_ENDED && ended_count < 4) {
 		end_reasons[ended_count] = ev->u.call_state.end_reason;
 		ended[ended_count++] = ev->u.call_state.error;
 	}
@@ -246,18 +246,18 @@ static int run_remove_live(const char *host, bool stop)
 }
 
 
-static int three_released(struct waiter *x)
+static int four_released(struct waiter *x)
 {
 	(void)x;
-	return __atomic_load_n(&released_count, __ATOMIC_SEQ_CST) >= 3;
+	return __atomic_load_n(&released_count, __ATOMIC_SEQ_CST) >= 4;
 }
 
 
 static int run_cancel_elsewhere(const char *host)
 {
 	(void)start(host, false);
-	CHECK(wait_until(&w, three_released, 20000));
-	CHECK(ended_count == 3);
+	CHECK(wait_until(&w, four_released, 20000));
+	CHECK(ended_count == 4);
 	CHECK(ended[0].status == BSK_OK);
 	CHECK(ended[0].sip_status == 200);
 	CHECK(0 == strcmp(ended[0].sip_reason, "Call completed elsewhere"));
@@ -265,9 +265,12 @@ static int run_cancel_elsewhere(const char *host)
 	CHECK(0 == strcmp(ended[1].sip_reason, "Decline"));
 	CHECK(ended[2].sip_status == 0);
 	CHECK(ended[2].sip_reason[0] == '\0');
+	CHECK(ended[3].sip_status == 0);
+	CHECK(ended[3].sip_reason[0] == '\0');
 	CHECK(end_reasons[0] == BSK_END_ANSWERED_ELSEWHERE);
 	CHECK(end_reasons[1] == BSK_END_DECLINED_ELSEWHERE);
 	CHECK(end_reasons[2] == BSK_END_NORMAL);
+	CHECK(end_reasons[3] == BSK_END_NORMAL);
 	CHECK(__atomic_load_n(&connected_count, __ATOMIC_SEQ_CST) == 0);
 	finish("a CANCEL's Reason says answered or declined elsewhere");
 	return 0;

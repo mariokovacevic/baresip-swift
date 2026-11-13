@@ -37,8 +37,9 @@
         /// that named its UUID, and a ringing call with another UUID is no duplicate of it,
         /// whoever its caller is. A push without a UUID (`uuid` is `nil`) is matched by its
         /// caller, also with an INVITE that carries a UUID. A push with the UUID of a call that
-        /// waits, rings or runs already is a repeat, reported under a UUID of its own and ended
-        /// at once.
+        /// waits, rings or runs already, or of a pushed call that expired or was refused, is a
+        /// repeat, reported under a UUID of its own and ended at once. An INVITE that arrives
+        /// after its pushed call expired gets a new UUID, because CallKit already ended the old one.
         ///
         /// - Parameters:
         ///   - pushedUUID: The call's UUID from the push payload, or `nil` when the payload has none;

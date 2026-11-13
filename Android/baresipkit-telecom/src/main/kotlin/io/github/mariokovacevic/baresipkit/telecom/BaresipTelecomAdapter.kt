@@ -386,7 +386,7 @@ class BaresipTelecomAdapter(
                         is PushCallLedger.Resolution.Announced -> calls[resolution.announcement.uuid]?.also { bind(info.id, it) }
                         PushCallLedger.Resolution.Declined -> null
                         PushCallLedger.Resolution.Unannounced -> {
-                            val id = headerUuid?.takeIf { !calls.containsKey(it) } ?: UUID.randomUUID()
+                            val id = headerUuid?.takeIf { !calls.containsKey(it) && !ledger.knows(it) } ?: UUID.randomUUID()
                             val name = PushCallLedger.callerName(info.remoteUri, info.remoteDisplayName, true)
                             BaresipTelecomCall(id, info.remoteUri, name, info.hasVideo, false).also {
                                 calls[id] = it

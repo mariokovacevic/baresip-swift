@@ -94,6 +94,42 @@ final class PushCallLedgerTests: XCTestCase {
         XCTAssertEqual(ledger.resolve(invite: alice, now: start), .unannounced)
     }
 
+    func testADiscardedPushStaysKnownSoItsUUIDIsNotReused() {
+        var ledger = PushCallLedger(matchesPushWithoutCaller: true)
+        let pushed = announcement(alice)
+        ledger.add(pushed, now: start)
+        ledger.discard(pushed.uuid)
+
+        XCTAssertTrue(ledger.knows(pushed.uuid))
+        XCTAssertFalse(ledger.isAnnounced(pushed.uuid))
+        XCTAssertEqual(ledger.resolve(invite: alice, uuid: pushed.uuid, now: start), .unannounced)
+    }
+
+    func testAnExpiredDeclineStaysKnown() {
+        var ledger = PushCallLedger(matchesPushWithoutCaller: true)
+        let pushed = announcement(alice)
+        ledger.add(pushed, now: start)
+        ledger.decline(pushed.uuid, until: after(.seconds(30)))
+
+        XCTAssertEqual(ledger.resolve(invite: "sip:bob@example.com", now: after(.seconds(31))), .unannounced)
+        XCTAssertTrue(ledger.knows(pushed.uuid))
+    }
+
+    func testOnlyTheLatestSpentUUIDsAreKept() {
+        var ledger = PushCallLedger(matchesPushWithoutCaller: true)
+        let pushes = (0 ... PushCallLedger.spentLimit).map { _ in announcement(alice) }
+        for pushed in pushes {
+            ledger.add(pushed, now: start)
+            ledger.discard(pushed.uuid)
+        }
+
+        XCTAssertFalse(ledger.knows(pushes[0].uuid))
+        XCTAssertTrue(ledger.knows(pushes[1].uuid))
+        XCTAssertTrue(ledger.knows(pushes[PushCallLedger.spentLimit].uuid))
+        ledger.removeAll()
+        XCTAssertFalse(ledger.knows(pushes[PushCallLedger.spentLimit].uuid))
+    }
+
     func testAPushCallKitRefusedDoesNotCaptureALaterInvite() {
         var ledger = PushCallLedger(matchesPushWithoutCaller: true)
         let refused = announcement(nil)

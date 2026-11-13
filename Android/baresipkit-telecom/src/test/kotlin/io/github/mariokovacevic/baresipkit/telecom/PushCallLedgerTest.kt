@@ -164,6 +164,42 @@ class PushCallLedgerTest {
     }
 
     @Test
+    fun aDiscardedPushStaysKnownSoItsUuidIsNotReused() {
+        val ledger = PushCallLedger(true)
+        val pushed = announcement(alice)
+        ledger.add(pushed, start)
+        ledger.discard(pushed.uuid)
+        assertTrue(ledger.knows(pushed.uuid))
+        assertFalse(ledger.isAnnounced(pushed.uuid))
+        assertEquals(Resolution.Unannounced, ledger.resolve(alice, pushed.uuid, start))
+    }
+
+    @Test
+    fun anExpiredDeclineStaysKnown() {
+        val ledger = PushCallLedger(true)
+        val pushed = announcement(alice)
+        ledger.add(pushed, start)
+        ledger.decline(pushed.uuid, after(30))
+        assertEquals(Resolution.Unannounced, ledger.resolve("sip:bob@example.com", now = after(31)))
+        assertTrue(ledger.knows(pushed.uuid))
+    }
+
+    @Test
+    fun onlyTheLatestSpentUuidsAreKept() {
+        val ledger = PushCallLedger(true)
+        val pushes = (0..PushCallLedger.SPENT_LIMIT).map { announcement(alice) }
+        pushes.forEach {
+            ledger.add(it, start)
+            ledger.discard(it.uuid)
+        }
+        assertFalse(ledger.knows(pushes[0].uuid))
+        assertTrue(ledger.knows(pushes[1].uuid))
+        assertTrue(ledger.knows(pushes[PushCallLedger.SPENT_LIMIT].uuid))
+        ledger.removeAll()
+        assertFalse(ledger.knows(pushes[PushCallLedger.SPENT_LIMIT].uuid))
+    }
+
+    @Test
     fun aDiscardedOrRefusedPushIsNotBound() {
         val ledger = PushCallLedger(true)
         val pushed = announcement(alice)

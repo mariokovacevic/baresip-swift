@@ -495,6 +495,24 @@ static void test_config_validation(void)
 	cfg.rtp_port_min = 20000;
 	cfg.rtp_port_max = 10000;
 	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+
+	{
+		bsk_engine *e = NULL;
+		bsk_error err;
+
+		base_config(&cfg);
+		cfg.session_expires = 60;
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_engine_create(&cfg, NULL, NULL, &e, &err));
+		CHECK(e == NULL);
+		CHECK(strstr(err.message, "session_min_se 90 s") != NULL);
+		CHECK(strstr(err.message, "session_expires 60 s") != NULL);
+		cfg.session_min_se = 60;
+		CHECK(BSK_OK == create_status(&cfg));
+		cfg.session_expires = 0;
+		cfg.session_min_se = 0;
+		CHECK(BSK_OK == create_status(&cfg));
+	}
 }
 
 

@@ -241,6 +241,7 @@ def cancel_elsewhere(peer):
     reasons = (
         ('Reason: SIP;cause=200;text="Call completed elsewhere"',),
         ('Reason: SIP ;cause=603 ;text="Decline"',),
+        ('Reason: SIP;cause=487;text="ORIGINATOR_CANCEL"',),
         (),
     )
     for headers in reasons:

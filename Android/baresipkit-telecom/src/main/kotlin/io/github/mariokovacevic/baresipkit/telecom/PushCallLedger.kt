@@ -60,6 +60,7 @@ internal class PushCallLedger(
 
     private val entries = mutableListOf<Entry>()
     private val ringing = mutableMapOf<BaresipCallID, Ringing>()
+    private val spent = ArrayDeque<UUID>()
 
     fun duplicatesRingingCall(
         remoteUri: String?,
@@ -71,7 +72,7 @@ internal class PushCallLedger(
 
     fun isAnnounced(uuid: UUID): Boolean = pendingIndex(uuid) != null
 
-    fun knows(uuid: UUID): Boolean = entries.any { it.announcement.uuid == uuid }
+    fun knows(uuid: UUID): Boolean = entries.any { it.announcement.uuid == uuid } || uuid in spent
 
     fun add(
         announcement: Announcement,
@@ -84,6 +85,7 @@ internal class PushCallLedger(
     fun discard(uuid: UUID): Boolean {
         val index = pendingIndex(uuid) ?: return false
         entries.removeAt(index)
+        markSpent(uuid)
         return true
     }
 
@@ -142,12 +144,20 @@ internal class PushCallLedger(
     fun removeAll() {
         entries.clear()
         ringing.clear()
+        spent.clear()
     }
 
     private fun pendingIndex(uuid: UUID): Int? = entries.indexOfFirst { it.announcement.uuid == uuid && it.declinedUntil == null }.takeIf { it >= 0 }
 
     private fun forgetExpiredDeclines(now: Long) {
-        entries.removeAll { entry -> entry.declinedUntil?.let { it <= now } ?: false }
+        val expired = entries.filter { entry -> entry.declinedUntil?.let { it <= now } ?: false }
+        entries -= expired
+        expired.forEach { markSpent(it.announcement.uuid) }
+    }
+
+    private fun markSpent(uuid: UUID) {
+        spent.addLast(uuid)
+        while (spent.size > SPENT_LIMIT) spent.removeFirst()
     }
 
     private fun strength(
@@ -156,6 +166,8 @@ internal class PushCallLedger(
     ): PushMatch = PushMatch.between(push, invite, matchesPushWithoutCaller)
 
     companion object {
+        const val SPENT_LIMIT = 64
+
         fun sendsCamera(
             pushHadVideo: Boolean,
             inviteHasVideo: Boolean,

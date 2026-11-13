@@ -234,4 +234,12 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   it pushes the commit and the tag in one atomic push, and can be run again after a failure.
 - OpenSSL is built with `no-autoload-config` and without the build path in the library.
 
+### Removed
+
+- Media events the core never emitted: `BSK_MEDIA_AUDIO_STOPPED`, `BSK_MEDIA_VIDEO_STARTED`,
+  `BSK_MEDIA_VIDEO_STOPPED` and `BSK_MEDIA_RTP_TIMEOUT` in C, and `BaresipMediaEvent.audioStopped`,
+  `.videoStarted`, `.videoStopped` and `.rtpTimeout` in Swift. The unused `bsk_video_codec` enum
+  is gone too. Code that names them no longer compiles; the remaining values keep their numbers.
+  C ABI 0.11.
+
 [Unreleased]: https://github.com/mariokovacevic/baresipkit/commits/main

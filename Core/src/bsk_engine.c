@@ -461,6 +461,16 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 		memset(&local, 0, sizeof(local));
 		memcpy(&local, config, n);
 		local.size = (uint32_t)sizeof(local);
+		if (local.session_expires &&
+		    bsk_session_min_se(&local) > local.session_expires) {
+			bsk_engine_destroy(e);
+			return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT,
+					     EINVAL, 0, NULL,
+					     "session_min_se %u s is longer "
+					     "than session_expires %u s",
+					     bsk_session_min_se(&local),
+					     local.session_expires);
+		}
 		ret = bsk_engine_copy_config(e, &local);
 	}
 	if (ret) {

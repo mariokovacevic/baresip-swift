@@ -230,6 +230,12 @@ static int copy_video(bsk_engine *e, const bsk_engine_config *c)
 }
 
 
+uint32_t bsk_session_min_se(const bsk_engine_config *c)
+{
+	return c->session_min_se ? c->session_min_se : 90;
+}
+
+
 int bsk_engine_copy_config(bsk_engine *e, const bsk_engine_config *c)
 {
 	int err;
@@ -265,9 +271,7 @@ int bsk_engine_copy_config(bsk_engine *e, const bsk_engine_config *c)
 	e->ice_relay_only = c->ice_relay_only;
 	e->video_adaptive = c->video_adaptive_bitrate;
 	e->session_expires = c->session_expires;
-	e->session_min_se = c->session_min_se ? c->session_min_se : 90;
-	if (e->session_expires && e->session_min_se > e->session_expires)
-		return EINVAL;
+	e->session_min_se = bsk_session_min_se(c);
 
 	return 0;
 }

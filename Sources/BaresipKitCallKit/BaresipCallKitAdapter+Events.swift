@@ -70,7 +70,7 @@
         /// that arrives later with the same UUID is recognized.
         private func reportIncoming(_ info: BaresipCallInfo, announcedUUID: UUID?) async {
             let uuid = lock.withLock { () -> UUID in
-                let uuid = announcedUUID.flatMap { callByUUID[$0] == nil ? $0 : nil } ?? UUID()
+                let uuid = announcedUUID.flatMap { callByUUID[$0] == nil && !pushCalls.knows($0) ? $0 : nil } ?? UUID()
                 uuidByCall[info.id] = uuid
                 callByUUID[uuid] = info.id
                 pushCalls.startedRinging(info.id, remoteURI: info.remoteURI, uuid: announcedUUID)
