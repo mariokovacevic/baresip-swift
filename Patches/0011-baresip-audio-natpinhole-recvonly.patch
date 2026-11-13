@@ -15,10 +15,10 @@ direction changes.
  1 file changed, 5 insertions(+)
 
 diff --git a/src/audio.c b/src/audio.c
-index 76fa128..3037862 100644
+index e42f963..a10a61e 100644
 --- a/src/audio.c
 +++ b/src/audio.c
-@@ -1209,6 +1209,11 @@ int audio_update(struct audio *a)
+@@ -1230,6 +1230,11 @@ int audio_update(struct audio *a)
  		stop_tx(&a->tx, a);
  	}
  
@@ -30,6 +30,7 @@ index 76fa128..3037862 100644
  	if (a->tx.ac && aurecv_codec(a->aur)) {
  
  		if (!a->started) {
+
 -- 
 2.51.0
 

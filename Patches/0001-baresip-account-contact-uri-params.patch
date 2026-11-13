@@ -24,7 +24,7 @@ baresip and is not covered.
  5 files changed, 131 insertions(+), 1 deletion(-)
 
 diff --git a/include/baresip.h b/include/baresip.h
-index 46e43f1..7f3083f 100644
+index e1d5ed2..85e8ccc 100644
 --- a/include/baresip.h
 +++ b/include/baresip.h
 @@ -152,6 +152,8 @@ bool account_call_transfer(const struct account *acc);
@@ -36,7 +36,7 @@ index 46e43f1..7f3083f 100644
  int account_uri_complete_strdup(const struct account *acc, char **strp,
  				const struct pl *uri);
  int account_uri_complete(const struct account *acc, struct mbuf *buf,
-@@ -985,6 +987,7 @@ int  ua_print_status(struct re_printf *pf, const struct ua *ua);
+@@ -986,6 +988,7 @@ int  ua_print_status(struct re_printf *pf, const struct ua *ua);
  int  ua_print_supported(struct re_printf *pf, const struct ua *ua);
  int  ua_update_account(struct ua *ua);
  int  ua_register(struct ua *ua);
@@ -273,6 +273,7 @@ index 4d8441c..b586e4a 100644
  /**
   * Start fallback registration checks (Cisco-keep-alive) of a User-Agent. These
   * are in the sense of RFC3261 REGISTER requests with expire set to zero. A
+
 -- 
 2.43.0
 

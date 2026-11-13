@@ -74,22 +74,10 @@ static int frames(int *counter, int n)
 	return v >= n;
 }
 
-static int running(struct waiter *x)
-{
-	return x->engine_state == BSK_ENGINE_RUNNING;
-}
-static int incoming(struct waiter *x)
-{
-	return x->incoming_call != BSK_ID_NONE;
-}
 static int connected(struct waiter *x)
 {
 	return x->call_state >= BSK_CALL_CONNECTED &&
 	       x->call_state <= BSK_CALL_STREAMS_RUNNING;
-}
-static int released(struct waiter *x)
-{
-	return x->released_call != BSK_ID_NONE;
 }
 static int remote3(struct waiter *x)
 {

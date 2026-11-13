@@ -19,6 +19,8 @@ extension bsk_engine_config {
         ice_relay_only = configuration.iceRelayOnly
         video_adaptive_bitrate = configuration.videoAdaptiveBitrate
         video_min_bitrate_bps = UInt32(clamping: max(0, configuration.videoMinimumBitrate))
+        session_expires = configuration.sessionTimer?.wholeSeconds ?? 0
+        session_min_se = configuration.minimumSessionTimer.wholeSeconds
         setAudio(configuration.audio, arena: arena)
         setVideo(configuration.video, arena: arena)
         setTLS(configuration.tls, arena: arena)
@@ -37,6 +39,7 @@ extension bsk_engine_config {
         audio.jitter_buffer_adaptive = settings.adaptiveJitterBuffer
         audio.codecs = arena.cStringArray(settings.codecs)
         audio.codec_count = settings.codecs.count
+        hold_music_path = arena.cString(settings.holdMusicFile?.path)
     }
 
     private mutating func setVideo(_ settings: BaresipVideoConfiguration, arena: CStringArena) {

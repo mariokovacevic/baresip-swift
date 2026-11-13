@@ -88,7 +88,7 @@ extension CallModel {
     }
 
     func applySaved() async {
-        if savedTLS != engineTLS || SettingsStore.load().engine != engineOptions {
+        if savedTLS != engineTLS || SettingsStore.load().engine != engineOptions || needsNewCallScreen {
             await restartEngine()
         }
         await register()

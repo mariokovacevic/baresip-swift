@@ -41,6 +41,52 @@ enum SettingsStore {
         set { Keychain.write(turnPasswordAccount, newValue) }
     }
 
+    private static let doorsKey = "doors"
+
+    static var doors: [Door] {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: doorsKey),
+                  let doors = try? JSONDecoder().decode([Door].self, from: data) else { return [] }
+            return doors
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: doorsKey)
+            }
+        }
+    }
+
+    private static let ringtoneKey = "ringtone"
+
+    static var ringtone: Ringtone {
+        get { UserDefaults.standard.string(forKey: ringtoneKey).flatMap(Ringtone.init(rawValue:)) ?? .default }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: ringtoneKey) }
+    }
+
+    private static let callScreenKey = "callScreen"
+
+    static var callScreen: SystemCallScreen {
+        get {
+            UserDefaults.standard.string(forKey: callScreenKey).flatMap(SystemCallScreen.init(rawValue:)) ?? .default
+        }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: callScreenKey) }
+    }
+
+    private static let contactsKey = "contacts"
+
+    static var contacts: [Contact] {
+        get {
+            guard let data = UserDefaults.standard.data(forKey: contactsKey),
+                  let contacts = try? JSONDecoder().decode([Contact].self, from: data) else { return [] }
+            return contacts
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue) {
+                UserDefaults.standard.set(data, forKey: contactsKey)
+            }
+        }
+    }
+
     private static let historyKey = "call.history"
     static let historyLimit = 200
 

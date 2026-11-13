@@ -3,6 +3,7 @@
 #include "test_common.h"
 #include "../../Core/src/bsk_rate.h"
 #include "../../Core/src/bsk_h264.h"
+#include "../../Core/src/bsk_reason.h"
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
 
@@ -150,6 +151,8 @@ static void test_capabilities(void)
 		"nat.pinhole",
 		"codec.g722",
 		"video.picture-update.sip-info",
+		"audio.hold-music",
+		"call.session-timer",
 	};
 	size_t i;
 
@@ -165,7 +168,7 @@ static void test_status_strings(void)
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
 	CHECK(0 ==
 	      strcmp(bsk_status_string(BSK_ERR_AUTH), "authentication failed"));
-	CHECK(bsk_abi_version() == 8);
+	CHECK(bsk_abi_version() == 11);
 	CHECK(bsk_capabilities(NULL, 0) > 0);
 	test_capabilities();
 }
@@ -492,6 +495,54 @@ static void test_config_validation(void)
 	cfg.rtp_port_min = 20000;
 	cfg.rtp_port_max = 10000;
 	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+}
+
+
+/* The music on hold must be a 16-bit PCM WAV file; anything else fails when
+ * the engine is created rather than later in a call. */
+static void test_hold_music_config(void)
+{
+	char path[512];
+	const char *tmp = getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp";
+	bsk_engine_config cfg;
+
+	snprintf(path, sizeof(path), "%s/bsk_hold_%d.wav", tmp, (int)getpid());
+	base_config(&cfg);
+
+	cfg.hold_music_path = "/nonexistent/hold.wav";
+	CHECK(BSK_ERR_NOT_FOUND == create_status(&cfg));
+
+	cfg.hold_music_path = path;
+	write_test_wav(path, 8000, 1, 0, 0);
+	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+	write_test_wav(path, 8000, 1, 8, 1000);
+	CHECK(BSK_ERR_UNSUPPORTED == create_status(&cfg));
+	write_test_wav(path, 96000, 1, 16, 1000);
+	CHECK(BSK_ERR_UNSUPPORTED == create_status(&cfg));
+	write_test_wav(path, 8000, 1, 16, 50);
+	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+	write_test_wav(path, 8000, 1, 16, 1000);
+	{
+		static const unsigned char big[4] = { 0, 0, 0x80, 0x04 };
+		FILE *f = fopen(path, "r+b");
+
+		CHECK(f != NULL);
+		CHECK(0 == fseek(f, 4, SEEK_SET));
+		CHECK(fwrite(big, 1, sizeof(big), f) == sizeof(big));
+		CHECK(0 == fseek(f, 40, SEEK_SET));
+		CHECK(fwrite(big, 1, sizeof(big), f) == sizeof(big));
+		fclose(f);
+	}
+	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+
+	write_test_wav(path, 8000, 1, 16, 1000);
+	CHECK(BSK_OK == create_status(&cfg));
+	write_test_wav(path, 44100, 2, 16, 1000);
+	CHECK(BSK_OK == create_status(&cfg));
+
+	cfg.hold_music_path = "";
+	CHECK(BSK_OK == create_status(&cfg));
+	unlink(path);
 }
 
 
@@ -833,12 +884,60 @@ static void test_h264_access_unit(void)
 }
 
 
+static void test_reason_header(void)
+{
+	char phrase[64];
+	uint16_t cause = 0;
+
+	CHECK(bsk_reason_sip_cause("Connection reset by peer,SIP;cause=200;"
+				   "text=\"Call completed elsewhere\"",
+				   &cause, phrase, sizeof(phrase)));
+	CHECK(cause == 200);
+	CHECK(0 == strcmp(phrase, "Call completed elsewhere"));
+
+	CHECK(bsk_reason_sip_cause("x,Q.850;cause=16, sip ; CAUSE = 603",
+				   &cause, phrase, sizeof(phrase)));
+	CHECK(cause == 603);
+	CHECK(phrase[0] == '\0');
+
+	CHECK(bsk_reason_sip_cause(
+		"reset,SIP;text=\"Busy, everywhere; really\";cause=600", &cause,
+		phrase, sizeof(phrase)));
+	CHECK(cause == 600);
+	CHECK(0 == strcmp(phrase, "Busy, everywhere; really"));
+
+	CHECK(bsk_reason_sip_cause("r,SIP;cause=200;text=done", &cause, phrase,
+				   3));
+	CHECK(0 == strcmp(phrase, "do"));
+
+	cause = 0;
+	CHECK(!bsk_reason_sip_cause("Connection reset by peer", &cause, phrase,
+				    sizeof(phrase)));
+	CHECK(!bsk_reason_sip_cause("r,Q.850;cause=16", &cause, phrase,
+				    sizeof(phrase)));
+	CHECK(!bsk_reason_sip_cause("r,SIP;cause=2000", &cause, phrase,
+				    sizeof(phrase)));
+	CHECK(!bsk_reason_sip_cause("r,SIP;cause=099", &cause, phrase,
+				    sizeof(phrase)));
+	CHECK(!bsk_reason_sip_cause("r,SIPX;cause=200", &cause, phrase,
+				    sizeof(phrase)));
+	CHECK(!bsk_reason_sip_cause("r,SIP;causes=200", &cause, phrase,
+				    sizeof(phrase)));
+	CHECK(!bsk_reason_sip_cause("r,SIP;text=\";cause=200\"", &cause, phrase,
+				    sizeof(phrase)));
+	CHECK(!bsk_reason_sip_cause(NULL, &cause, phrase, sizeof(phrase)));
+	CHECK(cause == 0);
+	printf("reason header: PASS\n");
+}
+
+
 int main(void)
 {
 	test_contact_params();
 	test_redaction();
 	test_redaction_of_call_secrets();
 	test_config_validation();
+	test_hold_music_config();
 	test_text_validation();
 	test_single_running_engine();
 	test_concurrent_stop();
@@ -848,6 +947,7 @@ int main(void)
 	test_rate_control();
 	test_h264_depacketizer();
 	test_h264_access_unit();
+	test_reason_header();
 	printf("unit: PASS\n");
 	return 0;
 }

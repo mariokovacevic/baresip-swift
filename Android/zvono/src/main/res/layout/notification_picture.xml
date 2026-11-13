@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="#1C2633">
+
+    <ImageView
+        android:id="@+id/ring_picture"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:contentDescription="@string/ring_picture"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/ring_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="8dp"
+        android:background="#C70B0F14"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:textColor="#F2F4F7"
+        android:textSize="13sp" />
+</FrameLayout>

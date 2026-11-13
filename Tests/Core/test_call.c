@@ -31,29 +31,9 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	record_event(&w, ev);
 }
 
-static int running(struct waiter *x)
-{
-	return x->engine_state == BSK_ENGINE_RUNNING;
-}
-static int incoming(struct waiter *x)
-{
-	return x->incoming_call != BSK_ID_NONE;
-}
-static int streams(struct waiter *x)
-{
-	return x->call_state == BSK_CALL_STREAMS_RUNNING;
-}
-static int paused(struct waiter *x)
-{
-	return x->call_state == BSK_CALL_PAUSED;
-}
 static int paused_remote(struct waiter *x)
 {
 	return x->call_state == BSK_CALL_PAUSED_BY_REMOTE;
-}
-static int released(struct waiter *x)
-{
-	return x->released_call != BSK_ID_NONE;
 }
 static int dtmf3(struct waiter *x)
 {
@@ -68,11 +48,8 @@ static int ringing_or_later(struct waiter *x)
 {
 	return x->call_state >= BSK_CALL_OUTGOING_RINGING;
 }
-static int ice_connected(struct waiter *x)
-{
-	return x->ice_state == BSK_ICE_CONNECTED;
-}
 static bool use_ice;
+static uint32_t session_expires;
 static const char *turn_transport;
 static const char *turn_host;
 static char *ca_pem;
@@ -80,30 +57,11 @@ static size_t ca_len;
 static int expected_type = BSK_CAND_HOST;
 static bool audio_inactive;
 static bool pinhole;
+static bool rtcp_mux;
 static const char *caller_port = "5060";
 static const char *callee_port = "5070";
+static const char *hold_music;
 
-
-static char *read_file(const char *path, size_t *len)
-{
-	FILE *f = fopen(path, "rb");
-	char *buf;
-	long n;
-
-	if (!f)
-		return NULL;
-	fseek(f, 0, SEEK_END);
-	n = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	buf = calloc(1, (size_t)n + 1);
-	if (buf && fread(buf, 1, (size_t)n, f) != (size_t)n) {
-		free(buf);
-		buf = NULL;
-	}
-	fclose(f);
-	*len = (size_t)n;
-	return buf;
-}
 
 static int ice_restarted(struct waiter *x)
 {
@@ -128,6 +86,7 @@ static bsk_engine *start_engine(const char *listen)
 	cfg.audio.source_module = "ausine";
 	cfg.audio.player_module = "aufile";
 	cfg.audio.player_device = "/dev/null";
+	cfg.hold_music_path = hold_music;
 	if (turn_transport) {
 		cfg.tls.ca_pem = ca_pem;
 		cfg.tls.ca_pem_len = ca_len;
@@ -137,6 +96,14 @@ static bsk_engine *start_engine(const char *listen)
 		getenv("BSK_TEST_VERBOSE") ? BSK_LOG_DEBUG : BSK_LOG_INFO;
 	cfg.log_sip_trace = true;
 	cfg.extra_config = extra;
+	if (session_expires) {
+		cfg.session_expires = session_expires;
+		cfg.session_min_se =
+			getenv("BSK_TEST_SESSION_MIN_SE")
+				? (uint32_t)atoi(
+					  getenv("BSK_TEST_SESSION_MIN_SE"))
+				: 1;
+	}
 	cfg.rtp_port_min = 0 == strcmp(listen, callee_port) ? 30000 : 40000;
 	cfg.rtp_port_max = cfg.rtp_port_min + 100;
 
@@ -209,7 +176,7 @@ static bsk_account_id add_account(bsk_engine *e, const char *user,
 	ac.audio_codec_count = 1;
 	ac.answer_early_media = auto_early;
 	ac.nat_pinhole = pinhole;
-	ac.rtcp_mux = pinhole;
+	ac.rtcp_mux = pinhole || rtcp_mux;
 	CHECK_OK(bsk_account_add(e, &ac, &acc, &err), &err);
 	return acc;
 }
@@ -273,6 +240,20 @@ static int run_callee(const char *host)
 	}
 
 	CHECK(wait_until(&w, paused_remote, 10000));
+	if (!use_ice) {
+		uint32_t rx;
+
+		CHECK(BSK_OK ==
+		      bsk_call_get_statistics(e, w.incoming_call, &st));
+		rx = st.audio.rx_packets;
+		usleep(500000);
+		CHECK(BSK_OK ==
+		      bsk_call_get_statistics(e, w.incoming_call, &st));
+		CHECK(st.audio.rx_packets > rx + 15);
+		printf("callee: hears music on hold: PASS (rx %u -> %u)\n", rx,
+		       st.audio.rx_packets);
+		fflush(stdout);
+	}
 	CHECK(wait_until(&w, streams, 10000));
 
 	CHECK(wait_until(&w, dtmf3, 15000));
@@ -372,12 +353,23 @@ static int run_caller(const char *host)
 	bsk_call_id call = BSK_ID_NONE;
 	bsk_call_info info;
 	bsk_call_statistics st;
-	uint32_t rx_before = 0;
+	uint32_t rx_before = 0, tx_held;
 	char dest[128];
 	char rec_path[512];
 
 	tag = "caller";
+	if (!use_ice) {
+		static char music[512];
+
+		snprintf(music, sizeof(music), "%s/bsk_hold_%d.wav",
+			 getenv("TMPDIR") ? getenv("TMPDIR") : "/tmp",
+			 (int)getpid());
+		write_test_wav(music, 16000, 1, 16, 700);
+		hold_music = music;
+	}
 	e = start_engine(caller_port);
+	if (hold_music)
+		unlink(hold_music);
 	acc = add_account(e, "alice", host, caller_port);
 
 	snprintf(dest, sizeof(dest), "sip:bob@%s:%s", host, callee_port);
@@ -386,6 +378,21 @@ static int run_caller(const char *host)
 	CHECK(bsk_call_list(e, NULL, 0) == 1);
 	CHECK(wait_until(&w, ringing_or_later, 10000));
 	CHECK(wait_until(&w, streams, 20000));
+	if (session_expires) {
+		sleep(session_expires * 3);
+		CHECK(!released(&w));
+		CHECK(BSK_OK == bsk_call_get_info(e, call, &info));
+		CHECK(info.outgoing);
+		CHECK(info.state == BSK_CALL_STREAMS_RUNNING);
+		CHECK_OK(bsk_call_hangup(e, call, &err), &err);
+		CHECK(wait_until(&w, released, 10000));
+		CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
+		bsk_engine_destroy(e);
+		printf("caller: session timer: PASS (up for %us with a %us "
+		       "interval)\n",
+		       session_expires * 3, session_expires);
+		return 0;
+	}
 	CHECK(__atomic_load_n(&saw_early, __ATOMIC_SEQ_CST));
 
 	CHECK(BSK_OK == bsk_call_get_info(e, call, &info));
@@ -428,7 +435,22 @@ static int run_caller(const char *host)
 	CHECK(BSK_OK == bsk_call_get_info(e, call, &info));
 	CHECK(info.audio_dir == BSK_DIR_SENDONLY ||
 	      info.audio_dir == BSK_DIR_INACTIVE);
+	usleep(200000);
+	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+	tx_held = st.audio.tx_packets;
 	sleep(1);
+	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+	if (hold_music) {
+		/* The tune plays to the callee in a loop, 50 packets a second. */
+		CHECK(st.audio.tx_packets > tx_held + 35);
+		printf("caller: music on hold: PASS (tx %u -> %u)\n", tx_held,
+		       st.audio.tx_packets);
+	} else {
+		/* Without music a held call sends nothing. */
+		CHECK(st.audio.tx_packets <= tx_held + 2);
+		printf("caller: hold without music sends nothing: PASS\n");
+	}
+	fflush(stdout);
 	CHECK_OK(bsk_call_hold(e, call, false, &err), &err);
 	CHECK(wait_until(&w, streams, 10000));
 
@@ -573,6 +595,11 @@ int main(int argc, char **argv)
 	const char *host = argc > 2 ? argv[2] : "127.0.0.1";
 
 	use_ice = argc > 3 && 0 == strcmp(argv[3], "ice");
+	session_expires =
+		getenv("BSK_TEST_SESSION_EXPIRES")
+			? (uint32_t)atoi(getenv("BSK_TEST_SESSION_EXPIRES"))
+			: 0;
+	rtcp_mux = getenv("BSK_TEST_RTCP_MUX") != NULL;
 	turn_transport = getenv("BSK_TEST_TURN");
 	if (turn_transport && use_ice) {
 		turn_host = host;

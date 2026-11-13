@@ -6,6 +6,11 @@ Real failure modes, grounded in the engine's error codes, call state and log dom
 see [Integration.md](Integration.md); for the SDK's own log redaction and format, see its
 "Logging" section.
 
+The examples use the Swift names; the Kotlin types on Android have the same names, and the log,
+SIP, media and ICE behave the same on both platforms. The sections about the audio session,
+PushKit and the background describe iOS; for Android, check the app checklist in
+[Android.md](Android.md#app-checklist).
+
 ## Reading the log
 
 `setLogHandler` on the engine receives every line with a `BaresipLogDomain` (`core`, `sip` or

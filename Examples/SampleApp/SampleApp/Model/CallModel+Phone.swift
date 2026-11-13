@@ -17,6 +17,12 @@ extension CallModel {
         activeCall?.id
     }
 
+    /// The call the call screen shows: the current call while it neither rings nor is over.
+    var callOnScreen: BaresipPhoneCall? {
+        guard let activeCall, !activeCall.isRinging, !activeCall.state.isTerminal else { return nil }
+        return activeCall
+    }
+
     var currentRow: CallRow? {
         activeCall.map { CallRow(call: $0, dtmf: dtmfStates[$0.id]) }
     }

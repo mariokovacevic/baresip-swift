@@ -24,6 +24,9 @@ extension CallModel {
             } else {
                 try await engine.sendProgress(callID: call, earlyVideo: hasVideo, earlyAudio: audio)
             }
+            if hasVideo {
+                await startPreviewFeed(call)
+            }
             previewing = true
             previewVideo = hasVideo
             append("previewing \(call) (they do not hear or see you)")

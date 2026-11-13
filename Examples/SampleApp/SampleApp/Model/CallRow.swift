@@ -25,6 +25,8 @@ struct CallRow: Identifiable, Equatable {
     var dtmf: DTMFRequest?
     var dtmfSent = false
     var dtmfResult: String?
+    /// Whether another phone answered or declined the call while it rang here.
+    var endedElsewhere: BaresipCallEndReason?
 
     @MainActor
     init(call: BaresipPhoneCall, dtmf: DTMFState?) {
@@ -43,6 +45,7 @@ struct CallRow: Identifiable, Equatable {
         self.dtmf = dtmf?.request
         dtmfSent = dtmf?.sent ?? false
         dtmfResult = dtmf?.result
+        endedElsewhere = call.error?.endReason
     }
 
     var dtmfDigits: String {

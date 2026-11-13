@@ -2,6 +2,7 @@ import Foundation
 import BaresipKit
 import BaresipKitAudio
 import BaresipKitCallKit
+import BaresipKitLiveCommunication
 import BaresipKitPushKit
 import BaresipKitSwiftUI
 
@@ -12,11 +13,17 @@ extension CallModel {
             config.userAgent = "BaresipKitSample/1.0"
             config.logLevel = .info
             config.logSIPTrace = logsSIPMessages
-            if uiTest {
+            // UI tests send a tone and record to a file; with BSK_LIVE_AUDIO=1, as
+            // Tools/DoorStack/simulators.sh starts it, the simulator uses the Mac's microphone
+            // and speakers.
+            if uiTest, ProcessInfo.processInfo.environment["BSK_LIVE_AUDIO"] != "1" {
                 config.modules += ["ausine", "aufile"]
                 config.audio = BaresipAudioConfiguration(sourceModule: "ausine", playerModule: "aufile",
                                                          playerDevice: NSTemporaryDirectory() + "speaker.wav")
             }
+            // Music on hold, as Linphone's play file: a held call plays this tune to the
+            // other side instead of the microphone, whatever the server does.
+            config.audio.holdMusicFile = Bundle.main.url(forResource: "HoldMusic", withExtension: "wav")
             let tls = savedTLS
             config.tls = tlsConfiguration(tls)
             profile.configure(&config)
@@ -35,9 +42,13 @@ extension CallModel {
                     await self?.handle(event)
                 }
             }
-            startCallKit(engine: engine)
-            // CallKit takes the call actions on a device, so the system call screen stays in step.
-            let phone = BaresipPhone(engine: engine, callController: usesDirectCalls ? nil : callKit)
+            PreviewNotifications.registerCategories()
+            if !usesDirectCalls {
+                startSystemCalls(engine: engine)
+            }
+            // CallKit or LiveCommunicationKit takes the call actions on a device, so the system
+            // call screen stays in step.
+            let phone = BaresipPhone(engine: engine, callController: systemCalls)
             self.phone = phone
             phoneTask = Task { await phone.run() }
             startPushKit(engine: engine)
@@ -47,7 +58,9 @@ extension CallModel {
             audio = BaresipAudioSessionController(engine: engine) { [weak self] _ in
                 self?.audioRouteChanges += 1
             }
-            try audio?.configureForVoIP()
+            // An intercom is held away from the ear, to see the door: calls start on the
+            // loudspeaker, or on a connected headset.
+            try audio?.configureForVoIP(defaultToSpeaker: true)
             append(
                 """
                 engine started, core \(BaresipEngine.coreVersion), CA \
@@ -60,18 +73,74 @@ extension CallModel {
         }
     }
 
-    private func startCallKit(engine: BaresipEngine) {
-        var callKitConfiguration = BaresipCallKitConfiguration(supportsVideo: true)
-        profile.configure(&callKitConfiguration)
-        answerWithCamera = callKitConfiguration.sendsCameraOnAnswer
-        callKit = BaresipCallKitAdapter(engine: engine, configuration: callKitConfiguration)
+    /// Creates the adapter of the call screen chosen in Settings: LiveCommunicationKit from
+    /// iOS 17.4 when chosen, CallKit otherwise.
+    private func startSystemCalls(engine: BaresipEngine) {
+        let screen = callScreen.effective
+        engineCallScreen = screen
+        engineRingtone = ringtone
+        if screen == .liveCommunicationKit, #available(iOS 17.4, *) {
+            startLiveCommunication(engine: engine)
+        } else {
+            startCallKit(engine: engine)
+        }
+        append("call screen: \(screen.title)")
     }
 
-    /// Goes offline in the background when no call runs, online again when the app is active,
-    /// and unregisters when the app terminates.
+    private func startCallKit(engine: BaresipEngine) {
+        var callKitConfiguration = BaresipCallKitConfiguration(supportsVideo: true)
+        callKitConfiguration.callUUIDHeader = CallModel.callUUIDHeader
+        callKitConfiguration.handleStyle = .phoneNumberWhenNumeric
+        callKitConfiguration.ringtoneSound = ringtone.soundFile
+        profile.configure(&callKitConfiguration)
+        answerWithCamera = callKitConfiguration.sendsCameraOnAnswer
+        let adapter = BaresipCallKitAdapter(engine: engine, configuration: callKitConfiguration)
+        callKit = adapter
+        systemCalls = adapter
+    }
+
+    @available(iOS 17.4, *)
+    private func startLiveCommunication(engine: BaresipEngine) {
+        var configuration = BaresipLiveCommunicationConfiguration(supportsVideo: true,
+                                                                  ringtoneName: ringtone.soundFile)
+        configuration.callUUIDHeader = CallModel.callUUIDHeader
+        configuration.handleStyle = .phoneNumberWhenNumeric
+        profile.configure(&configuration)
+        answerWithCamera = configuration.sendsCameraOnAnswer
+        let adapter = BaresipLiveCommunicationAdapter(engine: engine, configuration: configuration)
+        liveCommunication = adapter
+        systemCalls = adapter
+    }
+
+    /// Restarts the engine with the call screen and ringtone chosen in Settings, once no call
+    /// runs; a change during a call waits for its end.
+    func applyCallScreen() async {
+        guard engine != nil, !usesDirectCalls, needsNewCallScreen else { return }
+        if currentCall != nil {
+            pendingApply = true
+            append("the call screen changes after the current call")
+            return
+        }
+        await restartEngine()
+        await register()
+    }
+
+    /// Whether the running adapter differs from Settings: another call screen, or a new ringtone
+    /// for LiveCommunicationKit, which takes it only when the adapter is created.
+    var needsNewCallScreen: Bool {
+        guard !usesDirectCalls, let engineCallScreen else { return false }
+        if callScreen.effective != engineCallScreen {
+            return true
+        }
+        return engineCallScreen == .liveCommunicationKit && ringtone != engineRingtone
+    }
+
+    /// Goes offline in the background when no call runs, or stays registered for VoIP pushes
+    /// when the account asks for it, online again when the app is active, and unregisters when
+    /// the app terminates.
     private func startLifecycle(engine: BaresipEngine) {
         let lifecycle = BaresipAppLifecycle(engine: engine)
-        lifecycle.backgroundBehavior = .goOffline
+        lifecycle.backgroundBehavior = backgroundBehavior
         lifecycle.setChangeHandler { [weak self] change in
             switch change {
             case .suspended: self?.append("in the background without a call: SIP paused")
@@ -103,10 +172,20 @@ extension CallModel {
     private func startPushKit(engine: BaresipEngine) {
         let profileType = type(of: profile)
         let callKit = callKit
-        let adapter = BaresipPushKitAdapter(engine: engine, appID: profile.pushAppID) { payload in
-            let caller = profileType.caller(in: payload)
-            let video = payload["video"] as? Bool ?? false
-            try CallModel.pushArrived(on: callKit, from: caller.uri, displayName: caller.name, video: video)
+        let adapter: BaresipPushKitAdapter = if #available(iOS 17.4, *),
+                                                let calls = liveCommunication as? BaresipLiveCommunicationAdapter {
+            BaresipPushKitAdapter.reportingAsynchronously(engine: engine,
+                                                          appID: profile.pushAppID) { payload in
+                let push = IncomingPush(payload, caller: profileType.caller(in: payload))
+                try await calls.reportIncomingCallFromPush(uuid: push.uuid, remoteURI: push.uri,
+                                                           displayName: push.name, hasVideo: push.video)
+            }
+        } else {
+            BaresipPushKitAdapter(engine: engine, appID: profile.pushAppID) { payload in
+                let push = IncomingPush(payload, caller: profileType.caller(in: payload))
+                try CallModel.pushArrived(on: callKit, uuid: push.uuid, from: push.uri, displayName: push.name,
+                                          video: push.video)
+            }
         }
         adapter.setErrorHandler { [weak self] step, error in
             Task { @MainActor [weak self] in
@@ -136,6 +215,9 @@ extension CallModel {
         accountID = nil
         push = nil
         callKit = nil
+        liveCommunication = nil
+        systemCalls = nil
+        engineCallScreen = nil
         audio = nil
         engine = nil
         registration = .none
@@ -162,10 +244,28 @@ extension CallModel {
         append("APNs token received")
     }
 
-    nonisolated static func pushArrived(on callKit: BaresipCallKitAdapter?, from: String?, displayName: String?,
-                                        video: Bool) throws {
+    /// The INVITE header with the UUID that the server also puts in the VoIP push as `uuid`.
+    nonisolated static let callUUIDHeader = "X-Call-UUID"
+
+    nonisolated static func pushArrived(on callKit: BaresipCallKitAdapter?, uuid: UUID?, from: String?,
+                                        displayName: String?, video: Bool) throws {
         guard let callKit else { throw CancellationError() }
-        callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: from, displayName: displayName,
+        callKit.reportIncomingCallFromPush(uuid: uuid, remoteURI: from, displayName: displayName,
                                            hasVideo: video) { _ in }
+    }
+}
+
+/// What the sample reads from a VoIP push payload.
+struct IncomingPush {
+    let uuid: UUID?
+    let uri: String?
+    let name: String?
+    let video: Bool
+
+    init(_ payload: [AnyHashable: Any], caller: (uri: String?, name: String?)) {
+        uuid = (payload["uuid"] as? String).flatMap(UUID.init(uuidString:))
+        uri = caller.uri
+        name = caller.name
+        video = payload["video"] as? Bool ?? false
     }
 }

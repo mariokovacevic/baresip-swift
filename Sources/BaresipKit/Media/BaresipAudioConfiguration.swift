@@ -1,3 +1,5 @@
+import Foundation
+
 /// Audio settings for the engine.
 public struct BaresipAudioConfiguration: Sendable, Equatable {
     /// The baresip audio source module, `audiounit` on iOS.
@@ -20,6 +22,14 @@ public struct BaresipAudioConfiguration: Sendable, Equatable {
     public var adaptiveJitterBuffer: Bool
     /// Audio codecs in order of preference, as `name/rate/channels`.
     public var codecs: [String]
+    /// Music on hold: a WAV file (16-bit PCM, mono or stereo, 8 to 48 kHz) that a call put on
+    /// hold with ``BaresipEngine/hold(callID:)`` plays to the other side in a loop instead of
+    /// the microphone, like liblinphone's play file. It plays without the audio session, so
+    /// also while iOS has deactivated it for a held call. `nil` sends nothing while on hold.
+    ///
+    /// The engine reads the file when it is created and fails with ``BaresipError`` when the
+    /// file is missing or in another format.
+    public var holdMusicFile: URL?
 
     /// The codecs offered when an account configures none: Opus, G.722, then G.711 µ-law and
     /// A-law. G.722 is written with its audio rate, `G722/16000/1`.
@@ -38,13 +48,15 @@ public struct BaresipAudioConfiguration: Sendable, Equatable {
     ///   - jitterBufferRange: The jitter buffer range in milliseconds.
     ///   - adaptiveJitterBuffer: Whether the jitter buffer adapts.
     ///   - codecs: Codecs in order of preference.
+    ///   - holdMusicFile: The WAV file a held call plays to the other side.
     public init(sourceModule: String = "audiounit", sourceDevice: String? = nil,
                 playerModule: String = "audiounit", playerDevice: String? = nil,
                 sampleRate: Int? = nil, channels: Int? = nil,
                 packetTime: Duration = .milliseconds(20),
                 jitterBufferRange: ClosedRange<Int> = 40 ... 200,
                 adaptiveJitterBuffer: Bool = true,
-                codecs: [String] = BaresipAudioConfiguration.defaultCodecs) {
+                codecs: [String] = BaresipAudioConfiguration.defaultCodecs,
+                holdMusicFile: URL? = nil) {
         self.sourceModule = sourceModule
         self.sourceDevice = sourceDevice
         self.playerModule = playerModule
@@ -55,5 +67,6 @@ public struct BaresipAudioConfiguration: Sendable, Equatable {
         self.jitterBufferRange = jitterBufferRange
         self.adaptiveJitterBuffer = adaptiveJitterBuffer
         self.codecs = codecs
+        self.holdMusicFile = holdMusicFile
     }
 }

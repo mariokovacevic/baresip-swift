@@ -72,7 +72,7 @@ handed the call to CallKit when it returns.
 
 ```swift
 callKit.reportIncomingCallFromPush(
-    uuid: UUID(),
+    uuid: nil,
     remoteURI: "sip:bob@example.com",
     displayName: "Bob",
     hasVideo: false
@@ -120,7 +120,91 @@ A push and its INVITE can arrive in either order, and the user can act in betwee
 > answered at once when the user already tapped Answer. To narrow this, put the caller's full
 > SIP URI in every push, set `matchesPushWithoutCaller` to `false`, and let only your SIP
 > server reach the device: register over TLS and use a server that drops INVITEs it did not
-> route.
+> route. Better still, let the server name the call; see the next section.
+
+### A call UUID from the server
+
+Matching by caller is a guess: two calls from one caller, or a push that names no caller, can
+bind the wrong INVITE. A server that sends both the push and the INVITE can name the call
+instead. It creates a UUID per call, puts it in the push payload and in a header of the INVITE,
+and the app passes both on:
+
+```swift
+var configuration = BaresipCallKitConfiguration(supportsVideo: true)
+configuration.callUUIDHeader = "X-Call-UUID"
+let callKit = BaresipCallKitAdapter(engine: engine, configuration: configuration)
+
+let uuid = (payload["uuid"] as? String).flatMap(UUID.init(uuidString:))
+callKit.reportIncomingCallFromPush(uuid: uuid, remoteURI: payload["from"] as? String,
+                                   displayName: nil, hasVideo: false) { _ in }
+```
+
+An INVITE with the header is then bound to the pushed call with that UUID, whoever its caller
+is, and no other push that named a UUID takes it. A push whose payload has no UUID (`uuid` is
+`nil`) is matched by its caller, also with an INVITE that carries the header, so a server that
+sometimes leaves the UUID out of the push does not ring the call twice. The INVITE rings as a
+call of its own when no push matches it. When
+the INVITE arrives first, it is reported under the UUID from its header, so the push that
+follows is recognized. A push with the UUID of a call that waits, rings or runs already, for
+example one the server sent twice, is reported under a new UUID and ended at once, because
+CallKit refuses a second call with a UUID it knows. An INVITE without the header is matched by
+its caller as described above.
+
+The UUID is random and travels only in the push and in the INVITE, so an INVITE from someone
+else cannot take a pushed call's place without it. `Tools/DoorStack` shows the server side: the
+dialplan creates the UUID, the push gateway sends it as `uuid`, and the INVITE carries it as
+`X-Call-UUID`.
+
+### Recents and calling again
+
+Calls appear in the Recents list of the Phone app; set
+`BaresipCallKitConfiguration.includesCallsInRecents` to `false` to keep them out. A tap on such
+an entry opens the app with a request to call again. Declare `INStartCallIntent` under
+`NSUserActivityTypes` in the Info.plist and place the call:
+
+```swift
+ContentView()
+    .onContinueUserActivity(BaresipRedialRequest.activityType) { activity in
+        guard let request = BaresipRedialRequest(activity: activity) else { return }
+        Task { try await phone.makeCall(to: request.destination, video: request.video) }
+    }
+```
+
+The destination is what the adapter gave CallKit for the earlier call. The request can arrive
+while the app starts, before the account is registered; keep it until then. Without this
+handling a tap in Recents opens the app and nothing happens, which is a reason to turn the
+option off.
+
+### Callers with phone numbers
+
+By default every caller is reported to CallKit as a generic handle with the SIP URI. With
+
+```swift
+configuration.handleStyle = .phoneNumberWhenNumeric
+```
+
+a caller whose user part is a number, such as `sip:100@pbx.example.com` or
+`sip:+38751123456@pbx.example.com`, is reported as the phone number `100` or `+38751123456`.
+iOS then shows the name and photo of a contact with that number on the call screen and in
+Recents, and a redial request carries the number, which the app turns into a SIP URI for its
+server. Other callers, such as `sip:door1@pbx.example.com`, stay generic handles. The same
+applies to the destination of an outgoing call.
+
+### Calls answered on another phone
+
+When several phones ring for one call, such as every resident of a flat for a ring from the
+door, the server cancels the others once one answers and usually says so in the CANCEL with
+`Reason: SIP;cause=200;text="Call completed elsewhere"` (RFC 3326). The adapter then ends the
+call as answered elsewhere, so it is not listed as missed; with `cause=600` or `603` it ends it
+as declined elsewhere. The ended event carries the same in ``BaresipError/endReason``.
+
+### Actions that time out
+
+CallKit gives the app a limited time to carry out an action. When the engine does not finish in
+time, the adapter gives up on it: whoever waits for the action, for example in
+`setHeld(_:uuid:)`, gets `BaresipCallKitError.actionTimedOut`. CallKit fails a call whose start
+or answer timed out, so the adapter ends the engine's side as well: an outgoing call is hung up
+as soon as the engine has placed it, and an incoming one at once.
 
 ### App name and icon
 

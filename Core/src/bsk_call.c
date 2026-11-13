@@ -1,6 +1,7 @@
 #include <string.h>
 #include "bsk_internal.h"
 #include "bsk_call_internal.h"
+#include "bsk_reason.h"
 
 
 struct bsk_call_ctx *bsk_call_find(bsk_engine *engine, bsk_call_id id)
@@ -207,6 +208,8 @@ void bsk_call_emit_state(bsk_engine *e, struct bsk_call_ctx *c,
 	ev.u.call_state.state = state;
 	if (error)
 		ev.u.call_state.error = *error;
+	if (state == BSK_CALL_ENDED)
+		ev.u.call_state.end_reason = c->end_reason;
 
 	bsk_emit(e, &ev);
 }
@@ -252,16 +255,57 @@ void bsk_call_apply_audio_activation(bsk_engine *e, struct bsk_call_ctx *c)
 		return;
 	}
 
-	if (e->audio_active) {
-		(void)audio_set_source(au, e->audio_src_mod, e->audio_src_dev);
+	if (bsk_call_hold_music(e, c)) {
+		/* The music replaces the source first, so the microphone never
+		 * sends while the call is on hold. */
+		if (!c->hold_music &&
+		    0 == audio_set_source(au, BSK_HOLD_MODULE, NULL))
+			c->hold_music = true;
+		if (c->hold_music) {
+			audio_mute(au, false);
+			stream_set_hold_send(audio_strm(au), true);
+		}
+	} else {
+		stream_set_hold_send(audio_strm(au), false);
+		c->hold_music = false;
+		if (e->audio_active)
+			(void)audio_set_source(au, e->audio_src_mod,
+					       e->audio_src_dev);
+		else
+			(void)audio_set_source(au, NULL, NULL);
+		if (e->audio_active && c->muted)
+			audio_mute(au, true);
+	}
+
+	if (e->audio_active)
 		(void)audio_set_player(au, e->audio_play_mod,
 				       e->audio_play_dev);
-		if (c->muted)
-			audio_mute(au, true);
-	} else {
-		(void)audio_set_source(au, NULL, NULL);
+	else
 		(void)audio_set_player(au, NULL, NULL);
+}
+
+
+static bsk_call_end_reason end_reason(uint16_t cause)
+{
+	switch (cause) {
+	case 200: return BSK_END_ANSWERED_ELSEWHERE;
+	case 600:
+	case 603: return BSK_END_DECLINED_ELSEWHERE;
+	default: return BSK_END_NORMAL;
 	}
+}
+
+
+static bool ended_elsewhere(const struct bsk_call_ctx *c, const char *text,
+			    uint16_t *cause, char *phrase, size_t size)
+{
+	if (c->outgoing || c->local_hangup)
+		return false;
+
+	if (c->state != BSK_CALL_INCOMING && c->state != BSK_CALL_EARLY_MEDIA)
+		return false;
+
+	return bsk_reason_sip_cause(text, cause, phrase, size);
 }
 
 
@@ -271,6 +315,8 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 	const char *text = bevent_get_text(event);
 	uint16_t scode = c->call ? call_scode(c->call) : 0;
 	bsk_error error;
+	char phrase[sizeof(error.sip_reason)];
+	uint16_t cause = 0;
 	bool failed;
 
 	failed = c->outgoing && !c->local_hangup &&
@@ -283,7 +329,10 @@ static void finish_call(bsk_engine *e, struct bsk_call_ctx *c,
 		bsk_error_set(&error,
 			      scode >= 300 ? BSK_ERR_SIP : BSK_ERR_NETWORK, 0,
 			      scode, NULL, "%s", text ? text : "");
-	else
+	else if (ended_elsewhere(c, text, &cause, phrase, sizeof(phrase))) {
+		c->end_reason = end_reason(cause);
+		bsk_error_set(&error, BSK_OK, 0, cause, phrase, "%s", text);
+	} else
 		bsk_error_set(&error, BSK_OK, 0, c->local_hangup ? 0 : scode,
 			      NULL, "%s", text ? text : "");
 
@@ -569,6 +618,7 @@ void bsk_call_handle_event(bsk_engine *e, enum bevent_ev ev,
 		dev.call = c->id;
 		dev.u.dtmf.digit = text ? text[0] : 0;
 		dev.u.dtmf.end = (ev == BEVENT_CALL_DTMF_END);
+		dev.u.dtmf.via_sip_info = call_dtmf_via_info(call);
 		bsk_emit(e, &dev);
 		break;
 	}

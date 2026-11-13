@@ -28,9 +28,11 @@ set(BSK_SOURCES
   src/bsk_video.c
   src/bsk_tls.c
   src/bsk_rate.c
+  src/bsk_reason.c
   src/bsk_message.c
   src/bsk_record.c
   src/bsk_audio.c
+  src/bsk_hold.c
   src/bsk_g722.c
   src/bsk_h264.c
   third_party/g722/g722_encode.c
@@ -41,6 +43,10 @@ if(APPLE)
   enable_language(OBJC)
   list(APPEND BSK_SOURCES src/apple/vidtoolbox.c src/apple/bskcapture.m src/apple/bsk_trust.c)
   set_source_files_properties(src/apple/bskcapture.m PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+endif()
+
+if(ANDROID)
+  list(APPEND BSK_SOURCES src/android/bskcamera.c src/android/mediacodec.c)
 endif()
 
 add_library(baresipkitcore STATIC ${BSK_SOURCES})
@@ -58,6 +64,11 @@ if(APPLE)
     "-framework AVFoundation" "-framework CoreMedia" "-framework CoreVideo"
     "-framework VideoToolbox" "-framework Foundation"
     "-framework Security" "-framework CoreFoundation")
+endif()
+if(ANDROID)
+  target_compile_definitions(baresipkitcore PRIVATE BSK_HAVE_ANDROID_VIDEO=1)
+  target_include_directories(baresipkitcore PRIVATE src/android)
+  target_link_libraries(baresipkitcore PUBLIC mediandk)
 endif()
 include(CheckFunctionExists)
 include(CheckIncludeFile)

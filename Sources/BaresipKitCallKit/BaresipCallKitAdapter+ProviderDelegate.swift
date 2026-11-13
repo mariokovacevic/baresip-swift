@@ -3,6 +3,7 @@
     import CallKit
     import Foundation
     import BaresipKit
+    import BaresipKitSystemCall
 
     extension BaresipCallKitAdapter: CXProviderDelegate {
         /// Hangs up every call after CallKit reset the provider.
@@ -20,6 +21,8 @@
                 pushCalls.removeAll()
                 placedCallWaiters.removeAll()
                 answerVideo.removeAll()
+                abandonedStarts.removeAll()
+                startDestinations.removeAll()
                 return (calls, waiters)
             }
             for waiter in waiters {
@@ -47,20 +50,67 @@
         ///   - action: The start action.
         public func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
             let box = UncheckedSendable(value: action)
-            let destination = action.handle.value
             let video = action.isVideo
             let uuid = action.callUUID
+            let destination = lock.withLock { startDestinations.removeValue(forKey: uuid) } ?? action.handle.value
             Task {
                 do {
                     let id = try await engine.makeCall(destination: destination, video: video)
-                    lock.withLock { _ = outgoing.insert(uuid) }
-                    bind(id, uuid)
+                    let abandoned = lock.withLock { () -> Bool in
+                        if abandonedStarts.remove(uuid) != nil {
+                            return true
+                        }
+                        outgoing.insert(uuid)
+                        uuidByCall[id] = uuid
+                        callByUUID[uuid] = id
+                        return false
+                    }
+                    if abandoned {
+                        try? await engine.hangup(callID: id)
+                        return
+                    }
                     box.value.fulfill()
                     takePlacedCallWaiter(uuid)?.resume(returning: id)
                     await reconcileOutgoing(id, uuid: uuid)
                 } catch {
+                    lock.withLock { _ = abandonedStarts.remove(uuid) }
                     box.value.fail()
                     takePlacedCallWaiter(uuid)?.resume(throwing: error)
+                }
+            }
+        }
+
+        /// Gives up on an action that the adapter did not finish before CallKit's time limit.
+        ///
+        /// Whoever waits for the action gets ``BaresipCallKitError/actionTimedOut``. CallKit fails
+        /// a call whose start or answer timed out, so the engine's side of it is ended as well:
+        /// an outgoing call is hung up as soon as the engine has placed it, an incoming one at
+        /// once.
+        ///
+        /// - Parameters:
+        ///   - provider: The provider.
+        ///   - action: The action that timed out.
+        public func provider(_ provider: CXProvider, timedOutPerforming action: CXAction) {
+            takeActionWaiter(action.uuid)?.resume(throwing: BaresipCallKitError.actionTimedOut)
+            if let start = action as? CXStartCallAction {
+                let uuid = start.callUUID
+                let placed = lock.withLock { () -> BaresipCallID? in
+                    startDestinations[uuid] = nil
+                    guard let call = callByUUID[uuid] else {
+                        abandonedStarts.insert(uuid)
+                        return nil
+                    }
+                    return call
+                }
+                takePlacedCallWaiter(uuid)?.resume(throwing: BaresipCallKitError.actionTimedOut)
+                if let placed {
+                    Task {
+                        try? await engine.hangup(callID: placed)
+                    }
+                }
+            } else if let answer = action as? CXAnswerCallAction, let call = callID(for: answer.callUUID) {
+                Task {
+                    try? await engine.hangup(callID: call)
                 }
             }
         }

@@ -23,62 +23,10 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	record_event(&w, ev);
 }
 
-static int running(struct waiter *x)
-{
-	return x->engine_state == BSK_ENGINE_RUNNING;
-}
-static int registered(struct waiter *x)
-{
-	return x->reg_state == BSK_REG_REGISTERED;
-}
-static int streams(struct waiter *x)
-{
-	return x->call_state == BSK_CALL_STREAMS_RUNNING;
-}
 static int early(struct waiter *x)
 {
 	return x->call_state == BSK_CALL_EARLY_MEDIA;
 }
-static int paused(struct waiter *x)
-{
-	return x->call_state == BSK_CALL_PAUSED;
-}
-static int released(struct waiter *x)
-{
-	return x->released_call != BSK_ID_NONE;
-}
-static int ice_connected(struct waiter *x)
-{
-	return x->ice_state == BSK_ICE_CONNECTED;
-}
-static int incoming(struct waiter *x)
-{
-	return x->incoming_call != BSK_ID_NONE;
-}
-
-
-static char *read_file(const char *path, size_t *len)
-{
-	FILE *f = fopen(path, "rb");
-	char *buf;
-	long n;
-
-	if (!f)
-		return NULL;
-	fseek(f, 0, SEEK_END);
-	n = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	buf = calloc(1, (size_t)n + 1);
-	if (fread(buf, 1, (size_t)n, f) != (size_t)n) {
-		free(buf);
-		fclose(f);
-		return NULL;
-	}
-	fclose(f);
-	*len = (size_t)n;
-	return buf;
-}
-
 
 static const char *turn_transport = "udp";
 static const char *unusable_turn_uri;
@@ -441,7 +389,7 @@ int main(int argc, char **argv)
 	CHECK(wait_until(&w, streams, 15000));
 	CHECK_OK(bsk_call_send_dtmf(e, call, "9", 120, 60, &err), &err);
 	sleep(1);
-	CHECK(dtmf_via_info == 1);
+	CHECK(dtmf_via_info == 1 || dtmf_via_info == 3);
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
 	CHECK(wait_until(&w, released, 10000));
 

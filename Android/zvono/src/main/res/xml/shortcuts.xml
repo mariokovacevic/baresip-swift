@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <capability android:name="actions.intent.OPEN_APP_FEATURE">
+        <intent
+            android:action="io.github.mariokovacevic.baresipkit.zvono.OPEN_DOOR_NAMED"
+            android:targetClass="io.github.mariokovacevic.baresipkit.zvono.MainActivity"
+            android:targetPackage="io.github.mariokovacevic.baresipkit.zvono">
+            <parameter
+                android:name="feature"
+                android:key="door" />
+        </intent>
+    </capability>
+</shortcuts>

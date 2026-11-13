@@ -11,7 +11,7 @@ arrive later, such as a successful registration or an answered call, come throug
 
 ### Add the package
 
-There is no release yet. Clone `https://github.com/mariokovacevic/baresip-swift.git`, build the C
+There is no release yet. Clone `https://github.com/mariokovacevic/baresipkit.git`, build the C
 core with `Build/build-xcframework.sh`, add the checkout as a local package and link the
 `BaresipKit` product. Add `NSMicrophoneUsageDescription` to the app's Info.plist, and
 `NSCameraUsageDescription` for video. The package includes a privacy manifest for the SDK; the

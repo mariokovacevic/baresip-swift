@@ -3,6 +3,9 @@
 #ifdef BSK_HAVE_APPLE_VIDEO
 #include "vidtoolbox.h"
 #endif
+#ifdef BSK_HAVE_ANDROID_VIDEO
+#include "bsk_android.h"
+#endif
 
 struct vidisp_st {
 	const struct vidisp *vd;
@@ -244,6 +247,14 @@ int bsk_video_init(bsk_engine *e)
 	if (err)
 		return err;
 #endif
+#ifdef BSK_HAVE_ANDROID_VIDEO
+	err = mediacodec_init();
+	if (err)
+		return err;
+	err = bskcamera_init();
+	if (err)
+		return err;
+#endif
 
 	err = vidisp_register(&bsk_vidisp, baresip_vidispl(), "bsk", disp_alloc,
 			      NULL, disp_display, NULL);
@@ -277,6 +288,10 @@ void bsk_video_close(bsk_engine *e)
 #ifdef BSK_HAVE_APPLE_VIDEO
 	bskcapture_close();
 	vidtoolbox_close();
+#endif
+#ifdef BSK_HAVE_ANDROID_VIDEO
+	bskcamera_close();
+	mediacodec_close();
 #endif
 }
 

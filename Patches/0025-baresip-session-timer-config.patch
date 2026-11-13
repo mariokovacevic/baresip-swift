@@ -1,0 +1,126 @@
+From 80f7baefd03952a351b4f99dc55ae1359c52cd67 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Thu, 12 Nov 2026 07:46:56 +0000
+Subject: [PATCH] config: session timer interval and minimum (RFC 4028)
+
+sip_session_expires sets the session interval that calls offer and accept, 0 (the default) keeps session timers off; sip_min_se sets the smallest interval accepted. ua_init passes them to libre's sipsess_set_timer(), and with session timers on every user agent lists the timer extension, so it is in the Supported header and an INVITE with Require: timer is accepted instead of answered with 420.
+---
+ docs/examples/config |  2 ++
+ include/baresip.h    |  2 ++
+ src/config.c         | 10 ++++++++++
+ src/ua.c             |  3 +++
+ src/uag.c            |  8 ++++++++
+ 5 files changed, 25 insertions(+)
+
+diff --git a/docs/examples/config b/docs/examples/config
+index 1aebb65..4ed04f1 100644
+--- a/docs/examples/config
++++ b/docs/examples/config
+@@ -16,6 +16,8 @@ sip_capath		/etc/ssl/certs
+ #sip_tls_resumption	all		# none, ids, tickets
+ sip_tos			160 # See TOS fields!
+ #filter_registrar	udp,tcp,tls,ws,wss
++#sip_session_expires	1800		# RFC 4028 session timer [s], 0 = off
++#sip_min_se		90		# smallest session interval accepted [s]
+ #sip_cuser_random	no
+ 
+ ## TOS fields ##
+diff --git a/include/baresip.h b/include/baresip.h
+index cdb3d8b..7cf0a78 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -414,6 +414,8 @@ struct config_sip {
+ 	enum tls_resume_mode tls_resume; /** TLS resumption mode    */
+ 	uint8_t tos;            /**< Type-of-Service for SIP        */
+ 	uint32_t reg_filt;	/**< Registrar filter transport mask*/
++	uint32_t session_expires; /**< Session timer interval [s], 0=off */
++	uint32_t min_se;        /**< Smallest session interval [s]   */
+ };
+ 
+ /** Call config */
+diff --git a/src/config.c b/src/config.c
+index e6d624a..07764de 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -33,6 +33,7 @@ static struct config core_config = {
+ 		.verify_client = false,
+ 		.tls_resume = TLS_RESUMPTION_ALL,
+ 		.tos = 0xa0,
++		.min_se = 90,
+ 	},
+ 
+ 	.call = /** Call config */
+@@ -405,6 +406,10 @@ int config_parse_conf(struct config *cfg, const struct conf *conf)
+ 	if (0 == conf_get(conf, "filter_registrar", &pl))
+ 		decode_sip_transports(&cfg->sip.reg_filt, &pl);
+ 
++	(void)conf_get_u32(conf, "sip_session_expires",
++			   &cfg->sip.session_expires);
++	(void)conf_get_u32(conf, "sip_min_se", &cfg->sip.min_se);
++
+ 	/* Call */
+ 	(void)conf_get_u32(conf, "call_local_timeout",
+ 			   &cfg->call.local_timeout);
+@@ -577,6 +582,8 @@ int config_print(struct re_printf *pf, const struct config *cfg)
+ 			 "sip_tls_resumption\t\t\t%s\n"
+ 			 "sip_tos\t%u\n"
+ 			 "filter_registrar\t%H\n"
++			 "sip_session_expires\t%u\n"
++			 "sip_min_se\t\t%u\n"
+ 			 "\n"
+ 			 "# Call\n"
+ 			 "call_local_timeout\t%u\n"
+@@ -593,6 +600,7 @@ int config_print(struct re_printf *pf, const struct config *cfg)
+ 			 tls_resume_mode_str(cfg->sip.tls_resume),
+ 			 cfg->sip.tos, sip_transports_print_mask,
+ 			 &cfg->sip.reg_filt,
++			 cfg->sip.session_expires, cfg->sip.min_se,
+ 
+ 			 cfg->call.local_timeout,
+ 			 cfg->call.max_calls,
+@@ -842,6 +850,8 @@ static int core_config_template(struct re_printf *pf, const struct config *cfg)
+ 			  "#sip_tls_resumption\tall\n"
+ 			  "sip_tos\t\t\t160\n"
+ 			  "#filter_registrar\tudp,tcp,tls,ws,wss\n"
++			  "#sip_session_expires\t1800\n"
++			  "#sip_min_se\t\t90\n"
+ 			  "#sip_cuser_random\tno\n"
+ 			  "\n"
+ 			  ,
+diff --git a/src/ua.c b/src/ua.c
+index b586e4a..7fc62af 100644
+--- a/src/ua.c
++++ b/src/ua.c
+@@ -154,6 +154,9 @@ static int create_register_clients(struct ua *ua)
+ 	if (ua->acc->rel100_mode)
+ 		ua_add_extension(ua, "100rel");
+ 
++	if (uag_cfg() && uag_cfg()->session_expires)
++		ua_add_extension(ua, "timer");
++
+  out:
+ 	return err;
+ }
+diff --git a/src/uag.c b/src/uag.c
+index 3fa20d2..fab85af 100644
+--- a/src/uag.c
++++ b/src/uag.c
+@@ -603,6 +603,14 @@ int ua_init(const char *software, bool udp, bool tcp, bool tls)
+ 	if (err)
+ 		goto out;
+ 
++	err = sipsess_set_timer(uag.sock, cfg->sip.session_expires,
++				MIN(cfg->sip.min_se,
++				    cfg->sip.session_expires));
++	if (err) {
++		warning("ua: session timer failed: %m\n", err);
++		goto out;
++	}
++
+ 	err = sipevent_listen(&uag.evsock, uag.sip, bsize, bsize,
+ 			      sub_handler, NULL);
+ 	if (err)
+
+-- 
+2.43.0
+

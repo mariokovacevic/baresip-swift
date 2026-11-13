@@ -19,7 +19,7 @@ extension BaresipEvent {
                                  error: .optional(payload.error))
         case BSK_EVENT_CALL_STATE:
             let payload = bsk_bridge_event_call_state(pointer)
-            self = .call(call, BaresipCallState(payload.state), .optional(payload.error))
+            self = .call(call, BaresipCallState(payload.state), .optional(payload.error, endReason: payload.end_reason))
         case BSK_EVENT_CALL_INCOMING:
             self = .incomingCall(BaresipCallInfo(bsk_bridge_event_call_incoming(pointer)),
                                  earlyVideo: bsk_bridge_event_call_incoming_early_video(pointer))

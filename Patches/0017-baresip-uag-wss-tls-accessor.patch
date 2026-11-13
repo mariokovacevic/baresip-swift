@@ -1,8 +1,8 @@
 diff --git a/include/baresip.h b/include/baresip.h
-index a3a771d..f0942e4 100644
+index 71f0415..e4393d7 100644
 --- a/include/baresip.h
 +++ b/include/baresip.h
-@@ -1052,6 +1052,7 @@ struct sip  *uag_sip(void);
+@@ -1053,6 +1053,7 @@ struct sip  *uag_sip(void);
  struct list *uag_list(void);
  uint32_t     uag_call_count(void);
  struct tls  *uag_tls(void);

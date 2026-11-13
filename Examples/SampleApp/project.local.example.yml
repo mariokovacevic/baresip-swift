@@ -4,6 +4,10 @@
 include:
   - path: project.yml
     relativePaths: true
+settings:
+  base:
+    # An app group registered for your team, for the live preview in a ringing call's notification.
+    BSK_APP_GROUP: group.com.example.app
 targets:
   BaresipKitSample:
     sources:
@@ -19,5 +23,12 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.app
+        DEVELOPMENT_TEAM: ABCDE12345
+        CODE_SIGN_STYLE: Automatic
+  BaresipKitSamplePreview:
+    settings:
+      base:
+        # Must start with the app's bundle identifier.
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.app.Preview
         DEVELOPMENT_TEAM: ABCDE12345
         CODE_SIGN_STYLE: Automatic

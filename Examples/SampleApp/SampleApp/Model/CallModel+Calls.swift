@@ -1,11 +1,12 @@
 import Foundation
 import BaresipKit
 import BaresipKitAudio
+import BaresipKitCallKit
 import BaresipKitSwiftUI
 
 extension CallModel {
-    /// Places a call. `BaresipPhone` sends it through CallKit on a device and to the engine in
-    /// the simulator and in UI tests.
+    /// Places a call. `BaresipPhone` sends it through CallKit or LiveCommunicationKit on a device
+    /// and to the engine in the simulator and in UI tests.
     func call(video: Bool) async {
         let target = normalizedDestination(destination)
         guard !target.isEmpty, let phone else {
@@ -29,8 +30,22 @@ extension CallModel {
         }
     }
 
-    /// Outgoing calls skip CallKit in UI tests and in the simulator, where CallKit never
-    /// activates the audio session and ends its call when the app activates it instead.
+    /// Calls again after a tap on one of the app's calls in the Recents list of the Phone app.
+    /// A request that arrives before the account is registered waits for the registration.
+    func redial(_ request: BaresipRedialRequest) async {
+        guard registration == .registered else {
+            pendingRedial = request
+            return
+        }
+        pendingRedial = nil
+        destination = request.destination
+        append("redial \(request.video ? "video" : "audio") from Recents")
+        await call(video: request.video)
+    }
+
+    /// Calls skip the system call screen in UI tests and in the simulator, where CallKit and
+    /// LiveCommunicationKit never activate the audio session and end their call when the app
+    /// activates it instead.
 
     var usesDirectCalls: Bool {
         #if targetEnvironment(simulator)
@@ -56,6 +71,7 @@ extension CallModel {
     func didAnswer(_ call: BaresipCallID) {
         guard answeredCalls.insert(call).inserted else { return }
         snapshots.capture(call)
+        endPreviewFeed(call, missedCallFrom: nil)
         callMinimized = false
         previewing = false
         previewVideo = false
@@ -97,6 +113,7 @@ extension CallModel {
 
     /// Records the finished call and, once no call is left, releases what the calls used.
     func callEnded(_ call: BaresipPhoneCall, remainingCalls: Int) async {
+        endPreviewFeed(call.id, missedCallFrom: call.error?.endReason == nil ? call.displayName : nil)
         recordHistory(call)
         dtmfStates[call.id] = nil
         answeredCalls.remove(call.id)
@@ -125,6 +142,7 @@ extension CallModel {
 
     func reject() async {
         guard let incoming else { return }
+        endPreviewFeed(incoming.id, missedCallFrom: nil)
         do {
             try await incoming.reject()
         } catch {
@@ -138,7 +156,7 @@ extension CallModel {
         try? await activeCall?.hangUp()
     }
 
-    /// Holds through CallKit on a device, so the system call screen shows the same state.
+    /// Holds through the system call screen on a device, so the system call screen shows the same state.
 
     func toggleHold() async {
         guard let currentCall else { return }

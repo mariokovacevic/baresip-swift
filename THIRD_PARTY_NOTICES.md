@@ -36,4 +36,10 @@ Licensed under the BSD 3-Clause License, with the additional patent grant in the
 
 ## H.264 / AVC
 
-The H.264 codec is provided by Apple's VideoToolbox framework and is not distributed with this product. H.264 is covered by patents licensed through the Via-LA AVC/H.264 patent pool; application publishers are responsible for their own licensing position.
+The H.264 codec is provided by Apple's VideoToolbox framework on Apple platforms and by the device's MediaCodec codecs on Android, and is not distributed with this product. H.264 is covered by patents licensed through the Via-LA AVC/H.264 patent pool; application publishers are responsible for their own licensing position.
+
+## Barlow Semi Condensed (sample app only)
+
+The sample app bundles two styles of Barlow Semi Condensed in `Examples/SampleApp/SampleApp/Fonts`.
+
+Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow). Licensed under the SIL Open Font License, Version 1.1; the full text is in `Examples/SampleApp/SampleApp/Fonts/OFL.txt`.

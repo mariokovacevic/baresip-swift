@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import BaresipKit
 import BaresipKitCallKit
+import BaresipKitLiveCommunication
 
 /// Adapts the sample to a particular SIP deployment without changing its code.
 ///
@@ -21,6 +22,9 @@ protocol AppProfile: AnyObject, Sendable {
     /// Changes the CallKit configuration before the adapter is created.
     func configure(_ callKit: inout BaresipCallKitConfiguration)
 
+    /// Changes the LiveCommunicationKit configuration before the adapter is created.
+    func configure(_ liveCommunication: inout BaresipLiveCommunicationConfiguration)
+
     /// The `app-id` push parameter.
     var pushAppID: String { get }
 
@@ -29,6 +33,10 @@ protocol AppProfile: AnyObject, Sendable {
 
     /// An extra section at the top of the Account screen, or `nil`.
     func accountSection(model: CallModel) -> AnyView?
+}
+
+extension AppProfile {
+    func configure(_ liveCommunication: inout BaresipLiveCommunicationConfiguration) {}
 }
 
 /// The sample's own settings.

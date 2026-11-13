@@ -40,14 +40,6 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	record_event(&w, ev);
 }
 
-static int running(struct waiter *x)
-{
-	return x->engine_state == BSK_ENGINE_RUNNING;
-}
-static int incoming(struct waiter *x)
-{
-	return x->incoming_call != BSK_ID_NONE;
-}
 static int streams1(struct waiter *x)
 {
 	(void)x;

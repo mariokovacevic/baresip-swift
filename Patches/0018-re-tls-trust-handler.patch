@@ -13,7 +13,7 @@ index 04313c6..09c731a 100644
  
  int tls_get_issuer(struct tls *tls, struct mbuf *mb);
 diff --git a/src/tls/openssl/tls.c b/src/tls/openssl/tls.c
-index 46dcf0d..9d4b2e3 100644
+index 9ef844b..e5ab272 100644
 --- a/src/tls/openssl/tls.c
 +++ b/src/tls/openssl/tls.c
 @@ -50,6 +50,9 @@ struct tls {
@@ -36,7 +36,7 @@ index 46dcf0d..9d4b2e3 100644
  	return 0;
  }
  
-@@ -1352,6 +1358,165 @@ int tls_set_verify_server_handler(struct tls *tls, tls_verify_server_h *h,
+@@ -1357,6 +1363,165 @@ int tls_set_verify_server_handler(struct tls *tls, tls_verify_server_h *h,
  }
  
  

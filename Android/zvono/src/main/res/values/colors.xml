@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="zvono_background">#0F141B</color>
+    <color name="zvono_bar">#121821</color>
+    <color name="zvono_brass">#F0B24A</color>
+</resources>

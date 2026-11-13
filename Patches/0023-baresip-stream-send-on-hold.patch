@@ -1,0 +1,79 @@
+From bb45972d9c162985b9ba47a9d922ef110defb685 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Wed, 11 Nov 2026 14:45:39 +0100
+Subject: [PATCH] stream: optionally send RTP while on hold
+
+A stream on hold offers sendonly in the SDP but stream_send() drops every
+packet, so the peer of a held call hears nothing. Phones commonly play
+music on hold to the peer from a file (liblinphone's play file, for
+example). Add stream_set_hold_send(): after replacing the audio source,
+an application enables sending while on hold; without it the behaviour
+is unchanged and no microphone audio leaves a held call.
+---
+ include/baresip.h |  1 +
+ src/stream.c      | 22 +++++++++++++++++++++-
+ 2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/include/baresip.h b/include/baresip.h
+index e4393d7..cdb3d8b 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -1578,6 +1578,7 @@ int  stream_start_rtcp(const struct stream *strm);
+ int  stream_enable(struct stream *strm, bool enable);
+ int  stream_enable_tx(struct stream *strm, bool enable);
+ int  stream_enable_rx(struct stream *strm, bool enable);
++void stream_set_hold_send(struct stream *strm, bool enable);
+ void stream_mnat_attr(struct stream *strm, const char *name,
+ 		      const char *value);
+ void stream_set_session_handlers(struct stream *strm,
+diff --git a/src/stream.c b/src/stream.c
+index f3d267a..2822a72 100644
+--- a/src/stream.c
++++ b/src/stream.c
+@@ -69,6 +69,7 @@ struct stream {
+ 	bool rtcp_mux;           /**< RTP/RTCP multiplex supported by peer  */
+ 	bool terminated;         /**< Stream is terminated flag             */
+ 	RE_ATOMIC bool hold;     /**< Stream is on-hold (local)             */
++	RE_ATOMIC bool hold_send;/**< Send RTP while on hold                */
+ 	bool mnat_connected;     /**< Media NAT is connected                */
+ 	bool menc_secure;        /**< Media stream is secure                */
+ 	struct tmr tmr_natph;    /**< Timer for NAT pinhole                 */
+@@ -749,7 +750,7 @@ int stream_send(struct stream *s, bool ext, bool marker, int pt, uint32_t ts,
+ 	if (!re_atomic_acq(&s->tx.enabled))
+ 		return 0;
+ 
+-	if (re_atomic_rlx(&s->hold))
++	if (re_atomic_rlx(&s->hold) && !re_atomic_rlx(&s->hold_send))
+ 		return 0;
+ 
+ 	metric_add_packet(s->tx.metric, mbuf_get_left(mb));
+@@ -1012,6 +1013,25 @@ void stream_hold(struct stream *s, bool hold)
+ }
+ 
+ 
++/**
++ * Keep sending RTP while the stream is on hold
++ *
++ * A stream on hold offers sendonly but sends nothing. An application that
++ * plays music on hold to the peer enables sending after it replaced the
++ * audio source; the flag stays until it is disabled again.
++ *
++ * @param s       Stream object
++ * @param enable  True to send while on hold
++ */
++void stream_set_hold_send(struct stream *s, bool enable)
++{
++	if (!s)
++		return;
++
++	re_atomic_rlx_set(&s->hold_send, enable);
++}
++
++
+ void stream_set_ldir(struct stream *s, enum sdp_dir dir)
+ {
+ 	if (!s)
+
+-- 
+2.51.0
+

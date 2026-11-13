@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #define BSK_ABI_VERSION_MAJOR 0
-#define BSK_ABI_VERSION_MINOR 8
+#define BSK_ABI_VERSION_MINOR 11
 
 typedef struct bsk_engine bsk_engine;
 
@@ -128,6 +128,12 @@ typedef enum bsk_call_state {
 	BSK_CALL_RELEASED = 13
 } bsk_call_state;
 
+typedef enum bsk_call_end_reason {
+	BSK_END_NORMAL = 0,
+	BSK_END_ANSWERED_ELSEWHERE = 1,
+	BSK_END_DECLINED_ELSEWHERE = 2
+} bsk_call_end_reason;
+
 typedef enum bsk_media_direction {
 	BSK_DIR_INACTIVE = 0,
 	BSK_DIR_SENDONLY = 1,
@@ -155,11 +161,6 @@ typedef enum bsk_pixel_format {
 	BSK_PIX_I420 = 1,
 	BSK_PIX_BGRA = 2
 } bsk_pixel_format;
-
-typedef enum bsk_video_codec {
-	BSK_VCODEC_H264 = 0,
-	BSK_VCODEC_VP8 = 1
-} bsk_video_codec;
 
 typedef struct bsk_tls_config {
 	const char *ca_pem;
@@ -233,6 +234,18 @@ typedef struct bsk_engine_config {
 	bool ice_relay_only;
 	bool video_adaptive_bitrate;
 	uint32_t video_min_bitrate_bps;
+	/* A 16-bit PCM WAV file, mono or stereo, 8 to 48 kHz, that a held call
+	 * plays to the other side in a loop instead of the microphone, like
+	 * liblinphone's play file. NULL sends nothing while on hold. */
+	const char *hold_music_path;
+	/* The RFC 4028 session timer in seconds that calls offer and accept:
+	 * the refresher renews the session with UPDATE or re-INVITE, the
+	 * other side hangs up with BYE when it is not renewed. 0 keeps
+	 * session timers off. */
+	uint32_t session_expires;
+	/* The smallest session interval accepted in seconds, at most
+	 * session_expires; 0 means 90. */
+	uint32_t session_min_se;
 } bsk_engine_config;
 
 typedef struct bsk_contact_param {
@@ -334,13 +347,9 @@ typedef enum bsk_event_type {
 
 typedef enum bsk_media_event {
 	BSK_MEDIA_AUDIO_STARTED = 0,
-	BSK_MEDIA_AUDIO_STOPPED = 1,
-	BSK_MEDIA_VIDEO_STARTED = 2,
-	BSK_MEDIA_VIDEO_STOPPED = 3,
 	BSK_MEDIA_REMOTE_HOLD = 4,
 	BSK_MEDIA_REMOTE_RESUME = 5,
 	BSK_MEDIA_ENCRYPTION_ESTABLISHED = 6,
-	BSK_MEDIA_RTP_TIMEOUT = 7,
 	BSK_MEDIA_KEYFRAME_REQUESTED = 8,
 	BSK_MEDIA_EARLY_VIDEO_AVAILABLE = 9,
 	BSK_MEDIA_RECORDING_STARTED = 10,
@@ -365,6 +374,10 @@ typedef struct bsk_event {
 		struct {
 			bsk_call_state state;
 			bsk_error error;
+			/* For BSK_CALL_ENDED of an incoming call that rang: whether
+			 * another device answered or declined it, as the Reason
+			 * header of the CANCEL says (RFC 3326). */
+			bsk_call_end_reason end_reason;
 		} call_state;
 		struct {
 			bsk_call_info info;

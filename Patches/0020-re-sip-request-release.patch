@@ -20,7 +20,7 @@ index 7ff0fb4..192d0d5 100644
  
  	list_flush(&req->cachel);
 diff --git a/test/sip.c b/test/sip.c
-index 31ec2f7..ad664df 100644
+index f671c6d..9cd80b3 100644
 --- a/test/sip.c
 +++ b/test/sip.c
 @@ -752,6 +752,107 @@ out:
@@ -132,7 +132,7 @@ index 31ec2f7..ad664df 100644
  {
  	struct sa laddr;
 diff --git a/test/test.c b/test/test.c
-index c9ed4c5..a979e59 100644
+index 389094f..bf7a123 100644
 --- a/test/test.c
 +++ b/test/test.c
 @@ -200,6 +200,7 @@ static const struct test tests[] = {
@@ -144,7 +144,7 @@ index c9ed4c5..a979e59 100644
  	TEST(test_sip_hdr),
  	TEST(test_sip_param),
 diff --git a/test/test.h b/test/test.h
-index bc212fd..c9b9e4e 100644
+index 8badcd8..8bacbb0 100644
 --- a/test/test.h
 +++ b/test/test.h
 @@ -311,6 +311,7 @@ int test_sha1(void);

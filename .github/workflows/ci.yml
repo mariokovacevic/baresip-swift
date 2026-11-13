@@ -73,6 +73,168 @@ jobs:
           name: linux-core-logs
           path: Build/out/host/core-tests/*.txt
 
+  android:
+    name: Android core, libraries and JVM tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install build dependencies and the NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake nasm zlib1g-dev
+          source Build/versions.env
+          { yes || true; } | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ANDROID_NDK_VERSION" >/dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+      - name: Cache pinned sources and built prefixes
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/host/prefix
+            Build/out/android-arm64-v8a/prefix
+            Build/out/android-x86_64/prefix
+          key: android-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Build the core for the host and for Android
+        run: |
+          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+          PLATFORM=android MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+      - name: Build and test the Android modules
+        working-directory: Android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          ./gradlew --no-daemon assembleDebug testDebugUnitTest
+      - name: Check Kotlin style with ktlint
+        working-directory: Android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          ./gradlew --no-daemon --continue ktlintCheck
+      - name: Make a patch with ktlint's formatting
+        if: failure()
+        working-directory: Android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          ./gradlew --no-daemon --continue ktlintFormat || true
+          git diff > ktlint-format.patch
+      - name: Upload the ktlint formatting patch
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ktlint-format-patch
+          path: Android/ktlint-format.patch
+          if-no-files-found: ignore
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-test-reports
+          path: Android/*/build/reports/tests
+
+  android-emulator:
+    name: Android instrumented tests on an emulator
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install build dependencies and the NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake nasm zlib1g-dev
+          source Build/versions.env
+          { yes || true; } | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ANDROID_NDK_VERSION" >/dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+      - name: Restore pinned sources and built prefixes
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/host/prefix
+            Build/out/android-arm64-v8a/prefix
+            Build/out/android-x86_64/prefix
+          key: android-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Build the core for Android
+        run: PLATFORM=android MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+      - name: Build the host core and the call peer
+        run: |
+          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+          P="$PWD/Build/out/host/prefix"
+          EXTRA="$P/lib/libopus.a;$P/lib/libssl.a;$P/lib/libcrypto.a;z;resolv;pthread;m;dl"
+          if [[ -f "$P/lib/libvpx.a" ]]; then EXTRA="$P/lib/libvpx.a;$EXTRA"; fi
+          cmake -S Core -B Build/out/host/core-tests -DCMAKE_BUILD_TYPE=Debug -DCMAKE_PREFIX_PATH="$P" \
+            -DBARESIP_INCLUDE_DIR="$P/include/baresip" -DBARESIP_LIBRARY="$P/lib/libbaresip.a" \
+            -DBARESIPKIT_EXTRA_LIBS="$EXTRA" -DBARESIPKIT_BUILD_TESTS=ON >/dev/null
+          cmake --build Build/out/host/core-tests -j4 --target bsk_test_call >/dev/null
+      - name: Start the TLS registrar and the call peer for Zvono
+        run: |
+          HOSTIP=$(hostname -I | awk '{print $1}')
+          OUT="$PWD/Build/out/uitest"
+          mkdir -p "$OUT"
+          openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
+            -keyout "$OUT/key.pem" -out "$OUT/cert.pem" -days 2 \
+            -subj "/CN=baresipkit-uitest" -addext "subjectAltName=IP:$HOSTIP" >/dev/null 2>&1
+          sudo apt-get install -y coturn >/dev/null
+          sudo systemctl stop coturn || true
+          sudo systemctl disable coturn || true
+          nohup turnserver -n --listening-ip="$HOSTIP" --relay-ip="$HOSTIP" --listening-port=3478 \
+            --min-port=49152 --max-port=49400 --realm=baresipkit.test --lt-cred-mech --user=bsk:bsk \
+            --no-tls --no-dtls --no-cli --fingerprint --verbose --log-file=stdout --simple-log > "$OUT/coturn.out" 2>&1 &
+          REGISTRAR_HOST="$HOSTIP" REGISTRAR_PORT=5081 REGISTRAR_IDLE_TIMEOUT=2400 REGISTRAR_PEER="$HOSTIP:5270" \
+            nohup python3 Tools/ContactParameterProof/tls_registrar.py "$OUT/cert.pem" "$OUT/key.pem" "$OUT/registrar-trace.txt" > "$OUT/registrar.out" 2>&1 &
+          BSK_PEER_TIMEOUT=2400 BSK_TEST_TURN=udp BSK_TEST_RTCP_MUX=1 BSK_TEST_CA_PEM="$OUT/cert.pem" BSK_TEST_VERBOSE=1 \
+            nohup Build/out/host/core-tests/tests/bsk_test_call peer "$HOSTIP" ice > "$OUT/peer.out" 2> "$OUT/peer.err" &
+          for i in $(seq 1 50); do grep -q READY "$OUT/peer.out" 2>/dev/null && break; sleep 0.2; done
+          grep -q READY "$OUT/peer.out"
+          echo "UITEST_HOST=$HOSTIP" >> "$GITHUB_ENV"
+          echo "UITEST_CA_B64=$(base64 -w0 "$OUT/cert.pem")" >> "$GITHUB_ENV"
+      - name: Run the instrumented tests
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          working-directory: Android
+          script: |
+            ./gradlew --no-daemon :baresipkit:connectedDebugAndroidTest :zvono:installDebug :zvono:installDebugAndroidTest
+            adb shell am instrument -w -e class io.github.mariokovacevic.baresipkit.zvono.ScreenshotTest io.github.mariokovacevic.baresipkit.zvono.test/androidx.test.runner.AndroidJUnitRunner | tee screenshot-test.txt
+            mkdir -p build/screenshots && adb pull /sdcard/Android/data/io.github.mariokovacevic.baresipkit.zvono/files/screenshots build/screenshots
+            grep -q "^OK (" screenshot-test.txt
+            adb shell am instrument -w -e class io.github.mariokovacevic.baresipkit.zvono.RedialTest io.github.mariokovacevic.baresipkit.zvono.test/androidx.test.runner.AndroidJUnitRunner | tee redial-test.txt
+            grep -q "^OK (" redial-test.txt
+            timeout 900 adb shell am instrument -w -e class io.github.mariokovacevic.baresipkit.zvono.RegistrationCallTest -e host "$UITEST_HOST" -e caB64 "$UITEST_CA_B64" io.github.mariokovacevic.baresipkit.zvono.test/androidx.test.runner.AndroidJUnitRunner | tee registration-test.txt
+            mkdir -p build/registration && adb pull /sdcard/Android/data/io.github.mariokovacevic.baresipkit.zvono/files/screenshots build/registration || true
+            timeout 60 adb exec-out "run-as io.github.mariokovacevic.baresipkit.zvono sh -c 'cat files/Logs/*'" < /dev/null > build/registration/zvono.log || true
+            grep -q "^OK (" registration-test.txt
+      - name: Show the registrar and peer logs
+        if: failure()
+        run: |
+          echo "--- peer"; tail -n 40 Build/out/uitest/peer.out Build/out/uitest/peer.err || true
+          echo "--- registrar"; tail -n 80 Build/out/uitest/registrar-trace.txt || true
+          echo "--- coturn"; grep -iE "session|alloc|permission|channel|refused|denied|error" Build/out/uitest/coturn.out | tail -n 60 || true
+          echo "--- peer ice"; grep -iE "ice|turn|candidate|stream|rtp" Build/out/uitest/peer.err | tail -n 60 || true
+          echo "--- zvono"; grep -iE "ice|turn|candidate|stream|rtp|call" Android/build/registration/zvono.log | tail -n 80 || true
+      - name: Upload instrumented test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-instrumented-reports
+          path: |
+            Android/*/build/reports/androidTests
+            Android/screenshot-test.txt
+      - name: Upload Zvono screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-sample-screenshots
+          path: |
+            Android/build/screenshots
+            Android/build/registration
+
   macos:
     name: macOS XCFramework, Swift package, simulator tests
     runs-on: macos-latest
@@ -83,8 +245,8 @@ jobs:
           xcodebuild -version
           swift --version
           cmake --version || brew install cmake
-      - name: Cache pinned sources and built prefixes
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - name: Restore pinned sources and built prefixes
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: |
             Build/.deps
@@ -115,7 +277,7 @@ jobs:
           grep -q "TEST SUCCEEDED" macos-test.log
       - name: Build documentation, warnings as errors
         run: |
-          for scheme in BaresipKit BaresipKitAudio BaresipKitVideo BaresipKitCallKit BaresipKitPushKit BaresipKitSwiftUI; do
+          for scheme in BaresipKit BaresipKitAudio BaresipKitVideo BaresipKitCallKit BaresipKitLiveCommunication BaresipKitPushKit BaresipKitSwiftUI; do
             status=0
             xcodebuild docbuild -scheme "$scheme" -destination 'generic/platform=iOS Simulator' \
               OTHER_DOCC_FLAGS="--warnings-as-errors" > docc.log 2>&1 || status=$?
@@ -123,31 +285,83 @@ jobs:
             tail -3 docc.log
             test "$status" = 0
           done
-      - name: Host build and core tests
-        run: |
-          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
-          HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1) PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
       - name: Run XCTest on a simulator
         run: |
           xcrun simctl list runtimes
-          UDID=$(xcrun simctl list devices available --json | python3 -c '
-          import json, re, sys
-          d = json.load(sys.stdin)["devices"]
-          def ver(k):
-              m = re.search(r"iOS-(\d+)-(\d+)", k)
-              return (int(m.group(1)), int(m.group(2))) if m else (0, 0)
-          for key in sorted((k for k in d if "iOS" in k), key=ver, reverse=True):
-              phones = [x for x in d[key] if x.get("isAvailable") and x["name"].startswith("iPhone")]
-              if phones:
-                  print(phones[-1]["udid"])
-                  break
-          ')
+          UDID=$(Scripts/newest-iphone-simulator.sh)
           test -n "$UDID"
           echo "Using simulator: $UDID"
           echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID" || true
           xcodebuild test -scheme BaresipKit-Package -destination "id=${UDID}" SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 | tee xctest.log | grep -E "Test Suite|Executed|error:|Test Case .*failed|TEST (SUCCEEDED|FAILED)" || true
           grep -q "TEST SUCCEEDED" xctest.log
+      - name: Upload XCFramework
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: BaresipKitCore.xcframework
+          path: |
+            Build/out/BaresipKitCore.xcframework.zip
+            Build/out/checksum.txt
+            Build/out/sizes.txt
+
+  macos-core:
+    name: macOS host build and core tests
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+          cmake --version || brew install cmake
+      - name: Restore pinned sources and built prefixes
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/ios-arm64/prefix
+            Build/out/ios-arm64-simulator/prefix
+            Build/out/macos-arm64/prefix
+            Build/out/host/prefix
+          key: macos-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Host build and core tests
+        run: |
+          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+          HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1) PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+
+  sample-app:
+    name: Sample app build, UI test and screenshots
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Toolchain versions
+        run: |
+          xcodebuild -version
+          swift --version
+          cmake --version || brew install cmake
+      - name: Cache pinned sources and built prefixes
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/ios-arm64/prefix
+            Build/out/ios-arm64-simulator/prefix
+            Build/out/macos-arm64/prefix
+            Build/out/host/prefix
+          key: macos-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Build XCFramework (default module set)
+        run: MODULE_SET=default JOBS=4 Build/build-xcframework.sh
+      - name: Host build and the test peer
+        run: |
+          PLATFORM=host MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+          BUILD_ONLY=1 HOSTIP=$(ipconfig getifaddr en0 || ipconfig getifaddr en1) PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Pick a simulator
+        run: |
+          UDID=$(Scripts/newest-iphone-simulator.sh)
+          test -n "$UDID"
+          echo "Using simulator: $UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID" || true
       - name: Build the sample app for the simulator
         run: |
           brew install xcodegen >/dev/null
@@ -203,14 +417,20 @@ jobs:
             grep -E "CHECK|call|SIP/2.0|INVITE" "$OUT/peer.err" | tail -40 || true
             exit 1
           fi
-      - name: Upload XCFramework
+      - name: Sample app screenshots (demo doors, a ring from a door, a call to it)
+        continue-on-error: true
+        run: Tools/SampleScreenshots/run.sh
+      - name: Upload screenshots
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: BaresipKitCore.xcframework
+          name: sample-screenshots
           path: |
-            Build/out/BaresipKitCore.xcframework.zip
-            Build/out/checksum.txt
-            Build/out/sizes.txt
+            Build/out/screenshots/*.png
+            Build/out/screenshots/*.out
+            Build/out/screenshots/*.log
+            Build/out/screenshots/*.txt
+            Build/out/screenshots/*.json
       - name: Upload UI test logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

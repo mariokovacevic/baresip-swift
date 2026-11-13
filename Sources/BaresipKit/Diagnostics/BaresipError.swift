@@ -21,6 +21,13 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
     public let sipReason: String
     /// A human-readable explanation, or an empty string.
     public let message: String
+    /// For an incoming call that ended while it rang, whether another device answered or
+    /// declined it, as the `Reason` header of the server's CANCEL said (RFC 3326); `nil`
+    /// otherwise. ``sipStatus`` and ``sipReason`` then hold the header's cause and text.
+    ///
+    /// When several phones ring for one call and one answers, the server cancels the others.
+    /// Report such a call as answered elsewhere instead of as missed.
+    public let endReason: BaresipCallEndReason?
 
     /// Creates an error.
     ///
@@ -30,13 +37,15 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
     ///   - sipStatus: The SIP response code, if any.
     ///   - sipReason: The SIP reason phrase.
     ///   - message: A human-readable explanation.
+    ///   - endReason: How another device ended a ringing call, if it did.
     public init(code: Code, systemErrno: Int32 = 0, sipStatus: Int? = nil,
-                sipReason: String = "", message: String = "") {
+                sipReason: String = "", message: String = "", endReason: BaresipCallEndReason? = nil) {
         self.code = code
         self.systemErrno = systemErrno
         self.sipStatus = sipStatus
         self.sipReason = sipReason
         self.message = message
+        self.endReason = endReason
     }
 
     /// `true` unless ``code`` is ``Code/ok``.
@@ -49,6 +58,9 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
         var parts = ["\(code)"]
         if let sipStatus {
             parts.append("SIP \(sipStatus) \(sipReason)")
+        }
+        if let endReason {
+            parts.append("\(endReason)")
         }
         if !message.isEmpty {
             parts.append(message)
@@ -92,4 +104,12 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
         /// An unexpected internal error occurred.
         case internalError = 14
     }
+}
+
+/// How another device ended an incoming call while it rang; see ``BaresipError/endReason``.
+public enum BaresipCallEndReason: Sendable, Equatable {
+    /// Another device answered the call (`Reason: SIP;cause=200`).
+    case answeredElsewhere
+    /// Another device declined the call (`Reason: SIP;cause=600` or `603`).
+    case declinedElsewhere
 }

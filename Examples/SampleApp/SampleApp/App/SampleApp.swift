@@ -4,9 +4,10 @@ import BaresipKit
 @main
 struct SampleApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var model = CallModel()
+    @StateObject private var model = CallModel.shared
 
     init() {
+        Theme.applyBarAppearance()
         let info = Bundle.main.infoDictionary
         FileLog.shared.write("""
         launched \(Bundle.main.bundleIdentifier ?? "") \

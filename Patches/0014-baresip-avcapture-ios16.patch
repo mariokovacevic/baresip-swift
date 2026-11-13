@@ -33,6 +33,7 @@ index d2063fe..f09c6c5 100644
  #else
  			  AVCaptureDeviceTypeExternalUnknown]
  #endif
+
 -- 
 2.51.0
 

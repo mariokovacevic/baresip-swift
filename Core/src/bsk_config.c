@@ -207,7 +207,7 @@ static int copy_video(bsk_engine *e, const bsk_engine_config *c)
 	int err;
 
 	err = copy_name(e->video_src_mod, sizeof(e->video_src_mod),
-			video->source_module, "bskcapture");
+			video->source_module, BSK_DEFAULT_VIDEO_SOURCE);
 	err = bsk_first_error(err, copy_device(e->video_src_dev,
 					       sizeof(e->video_src_dev),
 					       video->source_device));
@@ -250,6 +250,7 @@ int bsk_engine_copy_config(bsk_engine *e, const bsk_engine_config *c)
 	err = bsk_first_error(err, copy_modules(e, c));
 	err = bsk_first_error(err, copy_audio(e, &c->audio));
 	err = bsk_first_error(err, copy_video(e, c));
+	err = bsk_first_error(err, bsk_hold_music_load(e, c->hold_music_path));
 	if (err)
 		return err;
 
@@ -263,6 +264,10 @@ int bsk_engine_copy_config(bsk_engine *e, const bsk_engine_config *c)
 	e->log_sip_trace = c->log_sip_trace;
 	e->ice_relay_only = c->ice_relay_only;
 	e->video_adaptive = c->video_adaptive_bitrate;
+	e->session_expires = c->session_expires;
+	e->session_min_se = c->session_min_se ? c->session_min_se : 90;
+	if (e->session_expires && e->session_min_se > e->session_expires)
+		return EINVAL;
 
 	return 0;
 }
@@ -312,6 +317,8 @@ int bsk_engine_build_config(bsk_engine *e, struct mbuf *mb)
 			e->audio_channels, e->audio_channels);
 	err |= mbuf_printf(mb, "ice_policy\t\t%s\n",
 			   e->ice_relay_only ? "relay" : "all");
+	err |= mbuf_printf(mb, "sip_session_expires\t%u\nsip_min_se\t\t%u\n",
+			   e->session_expires, e->session_min_se);
 	if (str_isset(e->network_interface))
 		err |= mbuf_printf(mb, "net_interface\t\t%s\n",
 				   e->network_interface);

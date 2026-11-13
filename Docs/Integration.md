@@ -1,5 +1,8 @@
 # Integration guide
 
+The full integration guide for the Swift package on iOS and macOS; start with
+[iOS.md](iOS.md). For Android, see [Android.md](Android.md).
+
 ## Engine lifecycle
 
 ```swift
@@ -82,6 +85,8 @@ Call states follow `incoming / outgoingInit / outgoingRinging / earlyMedia / con
 
 Every call negotiates video: `video: false` means the camera is not sent, while the other side's picture, such as a door station's camera, is still received. `makeCall(...audio: false)` and `answer(callID:video:audio: false)` leave the audio inactive, for watching a camera or sending a door-opening DTMF code without opening the microphone. Headers named in the account's `incomingHeaders`, such as `X-Device-ID`, are kept from incoming INVITEs and read with `incomingHeader(_:callID:)`. `BaresipCallInfo.isMicrophoneMuted` is the real mute state.
 
+Calls use SIP session timers (RFC 4028) by default: `BaresipConfiguration.sessionTimer` (30 minutes) is offered in every INVITE and accepted from a caller that supports session timers, so providers and PBXs that require them, or that end calls nobody refreshes, keep the call up. The side that refreshes renews the session at half the interval with an UPDATE without a body, or with a re-INVITE without an offer when the other side does not allow UPDATE; the other side hangs up with BYE when the session is not renewed in time. A 422 from the other side raises the interval to its `Min-SE` and the INVITE is sent again. `sessionTimer = nil` turns session timers off; `minimumSessionTimer` (90 seconds) must not be longer than `sessionTimer`.
+
 ## Audio session
 
 The core never touches `AVAudioSession`. Audio I/O for a call starts only after `audioSessionDidActivate()` and stops at `audioSessionDidDeactivate()`. With CallKit, `BaresipCallKitAdapter` calls these from `provider(_:didActivate:)` and `didDeactivate`. Without CallKit, use `BaresipAudioSessionController`:
@@ -140,7 +145,7 @@ Writes a 16-bit PCM stereo WAV: left is your microphone as sent, right is the ot
 
 ```swift
 let push = BaresipPushKitAdapter(engine: engine, appID: "com.example.myapp", accountID: id) { payload in
-    callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: payload["from"] as? String, displayName: nil, hasVideo: false) { _ in }
+    callKit.reportIncomingCallFromPush(uuid: nil, remoteURI: payload["from"] as? String, displayName: nil, hasVideo: false) { _ in }
 }
 push.updateRemoteToken(apnsToken)
 ```

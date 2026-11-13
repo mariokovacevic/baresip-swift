@@ -140,4 +140,118 @@ static void record_event(struct waiter *w, const bsk_event *ev)
 	pthread_mutex_unlock(&w->mtx);
 }
 
+
+static __attribute__((unused)) int running(struct waiter *x)
+{
+	return x->engine_state == BSK_ENGINE_RUNNING;
+}
+
+static __attribute__((unused)) int registered(struct waiter *x)
+{
+	return x->reg_state == BSK_REG_REGISTERED;
+}
+
+static __attribute__((unused)) int incoming(struct waiter *x)
+{
+	return x->incoming_call != BSK_ID_NONE;
+}
+
+static __attribute__((unused)) int streams(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_STREAMS_RUNNING;
+}
+
+static __attribute__((unused)) int paused(struct waiter *x)
+{
+	return x->call_state == BSK_CALL_PAUSED;
+}
+
+static __attribute__((unused)) int released(struct waiter *x)
+{
+	return x->released_call != BSK_ID_NONE;
+}
+
+static __attribute__((unused)) int ice_connected(struct waiter *x)
+{
+	return x->ice_state == BSK_ICE_CONNECTED;
+}
+
+static __attribute__((unused)) char *read_file(const char *path, size_t *len)
+{
+	FILE *f = fopen(path, "rb");
+	char *buf;
+	long n;
+
+	if (!f)
+		return NULL;
+	fseek(f, 0, SEEK_END);
+	n = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	buf = calloc(1, (size_t)n + 1);
+	if (buf && fread(buf, 1, (size_t)n, f) != (size_t)n) {
+		free(buf);
+		buf = NULL;
+	}
+	fclose(f);
+	*len = (size_t)n;
+	return buf;
+}
+
+/* Writes a WAV file with a 440 Hz tone: PCM with the given sample size, or a
+ * file that is not a WAV when bits is 0. */
+static __attribute__((unused)) void write_test_wav(const char *path,
+						   unsigned srate, unsigned ch,
+						   unsigned bits, unsigned ms)
+{
+	FILE *f = fopen(path, "wb");
+	unsigned frames = srate * ms / 1000, bytes = bits / 8;
+	unsigned data = frames * ch * bytes, i, c;
+	unsigned char h[44];
+
+	CHECK(f != NULL);
+	if (!bits) {
+		fputs("not a wave file, just some text to fill the header", f);
+		fclose(f);
+		return;
+	}
+	memcpy(h, "RIFF", 4);
+	h[4] = (unsigned char)(36 + data);
+	h[5] = (unsigned char)((36 + data) >> 8);
+	h[6] = (unsigned char)((36 + data) >> 16);
+	h[7] = (unsigned char)((36 + data) >> 24);
+	memcpy(h + 8, "WAVEfmt ", 8);
+	memset(h + 16, 0, 28);
+	h[16] = 16;
+	h[20] = 1;
+	h[22] = (unsigned char)ch;
+	h[24] = (unsigned char)srate;
+	h[25] = (unsigned char)(srate >> 8);
+	h[26] = (unsigned char)(srate >> 16);
+	h[28] = (unsigned char)(srate * ch * bytes);
+	h[29] = (unsigned char)((srate * ch * bytes) >> 8);
+	h[30] = (unsigned char)((srate * ch * bytes) >> 16);
+	h[32] = (unsigned char)(ch * bytes);
+	h[34] = (unsigned char)bits;
+	memcpy(h + 36, "data", 4);
+	h[40] = (unsigned char)data;
+	h[41] = (unsigned char)(data >> 8);
+	h[42] = (unsigned char)(data >> 16);
+	h[43] = (unsigned char)(data >> 24);
+	CHECK(fwrite(h, 1, sizeof(h), f) == sizeof(h));
+	for (i = 0; i < frames; i++) {
+		int v = (int)(8000.0 *
+			      ((i * 440 / (srate / 4)) % 4 < 2 ? 1 : -1));
+
+		for (c = 0; c < ch; c++) {
+			if (bytes == 2) {
+				fputc(v & 0xff, f);
+				fputc((v >> 8) & 0xff, f);
+			} else {
+				fputc(128 + v / 256, f);
+			}
+		}
+	}
+	fclose(f);
+}
+
 #endif

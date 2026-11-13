@@ -10,12 +10,15 @@ extension CallModel {
             registration = state
             registrationError = error.map { "\($0)" }
             append("registration \(state) \(error.map { "\($0)" } ?? "")")
+            if state == .registered, let pendingRedial {
+                await redial(pendingRedial)
+            }
         case .incomingCall(let info, let earlyVideo):
             await handleIncoming(info, earlyVideo: earlyVideo)
         case .call(let call, let state, let error):
             await handleState(state, of: call, error: error)
         case .message(let message):
-            handleMessage(message)
+            receive(message)
         case .messageStatus(let status):
             handleMessageStatus(status)
         case .media(let call, let info):
@@ -43,6 +46,9 @@ extension CallModel {
             logPreview(info.id, audio: settings.previewAudio, video: earlyVideo)
             if settings.previewAudio {
                 // The account answers early media itself.
+                if earlyVideo {
+                    await startPreviewFeed(info.id)
+                }
                 previewing = true
                 previewVideo = earlyVideo
                 await activatePreviewAudio()
@@ -71,17 +77,12 @@ extension CallModel {
         }
         if state == .released {
             ringingCalls.remove(call)
+            callEnded(call)
         }
         if state == .streamsRunning {
+            startOnLoudspeaker(call)
             sendQueuedDTMF(call)
         }
-    }
-
-    private func handleMessage(_ message: BaresipMessage) {
-        let text = message.text ?? "<\(message.contentType), \(message.body.count) bytes>"
-        messages.append(ChatMessage(id: UUID(), messageID: nil, peer: message.from,
-                                    text: text, outgoing: false, status: .received))
-        append("message from \(message.from)")
     }
 
     private func handleMessageStatus(_ status: BaresipMessageStatus) {

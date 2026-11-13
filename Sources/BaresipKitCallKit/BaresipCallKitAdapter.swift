@@ -2,6 +2,7 @@
     import CallKit
     import Foundation
     import BaresipKit
+    import BaresipKitSystemCall
 
     /// Connects a `BaresipEngine` to CallKit.
     ///
@@ -24,6 +25,8 @@
         let controller = CXCallController()
         let pushInviteTimeout: Duration
         let sendsCameraOnAnswer: Bool
+        let callUUIDHeader: String?
+        let handleStyle: BaresipHandleStyle
         let lock = NSLock()
         var uuidByCall: [BaresipCallID: UUID] = [:]
         var callByUUID: [UUID: BaresipCallID] = [:]
@@ -38,6 +41,11 @@
         var answerVideo: [UUID: Bool] = [:]
         /// Callers waiting until the provider carried out their action, by action UUID.
         var actionWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
+        /// Outgoing calls whose start action timed out before the engine placed them.
+        var abandonedStarts: Set<UUID> = []
+        /// What to dial for the outgoing calls the adapter asked CallKit to start; the handle
+        /// CallKit gets can be the number alone.
+        var startDestinations: [UUID: String] = [:]
         private var eventTask: Task<Void, Never>?
 
         /// Creates the adapter and its CallKit provider, and starts following engine events.
@@ -52,11 +60,14 @@
             self.engine = engine
             pushInviteTimeout = configuration.pushInviteTimeout
             sendsCameraOnAnswer = configuration.sendsCameraOnAnswer
+            callUUIDHeader = configuration.callUUIDHeader
+            handleStyle = configuration.handleStyle
             pushCalls = PushCallLedger(matchesPushWithoutCaller: configuration.matchesPushWithoutCaller)
             let providerConfiguration = CXProviderConfiguration()
             providerConfiguration.supportsVideo = configuration.supportsVideo
             providerConfiguration.maximumCallsPerCallGroup = configuration.maximumCallsPerCallGroup
             providerConfiguration.supportedHandleTypes = [.generic, .phoneNumber]
+            providerConfiguration.includesCallsInRecents = configuration.includesCallsInRecents
             providerConfiguration.iconTemplateImageData = configuration.iconTemplateImageData
             providerConfiguration.ringtoneSound = configuration.ringtoneSound
             provider = CXProvider(configuration: providerConfiguration)
@@ -73,6 +84,17 @@
         deinit {
             eventTask?.cancel()
             provider.invalidate()
+        }
+
+        /// Changes the ringtone of the calls reported from now on, for example after the user
+        /// picked one in the app's settings.
+        ///
+        /// - Parameter sound: The name of a sound file in the app's main bundle, or `nil` for the
+        ///   ringtone chosen in the iOS Settings app. CallKit ignores a file it cannot find there.
+        public func setRingtoneSound(_ sound: String?) {
+            let configuration = provider.configuration
+            configuration.ringtoneSound = sound
+            provider.configuration = configuration
         }
 
         /// The CallKit UUID of an engine call, if the call is known to CallKit.
@@ -103,10 +125,16 @@
 
         func requestOutgoingCall(uuid: UUID, to destination: String, displayName: String?,
                                  video: Bool) async throws {
-            let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: destination))
+            let action = CXStartCallAction(call: uuid, handle: handle(for: destination))
             action.isVideo = video
             action.contactIdentifier = displayName
-            try await controller.request(CXTransaction(action: action))
+            lock.withLock { startDestinations[uuid] = destination }
+            do {
+                try await controller.request(CXTransaction(action: action))
+            } catch {
+                lock.withLock { startDestinations[uuid] = nil }
+                throw error
+            }
         }
 
         /// Answers an incoming call through CallKit.
@@ -196,6 +224,14 @@
                 action.fulfill()
                 takeActionWaiter(action.uuid)?.resume()
             }
+        }
+
+        /// The CallKit handle of a SIP URI, user name or number, as `BaresipHandleStyle` says.
+        func handle(for address: String) -> CXHandle {
+            if handleStyle == .phoneNumberWhenNumeric, let number = SIPIdentity(address).phoneNumber {
+                return CXHandle(type: .phoneNumber, value: number)
+            }
+            return CXHandle(type: .generic, value: address)
         }
 
         func bind(_ call: BaresipCallID, _ uuid: UUID) {

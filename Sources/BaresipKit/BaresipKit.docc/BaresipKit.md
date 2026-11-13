@@ -10,7 +10,8 @@ BaresipKit runs the baresip user agent on its own thread and exposes it as ``Bar
 an `async` API for accounts, calls and media, and an `AsyncStream` of ``BaresipEvent`` values
 for everything that happens afterwards. Optional modules connect the engine to the system:
 `BaresipKitAudio` for the audio session, `BaresipKitVideo` for video views, and
-`BaresipKitCallKit` and `BaresipKitPushKit` for the system call screen and VoIP pushes, and
+`BaresipKitCallKit` or `BaresipKitLiveCommunication` and `BaresipKitPushKit` for the system
+call screen and VoIP pushes, and
 `BaresipKitSwiftUI` for observable registration and call state.
 
 ## Topics
@@ -83,6 +84,7 @@ for everything that happens afterwards. Optional modules connect the engine to t
 ### System integration
 
 - <doc:CallKit>
+- <doc:LiveCommunicationKit>
 - <doc:PushKit>
 - <doc:SwiftUI>
 

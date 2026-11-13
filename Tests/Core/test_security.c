@@ -13,6 +13,9 @@ static int released_count;
 static int outgoing_seen;
 static int reentrant_status = -1;
 static bsk_call_id last_incoming;
+static bsk_error ended[3];
+static bsk_call_end_reason end_reasons[3];
+static int ended_count;
 
 
 static bool mode_is(const char *name)
@@ -46,6 +49,10 @@ static void on_call_state(const bsk_event *ev)
 		__atomic_add_fetch(&connected_count, 1, __ATOMIC_SEQ_CST);
 	if (state == BSK_CALL_RELEASED)
 		__atomic_add_fetch(&released_count, 1, __ATOMIC_SEQ_CST);
+	if (state == BSK_CALL_ENDED && ended_count < 3) {
+		end_reasons[ended_count] = ev->u.call_state.end_reason;
+		ended[ended_count++] = ev->u.call_state.error;
+	}
 	if (mode_is("reentrant") &&
 	    (state == BSK_CALL_ENDED || state == BSK_CALL_FAILED)) {
 		bsk_status st = bsk_call_hangup(engine, ev->call, &err);
@@ -68,12 +75,6 @@ static void on_event(bsk_engine *e, const bsk_event *ev, void *user)
 		__atomic_add_fetch(&transfer_events, 1, __ATOMIC_SEQ_CST);
 
 	record_event(&w, ev);
-}
-
-
-static int running(struct waiter *x)
-{
-	return x->engine_state == BSK_ENGINE_RUNNING;
 }
 
 
@@ -245,6 +246,34 @@ static int run_remove_live(const char *host, bool stop)
 }
 
 
+static int three_released(struct waiter *x)
+{
+	(void)x;
+	return __atomic_load_n(&released_count, __ATOMIC_SEQ_CST) >= 3;
+}
+
+
+static int run_cancel_elsewhere(const char *host)
+{
+	(void)start(host, false);
+	CHECK(wait_until(&w, three_released, 20000));
+	CHECK(ended_count == 3);
+	CHECK(ended[0].status == BSK_OK);
+	CHECK(ended[0].sip_status == 200);
+	CHECK(0 == strcmp(ended[0].sip_reason, "Call completed elsewhere"));
+	CHECK(ended[1].sip_status == 603);
+	CHECK(0 == strcmp(ended[1].sip_reason, "Decline"));
+	CHECK(ended[2].sip_status == 0);
+	CHECK(ended[2].sip_reason[0] == '\0');
+	CHECK(end_reasons[0] == BSK_END_ANSWERED_ELSEWHERE);
+	CHECK(end_reasons[1] == BSK_END_DECLINED_ELSEWHERE);
+	CHECK(end_reasons[2] == BSK_END_NORMAL);
+	CHECK(__atomic_load_n(&connected_count, __ATOMIC_SEQ_CST) == 0);
+	finish("a CANCEL's Reason says answered or declined elsewhere");
+	return 0;
+}
+
+
 int main(int argc, char **argv)
 {
 	if (argc < 3) {
@@ -263,6 +292,8 @@ int main(int argc, char **argv)
 		return run_remove_live(argv[2], false);
 	if (mode_is("stop-live"))
 		return run_remove_live(argv[2], true);
+	if (mode_is("cancel-elsewhere"))
+		return run_cancel_elsewhere(argv[2]);
 
 	fprintf(stderr, "unknown mode %s\n", mode);
 	return 2;

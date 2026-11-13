@@ -2,6 +2,7 @@
     import CallKit
     import Foundation
     import BaresipKit
+    import BaresipKitSystemCall
 
     extension BaresipCallKitAdapter {
         static let busyStatusCode = 486
@@ -19,12 +20,14 @@
         }
 
         private func handleIncoming(_ info: BaresipCallInfo) async {
+            let inviteUUID = await announcedUUID(of: info.id)
             let resolution = lock.withLock { () -> PushCallLedger.Resolution in
-                let resolution = pushCalls.resolve(invite: info.remoteURI, now: ContinuousClock.now)
+                let resolution = pushCalls.resolve(invite: info.remoteURI, uuid: inviteUUID,
+                                                   now: ContinuousClock.now)
                 if case .announced(let announcement, _) = resolution {
                     uuidByCall[info.id] = announcement.uuid
                     callByUUID[announcement.uuid] = info.id
-                    pushCalls.startedRinging(info.id, remoteURI: info.remoteURI)
+                    pushCalls.startedRinging(info.id, remoteURI: info.remoteURI, uuid: inviteUUID)
                 }
                 return resolution
             }
@@ -34,14 +37,21 @@
             case .declined:
                 try? await engine.reject(callID: info.id, statusCode: Self.busyStatusCode)
             case .unannounced:
-                await reportIncoming(info)
+                await reportIncoming(info, announcedUUID: inviteUUID)
             }
+        }
+
+        /// The UUID in the INVITE's header named by ``BaresipCallKitConfiguration/callUUIDHeader``.
+        private func announcedUUID(of call: BaresipCallID) async -> UUID? {
+            guard let callUUIDHeader, let value = try? await engine.incomingHeader(callUUIDHeader, callID: call)
+            else { return nil }
+            return UUID(uuidString: value.trimmingCharacters(in: .whitespaces))
         }
 
         private func adoptPushedCall(_ announcement: PushCallLedger.Announcement, for info: BaresipCallInfo,
                                      callerConfirmed: Bool) async {
             let uuid = announcement.uuid
-            let update = Self.callUpdate(for: info, replacingAnnouncedName: !callerConfirmed)
+            let update = callUpdate(for: info, replacingAnnouncedName: !callerConfirmed)
             provider.reportCall(with: uuid, updated: update)
             let answerNow = lock.withLock { pendingAnswers.remove(uuid) != nil }
             guard answerNow else { return }
@@ -56,13 +66,17 @@
             }
         }
 
-        private func reportIncoming(_ info: BaresipCallInfo) async {
-            let uuid = UUID()
-            bind(info.id, uuid)
-            lock.withLock {
-                pushCalls.startedRinging(info.id, remoteURI: info.remoteURI)
+        /// Reports an INVITE no push announced. It keeps the UUID its header carries, so a push
+        /// that arrives later with the same UUID is recognized.
+        private func reportIncoming(_ info: BaresipCallInfo, announcedUUID: UUID?) async {
+            let uuid = lock.withLock { () -> UUID in
+                let uuid = announcedUUID.flatMap { callByUUID[$0] == nil ? $0 : nil } ?? UUID()
+                uuidByCall[info.id] = uuid
+                callByUUID[uuid] = info.id
+                pushCalls.startedRinging(info.id, remoteURI: info.remoteURI, uuid: announcedUUID)
+                return uuid
             }
-            let update = Self.callUpdate(for: info, replacingAnnouncedName: false)
+            let update = callUpdate(for: info, replacingAnnouncedName: false)
             do {
                 try await provider.reportNewIncomingCall(with: uuid, update: update)
             } catch {
@@ -70,9 +84,9 @@
             }
         }
 
-        static func callUpdate(for info: BaresipCallInfo, replacingAnnouncedName: Bool) -> CXCallUpdate {
+        func callUpdate(for info: BaresipCallInfo, replacingAnnouncedName: Bool) -> CXCallUpdate {
             let update = CXCallUpdate()
-            update.remoteHandle = CXHandle(type: .generic, value: info.remoteURI)
+            update.remoteHandle = handle(for: info.remoteURI)
             update.localizedCallerName = PushCallLedger.callerName(inviteURI: info.remoteURI,
                                                                    inviteDisplayName: info.remoteDisplayName,
                                                                    replacingAnnouncedName: replacingAnnouncedName)
@@ -108,6 +122,11 @@
 
         static func endedReason(for error: BaresipError?) -> CXCallEndedReason {
             guard let error else { return .remoteEnded }
+            switch error.endReason {
+            case .answeredElsewhere: return .answeredElsewhere
+            case .declinedElsewhere: return .declinedElsewhere
+            case nil: break
+            }
             if error.sipStatus == busyStatusCode || error.sipStatus == declineStatusCode {
                 return .unanswered
             }

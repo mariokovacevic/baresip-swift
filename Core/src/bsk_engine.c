@@ -661,6 +661,7 @@ void bsk_engine_destroy(bsk_engine *engine)
 	mem_deref(engine->instance_uuid);
 	mem_deref(engine->network_interface);
 	mem_deref(engine->extra_config);
+	mem_deref(engine->hold_pcm);
 	mem_deref(engine->cipher_list);
 	if (engine->ca_pem)
 		mem_deref(engine->ca_pem);

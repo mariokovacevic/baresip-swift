@@ -1,6 +1,6 @@
 # BaresipKit feature compatibility matrix
 
-Written against libre v4.9.0 (`e11a4c5`) and baresip v4.9.0 (`c06e367`); file and line references are relative to those checkouts. The build now pins v4.12.0 of both, with the same patches. Status vocabulary, as requested:
+Written against libre v4.9.0 (`e11a4c5`) and baresip v4.9.0 (`c06e367`); file and line references are relative to those checkouts. The build now pins v4.13.0 of both, with the same patches. Status vocabulary, as requested:
 
 - **as-is** — supported by libre/baresip core without extra code
 - **module** — supported by an existing baresip module that only has to be compiled in
@@ -86,6 +86,7 @@ Everything below was verified by reading the pinned sources; items marked "host-
 | Multiple calls, swapping | as-is | `call_max_calls`, `uag_hold_others()` (`uag.c:81`), `uag_hold_resume()`, `call_set_current()`. |
 | Typed SIP reason mapping | facade | `call_scode()` + `bevent_get_text()`; `Reason` header available from `bevent_get_msg()`. |
 | Blind transfer (REFER) | as-is | `call_transfer()` (`call.c:2987`), `BEVENT_CALL_TRANSFER(_FAILED)`. |
+| Session timers (RFC 4028) | patch | libre has no session timer and baresip none either. Patch 0024 adds them to `sipsess` (`sipsess_set_timer()`, `sipsess_timer()`): `Supported: timer`, `Session-Expires` and `Min-SE` in the INVITE, the refresher chosen in the 2xx, refresh with UPDATE or re-INVITE at half the interval, BYE when the session expires, a new INVITE after 422. Patch 0025 adds `sip_session_expires` and `sip_min_se` to baresip's configuration. The facade sets them from `bsk_engine_config.session_expires` / `session_min_se`. |
 | Attended transfer | as-is | `call_replace_transfer()` (`call.c:3027`) sends REFER with `Replaces`. Supported. |
 
 ## 6. Hold / resume

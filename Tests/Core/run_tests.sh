@@ -171,6 +171,37 @@ done
 wait "$CALLEE_PID"
 cat "$BUILD/callee.out"
 
+echo "== session timer (RFC 4028): the caller refreshes every second, the call stays up for 6 seconds"
+BSK_TEST_VERBOSE=1 BSK_TEST_SESSION_EXPIRES=2 "$BUILD/tests/bsk_test_call" peer "$HOSTIP" > "$BUILD/callee-timer.out" 2> "$BUILD/callee-timer.err" &
+CALLEE_PID=$!
+for i in $(seq 1 50); do
+  grep -q READY "$BUILD/callee-timer.out" 2>/dev/null && break
+  sleep 0.1
+done
+BSK_TEST_VERBOSE=1 BSK_TEST_SESSION_EXPIRES=2 "$BUILD/tests/bsk_test_call" caller "$HOSTIP" 2> "$BUILD/caller-timer.err"
+wait "$CALLEE_PID"
+REQUESTS=$(grep -cE '^(INVITE|UPDATE) sip:bob@' "$BUILD/callee-timer.err" || true)
+REFRESHES=$((REQUESTS - 1))
+echo "refresh requests seen by the callee: $REFRESHES"
+if (( REFRESHES < 3 )); then
+  echo "expected at least 3 session refreshes" >&2
+  exit 1
+fi
+
+echo "== session timer: 422 below Min-SE, an INVITE with Require: timer is answered (scripted caller)"
+BSK_TEST_SESSION_EXPIRES=1800 BSK_TEST_SESSION_MIN_SE=90 "$BUILD/tests/bsk_test_call" peer "$HOSTIP" > "$BUILD/peer-timer.out" 2> "$BUILD/peer-timer.err" &
+CALLEE_PID=$!
+for i in $(seq 1 50); do
+  grep -q READY "$BUILD/peer-timer.out" 2>/dev/null && break
+  sleep 0.1
+done
+if ! python3 -I "$HERE/sip_peer.py" require-timer "$HOSTIP" 5070; then
+  kill "$CALLEE_PID" 2>/dev/null || true
+  exit 1
+fi
+wait "$CALLEE_PID"
+cat "$BUILD/peer-timer.out"
+
 echo "== call before the audio session is active (stays up, no microphone until activation)"
 "$BUILD/tests/bsk_test_call" peer "$HOSTIP" > "$BUILD/peer-inactive.out" 2> "$BUILD/peer-inactive.err" &
 CALLEE_PID=$!
@@ -242,8 +273,8 @@ if [[ "$XB_RC" != 0 || "$XC_RC" != 0 ]]; then
   exit 1
 fi
 
-echo "== scripted peer: REFER while ringing, forged replace, calls into the engine from callbacks, teardown with a live call"
-for scenario in refer-ringing fake-replace reentrant remove-live stop-live; do
+echo "== scripted peer: REFER while ringing, forged replace, calls into the engine from callbacks, teardown with a live call, CANCEL with a Reason"
+for scenario in refer-ringing fake-replace reentrant remove-live stop-live cancel-elsewhere; do
   "$BUILD/tests/bsk_test_security" "$scenario" "$HOSTIP" > "$BUILD/security-$scenario.out" 2> "$BUILD/security-$scenario.err" &
   VICTIM_PID=$!
   for i in $(seq 1 50); do

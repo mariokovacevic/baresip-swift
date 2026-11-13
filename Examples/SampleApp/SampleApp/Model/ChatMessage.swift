@@ -15,4 +15,7 @@ struct ChatMessage: Identifiable, Equatable {
     let text: String
     let outgoing: Bool
     var status: Status
+    var date = Date()
+    /// Whether the user has seen it; what this side sent counts as read.
+    var read = true
 }

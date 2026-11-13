@@ -135,10 +135,10 @@ index 0bac938..781848c 100644
  {
  	return reg_test(SIP_TRANSP_UDP, 0);
 diff --git a/test/test.c b/test/test.c
-index a979e59..2b3327e 100644
+index bf7a123..a563b5a 100644
 --- a/test/test.c
 +++ b/test/test.c
-@@ -213,6 +213,7 @@ static const struct test tests[] = {
+@@ -214,6 +214,7 @@ static const struct test tests[] = {
  	TEST(test_fmt_trim),
  	TEST(test_sipevent),
  	TEST(test_sipreg_overlap),
@@ -146,7 +146,7 @@ index a979e59..2b3327e 100644
  	TEST(test_sipreg_tcp),
  #ifdef USE_TLS
  	TEST(test_sipreg_tls),
-@@ -304,6 +305,7 @@ static const struct test tests_integration[] = {
+@@ -306,6 +307,7 @@ static const struct test tests_integration[] = {
  	TEST(test_sip_drequestf_network),
  	TEST(test_sipevent_network),
  	TEST(test_sipreg_overlap),
@@ -155,10 +155,10 @@ index a979e59..2b3327e 100644
  #ifdef USE_TLS
  	TEST(test_sipreg_tls),
 diff --git a/test/test.h b/test/test.h
-index c9b9e4e..1a90a73 100644
+index 8bacbb0..67419c1 100644
 --- a/test/test.h
 +++ b/test/test.h
-@@ -325,6 +325,7 @@ int test_sip_transp_wss_verify_host(void);
+@@ -326,6 +326,7 @@ int test_sip_transp_wss_verify_host(void);
  #endif
  int test_sipevent(void);
  int test_sipreg_overlap(void);

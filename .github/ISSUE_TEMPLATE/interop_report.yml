@@ -1,0 +1,76 @@
+name: Interop report
+description: Tell us how BaresipKit worked with a SIP server, provider, door station or phone.
+labels: [interop]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Reports go into Docs/Interop.md, so other people know what works with their equipment.
+        Reports of things that work are as welcome as failures. Before attaching a SIP trace,
+        remove passwords, Authorization headers, push tokens, phone numbers and real host names.
+  - type: input
+    id: counterpart
+    attributes:
+      label: Counterpart
+      description: Make and model, or product name.
+      placeholder: Asterisk, FreeSWITCH, 2N IP Verso, a hosted provider, ...
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - SIP server or PBX
+        - Hosted SIP provider
+        - Door station or intercom
+        - Phone or softphone
+        - TURN or media relay
+    validations:
+      required: true
+  - type: input
+    id: counterpart-version
+    attributes:
+      label: Its version or firmware
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: BaresipKit version or commit, device and iOS version
+      placeholder: commit 89e4d7d, iPhone 15, iOS 26.1
+    validations:
+      required: true
+  - type: checkboxes
+    id: transport
+    attributes:
+      label: Transports used
+      options:
+        - label: UDP
+        - label: TCP
+        - label: TLS
+        - label: ICE with STUN or TURN
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: For each item, write works, fails or not tried. Add anything else you tried.
+      value: |
+        1. Registration, staying registered for an hour:
+        2. Outgoing and incoming audio call:
+        3. Video in both directions:
+        4. Early media preview of a door station:
+        5. Door code (RFC 4733 or SIP INFO):
+        6. Hold, resume and music on hold:
+        7. Blind and attended transfer:
+        8. Messages:
+        9. Ring through a VoIP push:
+        10. Switching between Wi-Fi and mobile data during a call:
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted SIP trace of what failed
+      description: Engine log with `logSIPTrace` enabled, redacted.
+      render: text

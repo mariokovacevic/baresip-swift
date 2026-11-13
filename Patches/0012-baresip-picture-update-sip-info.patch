@@ -22,10 +22,10 @@ video_set_picup_handler() so the call learns about those requests.
  5 files changed, 121 insertions(+)
 
 diff --git a/include/baresip.h b/include/baresip.h
-index 6a49736..a3a771d 100644
+index 9d1e222..71f0415 100644
 --- a/include/baresip.h
 +++ b/include/baresip.h
-@@ -244,6 +244,7 @@ void call_set_video_ldir(struct call *call, enum sdp_dir dir);
+@@ -245,6 +245,7 @@ void call_set_video_ldir(struct call *call, enum sdp_dir dir);
  int  call_set_video_dir(struct call *call, enum sdp_dir dir);
  int  call_update_media(struct call *call);
  int  call_send_digit(struct call *call, char key);
@@ -33,7 +33,7 @@ index 6a49736..a3a771d 100644
  bool call_has_audio(const struct call *call);
  bool call_has_video(const struct call *call);
  bool call_early_video_available(const struct call *call);
-@@ -1522,6 +1523,9 @@ const struct vidcodec *video_codec(const struct video *vid, bool tx);
+@@ -1523,6 +1524,9 @@ const struct vidcodec *video_codec(const struct video *vid, bool tx);
  void video_sdp_attr_decode(struct video *v);
  void video_req_keyframe(struct video *vid);
  int  video_set_bitrate(struct video *v, uint32_t bitrate);
@@ -56,7 +56,7 @@ index 36708c5..8e815f6 100644
  	return err;
  }
 diff --git a/src/call.c b/src/call.c
-index 5636f68..b70557c 100644
+index 1dee537..628eade 100644
 --- a/src/call.c
 +++ b/src/call.c
 @@ -92,6 +92,7 @@ struct call {
@@ -104,7 +104,7 @@ index 5636f68..b70557c 100644
  	else if (call_emit_sip_info(call, msg) || !mbuf_get_left(msg->mb)) {
  		(void)sip_reply(sip, msg, 200, "OK");
  	}
-@@ -3603,3 +3627,70 @@ bool call_sdp_change_allowed(const struct call *call)
+@@ -3630,3 +3654,70 @@ bool call_sdp_change_allowed(const struct call *call)
  		|| (sdp_state == SDP_NEG_NONE
  		|| sdp_state == SDP_NEG_REMOTE_OFFER);
  }
@@ -233,6 +233,7 @@ index 77f6dcf..0371c3b 100644
 +	v->picuph    = picuph;
 +	v->picup_arg = arg;
 +}
+
 -- 
 2.51.0
 

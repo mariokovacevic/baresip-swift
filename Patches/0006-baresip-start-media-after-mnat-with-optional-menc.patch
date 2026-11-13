@@ -1,5 +1,5 @@
 diff --git a/src/call.c b/src/call.c
-index 6923fbc..1a0c325 100644
+index 9c14665..8084d16 100644
 --- a/src/call.c
 +++ b/src/call.c
 @@ -502,9 +502,11 @@ static void stream_mnatconn_handler(struct stream *strm, void *arg)

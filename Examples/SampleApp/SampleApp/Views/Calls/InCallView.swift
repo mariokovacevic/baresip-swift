@@ -1,245 +1,239 @@
 import SwiftUI
 import BaresipKit
-import BaresipKitAudio
 import BaresipKitSwiftUI
 import BaresipKitVideo
 
+/// The running call: the other side's video, your camera in the corner, controls below.
 struct InCallView: View {
     @EnvironmentObject private var model: CallModel
+    @State private var showMore = false
     @State private var showOutputs = false
-    @State private var showKeypad = false
-    @State private var showTransfer = false
+
+    static let selfViewSize = CGSize(width: 88, height: 118)
 
     var body: some View {
-        ZStack {
-            Palette.callBackground.ignoresSafeArea()
-            if model.receivingVideo, let call = model.activeCall {
-                BaresipCallVideo(call: call) { view in
-                    model.snapshots.register(view, for: call.id)
+        VStack(spacing: 0) {
+            ZStack(alignment: .top) {
+                remote
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Theme.picture.ignoresSafeArea(edges: .top))
+                header
+                if let call = model.activeCall {
+                    BaresipSelfView(call: call, size: Self.selfViewSize)
+                        .accessibilityIdentifier("call.selfView")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                        .padding(.top, 110)
+                        .padding(.trailing, 16)
                 }
-                .ignoresSafeArea()
-                .accessibilityLabel("Remote video")
+                notes
             }
-
-            VStack(spacing: 24) {
-                HStack {
-                    Button {
-                        model.callMinimized = true
-                    } label: {
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 20, weight: .semibold))
-                            .frame(width: 44, height: 44)
-                    }
-                    .accessibilityLabel("Back to calls")
-                    Spacer()
-                    if model.calls.count > 1 {
-                        Text("\(model.calls.count) calls")
-                            .font(.footnote)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Palette.darkChip, in: Capsule())
-                    }
-                }
-                .foregroundStyle(.white)
-
-                VStack(spacing: 24) {
-                    header
-                    statsChips
-                    secondaryActions
-                }
-                // Keep the call details clear of the self-view in the top right corner.
-                .padding(.trailing, model.sendingVideo ? Self.selfViewSize.width + 8 : 0)
-
-                Spacer()
-
-                if showKeypad {
-                    DTMFPad { digit in Task { await model.sendDTMF(digit) } }
-                    Button("Hide keypad") { showKeypad = false }
-                        .foregroundStyle(.white)
-                        .frame(minHeight: 44)
-                } else {
-                    controls
-                }
-
-                Button {
-                    Task { await model.hangup() }
-                } label: {
-                    Image(systemName: "phone.down.fill")
-                        .font(.system(size: 30))
-                        .foregroundStyle(.white)
-                        .frame(width: 76, height: 76)
-                        .background(Palette.signalRed, in: Circle())
-                }
-                .accessibilityLabel("Hang up")
-                .accessibilityIdentifier("call.hangup")
-            }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 32)
-
-            if let call = model.activeCall {
-                // Your camera, in the top right corner below the top bar, while it is sent.
-                BaresipSelfView(call: call, size: Self.selfViewSize)
-                    .accessibilityIdentifier("call.selfView")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.top, 52)
-                    .padding(.trailing, 16)
-            }
+            InCallControls(showMore: $showMore, showOutputs: $showOutputs)
         }
+        .background(Theme.callBackground.ignoresSafeArea())
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showTransfer) {
-            TransferView()
+        .sheet(isPresented: $showMore) {
+            CallMoreView()
                 .environmentObject(model)
+                .preferredColorScheme(.dark)
         }
         .sheet(isPresented: $showOutputs) {
             NavigationStack {
                 AudioOutputView()
             }
             .environmentObject(model)
+            .preferredColorScheme(.dark)
+            .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: showChat) {
+            NavigationStack {
+                ThreadView(peerURI: model.showCallChat ?? "", overCall: true)
+                    .screenBackground()
+            }
+            .environmentObject(model)
+            .preferredColorScheme(.dark)
             .presentationDetents([.medium, .large])
         }
     }
 
-    static let selfViewSize = CGSize(width: 100, height: 140)
-
-    private var currentOutput: BaresipAudioOutput? {
-        _ = model.audioRouteChanges
-        return model.audio?.currentOutput
-    }
-
-    private var outputTitle: String {
-        guard let output = currentOutput else { return "audio" }
-        return output.route == .earpiece ? "audio" : output.name
-    }
-
-    private var header: some View {
-        VStack(spacing: 8) {
-            if !model.receivingVideo {
-                Avatar(
-                    initials: model.currentRow?.initials ?? "",
-                    size: 96,
-                    tint: .white,
-                    background: Palette.darkButton
-                )
+    private var showChat: Binding<Bool> {
+        Binding(
+            get: { model.showCallChat != nil },
+            set: { shown in
+                if !shown {
+                    model.showCallChat = nil
+                }
             }
-            Text(model.currentRow?.title ?? "Call")
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(1)
-            TimelineView(.periodic(from: .now, by: 1)) { context in
-                Text(model.currentRow.map { callStatusText($0, now: context.date) } ?? "")
-                    .font(.title3)
-                    .monospacedDigit()
-                    .foregroundStyle(Color(white: 0.78))
-                    .accessibilityIdentifier("call.state")
-                    .accessibilityValue(model.callState.map { String(describing: $0) } ?? "")
-            }
-            if let line = securityLine {
-                Label(line, systemImage: model.stats?.audio.isSecure == true ? "lock.fill" : "lock.open")
-                    .font(.footnote)
-                    .foregroundStyle(Color(white: 0.63))
-            }
-        }
+        )
     }
 
     @ViewBuilder
-    private var statsChips: some View {
-        if let stats = model.stats {
-            HStack(spacing: 8) {
-                chip(String(format: "loss %.1f%%", Double(stats.audio.receivedFractionLostPermille) / 10))
-                chip("jitter \(ms(stats.audio.receivedJitter)) ms")
-                chip("RTT \(ms(stats.audio.roundTripTime)) ms")
-                chip(String(format: "MOS %.1f", stats.mosEstimate))
+    private var remote: some View {
+        if model.receivingVideo, let call = model.activeCall {
+            BaresipCallVideo(call: call) { view in
+                model.snapshots.register(view, for: call.id)
             }
-            if model.receivingVideo || model.sendingVideo {
-                chip("video \(stats.videoTargetBitrate / 1000) kbit/s")
+            .accessibilityLabel("Remote video")
+        } else if door != nil {
+            VStack(spacing: 12) {
+                Image(systemName: "person")
+                    .font(.system(size: 110, weight: .ultraLight))
+                    .foregroundStyle(Theme.pictureMark)
+                Text("Waiting for the door camera")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.secondary)
+                    .opacity(model.captions.isEmpty ? 1 : 0)
             }
+            .padding(.top, 70)
+            .accessibilityElement(children: .combine)
+        } else {
+            Avatar(initials: model.currentRow?.initials ?? "", size: 120)
+                .padding(.top, 70)
         }
     }
 
-    private var controls: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 28), count: 3), spacing: 22) {
-            CircleButton(
-                title: model.muted ? "unmute" : "mute",
-                systemImage: model.muted ? "mic.slash.fill" : "mic.fill",
-                active: model.muted
-            ) {
-                Task { await model.toggleMute() }
-            }
-            CircleButton(title: "keypad", systemImage: "circle.grid.3x3.fill") {
-                showKeypad = true
-            }
-            CircleButton(title: outputTitle, systemImage: outputIcon(currentOutput?.route),
-                         active: currentOutput.map { $0.route != .earpiece } ?? false) {
-                showOutputs = true
-            }
-            .accessibilityIdentifier("call.audioOutput")
-            CircleButton(title: model.onHold ? "resume" : "hold", systemImage: "pause.fill", active: model.onHold) {
-                Task { await model.toggleHold() }
-            }
-            CircleButton(
-                title: "camera",
-                systemImage: model.sendingVideo ? "video.fill" : "video.slash.fill",
-                active: model.sendingVideo
-            ) {
-                Task { await model.toggleVideo() }
-            }
-            CircleButton(title: "transfer", systemImage: "arrow.left.arrow.right") {
-                showTransfer = true
-            }
-        }
-    }
-
-    private var secondaryActions: some View {
-        HStack(spacing: 12) {
+    private var header: some View {
+        HStack(alignment: .center, spacing: 4) {
             Button {
-                Task { await model.toggleRecording() }
+                model.callMinimized = true
+                model.tab = .doors
             } label: {
-                Label(isRecording ? "Stop recording" : "Record",
-                      systemImage: isRecording ? "stop.circle.fill" : "record.circle")
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Theme.text)
+                    .frame(width: 44, height: 44)
             }
-            .tint(isRecording ? Palette.recording : .white)
-            .accessibilityIdentifier("call.record")
-            if model.sendingVideo || model.settings.useICE {
-                if model.sendingVideo {
-                    Button("Switch camera") { Task { await model.switchCamera() } }
+            .accessibilityLabel("Back to the app, the call goes on")
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.display(32, relativeTo: .largeTitle))
+                    .foregroundStyle(Theme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                HStack(spacing: 8) {
+                    StatusDot(color: model.onHold ? Theme.brass : Theme.info)
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(model.currentRow.map { callStatusText($0, now: context.date) } ?? "")
+                            .textCase(.uppercase)
+                            .font(.footnote.weight(.semibold))
+                            .tracking(0.8)
+                            .monospacedDigit()
+                            .foregroundStyle(model.onHold ? Theme.brass : Theme.info)
+                            .accessibilityIdentifier("call.state")
+                            .accessibilityValue(model.callState.map { String(describing: $0) } ?? "")
+                    }
                 }
-                if model.settings.useICE {
-                    Button("Restart ICE") { Task { await model.restartICE() } }
+            }
+            Spacer(minLength: 4)
+            chatButton
+            VStack(alignment: .trailing, spacing: 6) {
+                if model.stats?.audio.isSecure == true {
+                    chip("Encrypted", systemImage: "lock")
+                }
+                if model.calls.count > 1 {
+                    chip("\(model.calls.count) calls", systemImage: "phone")
                 }
             }
         }
-        .font(.footnote.weight(.semibold))
-        .buttonStyle(.bordered)
+        .padding(.leading, 8)
+        .padding(.trailing, 16)
+        .padding(.vertical, 12)
+        .background(Theme.overlay.ignoresSafeArea(edges: .top))
     }
 
-    private var isRecording: Bool {
-        model.recordingCall != nil && model.recordingCall == model.currentCall
+    private var chatButton: some View {
+        Button {
+            model.openCallChat()
+        } label: {
+            RoundIcon(systemImage: "bubble.left", size: 44)
+                .overlay(alignment: .topTrailing) {
+                    if unread > 0 {
+                        Text("\(unread)")
+                            .font(.caption2.weight(.bold))
+                            .monospacedDigit()
+                            .foregroundStyle(Theme.onBrass)
+                            .padding(.horizontal, 5)
+                            .frame(minWidth: 20, minHeight: 20)
+                            .background(Theme.brass, in: Capsule())
+                            .offset(x: 6, y: -6)
+                    }
+                }
+        }
+        .accessibilityLabel(unread > 0 ? "Messages, \(unread) unread" : "Messages")
+        .accessibilityIdentifier("call.chat")
     }
 
-    private var securityLine: String? {
-        var parts: [String] = []
-        if let stats = model.stats {
-            parts.append(stats.audio.isSecure ? "SRTP" : "Not encrypted")
-        }
-        if let codec = model.currentRow?.codec, !codec.isEmpty {
-            parts.append(codec)
-        }
-        if let stats = model.stats, model.settings.useICE {
-            parts.append(stats.localCandidate == .relay ? "ICE relay" : "ICE direct")
-        }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    private var unread: Int {
+        guard let peer = model.callOnScreen?.remoteURI else { return 0 }
+        return model.unreadCount(from: peer)
     }
 
-    private func chip(_ text: String) -> some View {
-        Text(text)
-            .font(.caption)
-            .foregroundStyle(Color(white: 0.9))
+    private var captions: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(model.captions) { caption in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(caption.sender)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Theme.brass)
+                    Text(caption.text)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(Theme.text)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .opacity(caption.id == model.captions.last?.id ? 1 : 0.6)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .onTapGesture {
+                    model.openCallChat()
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("call.caption")
+            }
+        }
+        .animation(.easeOut(duration: 0.3), value: model.captions)
+    }
+
+    private var notes: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            captions
+            if model.currentDoorOpened {
+                Label("Door opened", systemImage: "checkmark")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.onBrass)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Theme.brass, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+            Text(model.sendingVideo ? "The other side sees you." : "Your camera is off. The other side hears you only.")
+                .font(.footnote)
+                .foregroundStyle(Theme.text)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Theme.overlay, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+    }
+
+    private func chip(_ text: String, systemImage: String) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption.weight(.medium))
+            .foregroundStyle(Theme.text)
             .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(Palette.darkChip, in: Capsule())
+            .frame(height: 28)
+            .background(Theme.surface, in: Capsule())
+            .overlay(Capsule().stroke(Theme.field))
     }
 
-    private func ms(_ duration: Duration) -> Int {
-        Int(duration.components.seconds * 1000 + duration.components.attoseconds / 1_000_000_000_000_000)
+    private var door: Door? {
+        model.door(of: model.activeCall)
+    }
+
+    private var title: String {
+        door?.title ?? model.currentRow?.title ?? "Call"
     }
 }

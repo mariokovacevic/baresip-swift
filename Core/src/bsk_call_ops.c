@@ -54,6 +54,15 @@ static void emit_steady(bsk_engine *e, struct bsk_call_ctx *c,
 static void modify_timer(void *arg);
 
 
+/* Switches the source between the microphone and the music on hold when the
+ * engine has music; without it a hold leaves the source alone. */
+static void apply_hold_music(bsk_engine *e, struct bsk_call_ctx *c)
+{
+	if (e->hold_pcm)
+		bsk_call_apply_audio_activation(e, c);
+}
+
+
 static bool send_queued_hold(bsk_engine *e, struct bsk_call_ctx *c)
 {
 	c->hold_queued = false;
@@ -67,6 +76,7 @@ static bool send_queued_hold(bsk_engine *e, struct bsk_call_ctx *c)
 		return false;
 
 	c->core_hold = c->local_hold;
+	apply_hold_music(e, c);
 	tmr_start(&c->tmr_modify, 250, modify_timer, c);
 	return true;
 }
@@ -100,6 +110,7 @@ static void modify_timer(void *arg)
 		c->local_hold = (failed == BSK_CALL_RESUMING);
 		if (0 == call_hold(c->call, c->local_hold))
 			c->core_hold = c->local_hold;
+		apply_hold_music(e, c);
 	}
 
 	emit_steady(e, c, &error);
@@ -130,6 +141,7 @@ static int request_hold(bsk_engine *e, struct bsk_call_ctx *c, bool hold)
 		if (err)
 			return err;
 		c->core_hold = hold;
+		apply_hold_music(e, c);
 	}
 
 	c->local_hold = hold;
@@ -377,7 +389,8 @@ static int mute_op(bsk_engine *e, void *arg)
 		return err;
 
 	c->muted = ca->flag;
-	audio_mute(call_audio(c->call), ca->flag);
+	if (!c->hold_music)
+		audio_mute(call_audio(c->call), ca->flag);
 	return 0;
 }
 

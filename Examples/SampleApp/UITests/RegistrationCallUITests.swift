@@ -37,8 +37,10 @@ final class RegistrationCallUITests: XCTestCase {
         save()
         waitForRegistration(containing: "registered", timeout: 30)
 
+        openTab("Keypad")
         let destination = field("call.destination")
         type(peer, into: destination)
+        dismissKeyboard()
         let state = app.staticTexts["call.state"]
         XCTAssertTrue(tap(app.buttons["call.audio"], untilShown: state, timeout: 15), "call did not start")
         let running = NSPredicate(format: "value CONTAINS 'streamsRunning'")
@@ -52,7 +54,23 @@ final class RegistrationCallUITests: XCTestCase {
         waitForExpectations(timeout: 15)
     }
 
+    private func openTab(_ name: String) {
+        dismissSystemPrompts()
+        let tab = app.tabBars.buttons[name]
+        XCTAssertTrue(tab.waitForExistence(timeout: 10), "tab \(name) not found in:\n\(app.debugDescription)")
+        let maximumAttempts = 3
+        for _ in 0 ..< maximumAttempts {
+            tab.tap()
+            if tab.waitUntilSelected(timeout: 3) {
+                return
+            }
+            dismissSystemPrompts()
+        }
+        XCTFail("tab \(name) not selected in:\n\(app.debugDescription)")
+    }
+
     private func openAccount() {
+        openTab("Settings")
         let link = app.buttons["account.link"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
         if !tap(link, untilShown: field("account.domain"), timeout: 5) {
@@ -63,6 +81,7 @@ final class RegistrationCallUITests: XCTestCase {
     private func checkEngineState(showsRegistration text: String) {
         let link = app.buttons["engine.link"]
         XCTAssertTrue(link.waitForExistence(timeout: 10))
+        scrollTo(link)
         let registration = app.staticTexts["engine.registration"]
         guard tap(link, untilShown: registration, timeout: 10) else {
             XCTFail("engine.registration not found in:\n\(app.debugDescription)")
@@ -99,16 +118,18 @@ final class RegistrationCallUITests: XCTestCase {
     }
 
     private func scrollTo(_ element: XCUIElement) {
-        dismissSystemPrompts()
         let maximumSteps = 30
         var steps = 0
+        dismissSystemPrompts()
         while !element.exists, steps < maximumSteps {
             drag(towardsTop: true)
+            dismissSystemPrompts()
             steps += 1
         }
         steps = 0
         while !(element.exists && element.isHittable), steps < maximumSteps {
             drag(towardsTop: false)
+            dismissSystemPrompts()
             steps += 1
         }
     }
@@ -186,12 +207,29 @@ final class RegistrationCallUITests: XCTestCase {
 
     private func waitForRegistration(containing text: String, timeout: TimeInterval) {
         let label = app.staticTexts["registration.state"]
-        guard label.waitForExistence(timeout: 10) else {
+        let maximumAttempts = 3
+        for _ in 0 ..< maximumAttempts where !label.waitForExistence(timeout: 5) {
+            dismissSystemPrompts()
+        }
+        guard label.exists else {
             XCTFail("registration.state not found in:\n\(app.debugDescription)")
             return
         }
         let predicate = NSPredicate(format: "label CONTAINS[c] %@", text)
         expectation(for: predicate, evaluatedWith: label)
         waitForExpectations(timeout: timeout)
+    }
+}
+
+private extension XCUIElement {
+    func waitUntilSelected(timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if isSelected {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
+        }
+        return isSelected
     }
 }

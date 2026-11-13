@@ -1,8 +1,8 @@
 diff --git a/src/tcp/tcp.c b/src/tcp/tcp.c
-index 20871dc..2bff3dc 100644
+index 8d4657f..ba2b51f 100644
 --- a/src/tcp/tcp.c
 +++ b/src/tcp/tcp.c
-@@ -397,15 +397,20 @@ static void tcp_recv_handler(int flags, void *arg)
+@@ -398,15 +398,20 @@ static void tcp_recv_handler(int flags, void *arg)
  	}
  	else if (n < 0) {
  		err = RE_ERRNO_SOCK;

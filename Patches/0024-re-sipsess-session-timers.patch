@@ -1,0 +1,1343 @@
+From 609999f2112d667cf1890de8505330e9e53c1cca Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Thu, 12 Nov 2026 07:47:05 +0000
+Subject: [PATCH] sipsess: session timers (RFC 4028)
+
+sipsess_set_timer() enables session timers for the sessions of a socket: an INVITE offers Supported: timer, Session-Expires and Min-SE, a 2xx to an INVITE whose caller supports timers carries Session-Expires with the refresher and Require: timer, an INVITE or UPDATE whose interval is below Min-SE is answered with 422, and a 422 raises the interval to the peer's Min-SE and sends the request again. The refresher sends an UPDATE without a body at half the interval, or a re-INVITE without an offer when the peer does not allow UPDATE, and ends the session itself when no refresh could be sent before the interval runs out; the other side ends the session with BYE when no refresh arrived in time. sipsess_timer() returns the negotiated interval and whether this side refreshes. Without sipsess_set_timer() nothing changes.
+---
+ CMakeLists.txt        |   1 +
+ include/re_sipsess.h  |   3 +
+ src/sipsess/accept.c  |   1 +
+ src/sipsess/connect.c |  19 +-
+ src/sipsess/listen.c  |  11 +
+ src/sipsess/modify.c  |  13 ++
+ src/sipsess/reply.c   |   7 +
+ src/sipsess/sess.c    |   4 +
+ src/sipsess/sipsess.h |  20 ++
+ src/sipsess/timer.c   | 393 +++++++++++++++++++++++++++++++++
+ src/sipsess/update.c  |  46 +++-
+ test/CMakeLists.txt   |   1 +
+ test/sipsess_timer.c  | 494 ++++++++++++++++++++++++++++++++++++++++++
+ test/test.c           |   7 +
+ test/test.h           |   7 +
+ 15 files changed, 1023 insertions(+), 4 deletions(-)
+ create mode 100644 src/sipsess/timer.c
+ create mode 100644 test/sipsess_timer.c
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2cd9357..911b07b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -514,6 +514,7 @@ if(USE_SIP)
+     src/sipsess/reply.c
+     src/sipsess/request.c
+     src/sipsess/sess.c
++    src/sipsess/timer.c
+     src/sipsess/update.c
+   )
+ endif()
+diff --git a/include/re_sipsess.h b/include/re_sipsess.h
+index b228be5..5699f18 100644
+--- a/include/re_sipsess.h
++++ b/include/re_sipsess.h
+@@ -85,3 +85,6 @@ void sipsess_abort(struct sipsess *sess);
+ bool sipsess_ack_pending(const struct sipsess *sess);
+ const struct sip_msg *sipsess_msg(const struct sipsess *sess);
+ enum sdp_neg_state sipsess_sdp_neg_state(const struct sipsess *sess);
++int  sipsess_set_timer(struct sipsess_sock *sock, uint32_t expires,
++		       uint32_t min_se);
++uint32_t sipsess_timer(const struct sipsess *sess, bool *refresher);
+diff --git a/src/sipsess/accept.c b/src/sipsess/accept.c
+index a962fd8..3534f96 100644
+--- a/src/sipsess/accept.c
++++ b/src/sipsess/accept.c
+@@ -94,6 +94,7 @@ int sipsess_accept(struct sipsess **sessp, struct sipsess_sock *sock,
+ 		    &sess->he, sess);
+ 
+ 	sess->msg = mem_ref((void *)msg);
++	sipsess_timer_request(sess, msg);
+ 
+ 	err = sip_strans_alloc(&sess->st, sess->sip, msg, cancel_handler,
+ 			       sess);
+diff --git a/src/sipsess/connect.c b/src/sipsess/connect.c
+index 9a3f234..25f4231 100644
+--- a/src/sipsess/connect.c
++++ b/src/sipsess/connect.c
+@@ -167,6 +167,9 @@ static void invite_resp_handler(int err, const struct sip_msg *msg, void *arg)
+ 				sip_dialog_update(sess->dlg, msg) :
+ 				sip_dialog_create(sess->dlg, msg);
+ 
++		if (!err)
++			sipsess_timer_response(sess, msg);
++
+ 		if (sdp && !err) {
+ 			if (sess->neg_state == SDP_NEG_LOCAL_OFFER) {
+ 				sess->neg_state = SDP_NEG_DONE;
+@@ -260,6 +263,16 @@ static void invite_resp_handler(int err, const struct sip_msg *msg, void *arg)
+ 				break;
+ 
+ 			return;
++
++		case 422:
++			if (!sipsess_timer_too_small(sess, msg))
++				break;
++
++			err = invite(sess);
++			if (err)
++				break;
++
++			return;
+ 		}
+ 	}
+ 
+@@ -279,10 +292,10 @@ static int invite(struct sipsess *sess)
+ 	return sip_drequestf(&sess->req, sess->sip, true, "INVITE",
+ 			     sess->dlg, 0, sess->auth,
+ 			     send_handler, invite_resp_handler, sess,
+-			     "%b",
++			     "%b%H",
+ 			     sess->hdrs ? mbuf_buf(sess->hdrs) : NULL,
+-			     sess->hdrs ? mbuf_get_left(sess->hdrs) :(size_t)0
+-			     );
++			     sess->hdrs ? mbuf_get_left(sess->hdrs) :(size_t)0,
++			     sipsess_timer_print, sess);
+ }
+ 
+ 
+diff --git a/src/sipsess/listen.c b/src/sipsess/listen.c
+index f41b073..684e6e1 100644
+--- a/src/sipsess/listen.c
++++ b/src/sipsess/listen.c
+@@ -276,6 +276,10 @@ static void target_refresh_handler(struct sipsess_sock *sock,
+ 		return;
+ 	}
+ 
++	if (sess->st_local
++	    && sipsess_timer_reject(sip, sess->st_min_se, msg))
++		return;
++
+ 	if (is_invite || sdp) {
+ 		sess->neg_state = sdp ? SDP_NEG_REMOTE_OFFER :
+ 				  SDP_NEG_LOCAL_OFFER;
+@@ -289,6 +293,9 @@ static void target_refresh_handler(struct sipsess_sock *sock,
+ 	}
+ 
+ 	(void)sip_dialog_update(sess->dlg, msg);
++	if (sess->established)
++		sipsess_timer_request(sess, msg);
++
+ 	(void)sipsess_reply_2xx(sess, msg, 200, "OK", desc,
+ 				NULL, NULL);
+ 
+@@ -304,6 +311,10 @@ static void target_refresh_handler(struct sipsess_sock *sock,
+ static void invite_handler(struct sipsess_sock *sock,
+ 			   const struct sip_msg *msg)
+ {
++	if (sock->st_expires
++	    && sipsess_timer_reject(sock->sip, sock->st_min_se, msg))
++		return;
++
+ 	sock->connh(msg, sock->arg);
+ }
+ 
+diff --git a/src/sipsess/modify.c b/src/sipsess/modify.c
+index ce33605..e3de4dd 100644
+--- a/src/sipsess/modify.c
++++ b/src/sipsess/modify.c
+@@ -45,6 +45,7 @@ static void reinvite_resp_handler(int err, const struct sip_msg *msg,
+ 	else if (msg->scode < 300) {
+ 
+ 		(void)sip_dialog_update(sess->dlg, msg);
++		sipsess_timer_response(sess, msg);
+ 
+ 		if (sdp) {
+ 			if (sess->neg_state == SDP_NEG_LOCAL_OFFER) {
+@@ -98,6 +99,16 @@ static void reinvite_resp_handler(int err, const struct sip_msg *msg,
+ 			sipsess_terminate(sess, 0, msg);
+ 			return;
+ 
++		case 422:
++			if (!sipsess_timer_too_small(sess, msg))
++				break;
++
++			err = sipsess_reinvite(sess, false);
++			if (err)
++				break;
++
++			return;
++
+ 		case 491:
+ 			tmr_start(&sess->tmr, sess->owner ? 3000 : 1000,
+ 				  tmr_handler, sess);
+@@ -154,10 +165,12 @@ int sipsess_reinvite(struct sipsess *sess, bool reset_ls)
+ 	err = sip_drequestf(&sess->req, sess->sip, true, "INVITE",
+ 			    sess->dlg, 0, sess->auth,
+ 			    send_handler, reinvite_resp_handler, sess,
++			    "%H"
+ 			    "%s%s%s"
+ 			    "Content-Length: %zu\r\n"
+ 			    "\r\n"
+ 			    "%b",
++			    sipsess_timer_print, sess,
+ 			    sess->desc ? "Content-Type: " : "",
+ 			    sess->desc ? sess->ctype : "",
+ 			    sess->desc ? "\r\n" : "",
+diff --git a/src/sipsess/reply.c b/src/sipsess/reply.c
+index df73d32..8c4347d 100644
+--- a/src/sipsess/reply.c
++++ b/src/sipsess/reply.c
+@@ -116,6 +116,8 @@ int sipsess_reply_2xx(struct sipsess *sess, const struct sip_msg *msg,
+ 	bool sdp = mbuf_get_left(msg->mb) > 0;
+ 	bool non_invite = !pl_strcmp(&msg->met, "PRACK")
+ 			  || !pl_strcmp(&msg->met, "UPDATE");
++	bool timer = !non_invite || (sess->established
++				     && !pl_strcmp(&msg->met, "UPDATE"));
+ 
+ 	if (!non_invite) {
+ 		if (sess->neg_state == SDP_NEG_NONE && !mbuf_get_left(desc))
+@@ -146,12 +148,14 @@ int sipsess_reply_2xx(struct sipsess *sess, const struct sip_msg *msg,
+ 			  reply ? &reply->mb : NULL, sess->sip,
+ 			  msg, true, scode, reason,
+ 			  "%H"
++			  "%H"
+ 			  "%v"
+ 			  "%s%s%s"
+ 			  "Content-Length: %zu\r\n"
+ 			  "\r\n"
+ 			  "%b",
+ 			  sip_contact_print, &contact,
++			  sipsess_timer_print_reply, timer ? sess : NULL,
+ 			  fmt, ap,
+ 			  desc ? "Content-Type: " : "",
+ 			  desc ? sess->ctype : "",
+@@ -179,6 +183,9 @@ int sipsess_reply_2xx(struct sipsess *sess, const struct sip_msg *msg,
+ 		tmr_start(&reply->tmrg, SIP_T1, retransmit_handler, reply);
+ 	}
+ 
++	if (timer)
++		sipsess_timer_start(sess);
++
+  out:
+ 	if (err) {
+ 		if (!non_invite)
+diff --git a/src/sipsess/sess.c b/src/sipsess/sess.c
+index 0165241..769ccd8 100644
+--- a/src/sipsess/sess.c
++++ b/src/sipsess/sess.c
+@@ -77,6 +77,7 @@ static bool termwait(struct sipsess *sess)
+ 	sess->arg     = sess;
+ 
+ 	tmr_cancel(&sess->tmr);
++	tmr_cancel(&sess->st_tmr);
+ 
+ 	if (sess->st) {
+ 		(void)sip_treply(&sess->st, sess->sip, sess->msg,
+@@ -143,6 +144,7 @@ static void destructor(void *arg)
+ 
+ 	hash_unlink(&sess->he);
+ 	tmr_cancel(&sess->tmr);
++	tmr_cancel(&sess->st_tmr);
+ 	list_flush(&sess->replyl);
+ 	list_flush(&sess->requestl);
+ 	mem_deref((void *)sess->msg);
+@@ -200,6 +202,8 @@ int sipsess_alloc(struct sipsess **sessp, struct sipsess_sock *sock,
+ 	sess->referh  = referh;
+ 	sess->closeh  = closeh  ? closeh  : internal_close_handler;
+ 	sess->arg     = arg;
++	sess->st_local  = sock->st_expires;
++	sess->st_min_se = sock->st_expires ? sock->st_min_se : 0;
+ 
+  out:
+ 	if (err)
+diff --git a/src/sipsess/sipsess.h b/src/sipsess/sipsess.h
+index 591bf03..b7f1102 100644
+--- a/src/sipsess/sipsess.h
++++ b/src/sipsess/sipsess.h
+@@ -8,6 +8,7 @@
+ struct sipsess {
+ 	struct le he;
+ 	struct tmr tmr;
++	struct tmr st_tmr;
+ 	struct list replyl;
+ 	struct list requestl;
+ 	struct sip_loopstate ls;
+@@ -43,6 +44,13 @@ struct sipsess {
+ 	int prack_waiting_cnt;
+ 	int terminated;
+ 	enum sdp_neg_state neg_state;
++	uint32_t st_local;
++	uint32_t st_min_se;
++	uint32_t st_interval;
++	uint64_t st_deadline;
++	bool st_refresher;
++	bool st_peer_timer;
++	bool st_peer_update;
+ };
+ 
+ 
+@@ -54,6 +62,8 @@ struct sipsess_sock {
+ 	struct sip *sip;
+ 	sipsess_conn_h *connh;
+ 	void *arg;
++	uint32_t st_expires;
++	uint32_t st_min_se;
+ };
+ 
+ 
+@@ -98,9 +108,19 @@ int  sipsess_reply_prack(struct sipsess *sess, const struct sip_msg *msg,
+ 			 bool *awaiting_prack);
+ int  sipsess_reinvite(struct sipsess *sess, bool reset_ls);
+ int  sipsess_update(struct sipsess *sess);
++int  sipsess_update_refresh(struct sipsess *sess);
+ int  sipsess_bye(struct sipsess *sess, bool reset_ls);
+ int  sipsess_request_alloc(struct sipsess_request **reqp, struct sipsess *sess,
+ 			   const char *ctype, struct mbuf *body,
+ 			   sip_resp_h *resph, void *arg);
+ struct sipsess *sipsess_find(struct sipsess_sock *sock,
+ 			     const struct sip_msg *msg);
++void sipsess_timer_start(struct sipsess *sess);
++int  sipsess_timer_print(struct re_printf *pf, const struct sipsess *sess);
++int  sipsess_timer_print_reply(struct re_printf *pf,
++			       const struct sipsess *sess);
++void sipsess_timer_request(struct sipsess *sess, const struct sip_msg *msg);
++void sipsess_timer_response(struct sipsess *sess, const struct sip_msg *msg);
++bool sipsess_timer_too_small(struct sipsess *sess, const struct sip_msg *msg);
++bool sipsess_timer_reject(struct sip *sip, uint32_t min_se,
++			  const struct sip_msg *msg);
+diff --git a/src/sipsess/timer.c b/src/sipsess/timer.c
+new file mode 100644
+index 0000000..5583e32
+--- /dev/null
++++ b/src/sipsess/timer.c
+@@ -0,0 +1,393 @@
++/**
++ * @file sipsess/timer.c  SIP Session Timers (RFC 4028)
++ *
++ * Copyright (C) 2026 BaresipKit contributors
++ */
++#include <re_types.h>
++#include <re_mem.h>
++#include <re_mbuf.h>
++#include <re_sa.h>
++#include <re_list.h>
++#include <re_hash.h>
++#include <re_fmt.h>
++#include <re_uri.h>
++#include <re_tmr.h>
++#include <re_msg.h>
++#include <re_sip.h>
++#include <re_sipsess.h>
++#include "sipsess.h"
++
++
++enum {
++	TIMER_RETRY_MS = 1000,
++	TIMER_BYE_MARGIN = 32,
++};
++
++
++static void refresh_handler(void *arg);
++
++
++static void expire_handler(void *arg)
++{
++	struct sipsess *sess = arg;
++
++	sipsess_terminate(sess, ETIMEDOUT, NULL);
++}
++
++
++static uint64_t expiry_delay(uint32_t interval)
++{
++	return (uint64_t)(interval - MIN(TIMER_BYE_MARGIN, interval / 3))
++		* 1000;
++}
++
++
++static bool refresh_busy(const struct sipsess *sess)
++{
++	return !sess->established || sess->req || sess->replyl.head
++		|| sess->requestl.head || sess->modify_pending
++		|| sess->tmr.th || sess->neg_state != SDP_NEG_DONE;
++}
++
++
++static uint64_t until_deadline(const struct sipsess *sess)
++{
++	uint64_t now = tmr_jiffies();
++
++	return sess->st_deadline > now ? sess->st_deadline - now : 0;
++}
++
++
++static void refresh_handler(void *arg)
++{
++	struct sipsess *sess = arg;
++	uint64_t left;
++	int err = EBUSY;
++
++	if (sess->terminated || !sess->st_interval)
++		return;
++
++	left = until_deadline(sess);
++	if (!left) {
++		expire_handler(sess);
++		return;
++	}
++
++	if (!refresh_busy(sess)) {
++		if (sess->st_peer_update)
++			err = sipsess_update_refresh(sess);
++		else
++			err = sipsess_reinvite(sess, true);
++	}
++
++	if (err)
++		tmr_start(&sess->st_tmr, MIN(TIMER_RETRY_MS, left),
++			  refresh_handler, sess);
++	else
++		tmr_start(&sess->st_tmr, left, expire_handler, sess);
++}
++
++
++static bool supports_timer(const struct sip_msg *msg)
++{
++	return sip_msg_hdr_has_value(msg, SIP_HDR_SUPPORTED, "timer")
++		|| sip_msg_hdr_has_value(msg, SIP_HDR_REQUIRE, "timer");
++}
++
++
++static uint32_t session_expires(const struct sip_msg *msg,
++				struct pl *refresher)
++{
++	const struct sip_hdr *hdr;
++	struct pl delta;
++
++	*refresher = pl_null;
++
++	hdr = sip_msg_hdr(msg, SIP_HDR_SESSION_EXPIRES);
++	if (!hdr)
++		return 0;
++
++	if (re_regex(hdr->val.p, hdr->val.l, "[0-9]+", &delta))
++		return 0;
++
++	(void)msg_param_decode(&hdr->val, "refresher", refresher);
++
++	return pl_u32(&delta);
++}
++
++
++static void peer_methods(struct sipsess *sess, const struct sip_msg *msg)
++{
++	if (sip_msg_hdr(msg, SIP_HDR_ALLOW))
++		sess->st_peer_update =
++			sip_msg_hdr_has_value(msg, SIP_HDR_ALLOW, "UPDATE");
++}
++
++
++/**
++ * Start the refresh or the expiry timer for the negotiated interval
++ *
++ * @param sess SIP Session
++ */
++void sipsess_timer_start(struct sipsess *sess)
++{
++	if (!sess || sess->terminated || !sess->st_interval) {
++		if (sess)
++			tmr_cancel(&sess->st_tmr);
++		return;
++	}
++
++	sess->st_deadline = tmr_jiffies() + expiry_delay(sess->st_interval);
++
++	if (sess->st_refresher)
++		tmr_start(&sess->st_tmr, (uint64_t)sess->st_interval * 500,
++			  refresh_handler, sess);
++	else
++		tmr_start(&sess->st_tmr, expiry_delay(sess->st_interval),
++			  expire_handler, sess);
++}
++
++
++/**
++ * Print the session timer headers of a request this side sends
++ *
++ * @param pf   Print handler
++ * @param sess SIP Session
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int sipsess_timer_print(struct re_printf *pf, const struct sipsess *sess)
++{
++	int err;
++
++	if (!sess || !sess->st_local)
++		return 0;
++
++	err = re_hprintf(pf, "Supported: timer\r\n");
++
++	if (sess->established && !sess->st_interval)
++		return err;
++
++	if (sess->established)
++		err |= re_hprintf(pf, "Session-Expires: %u;refresher=%s\r\n",
++				  sess->st_interval,
++				  sess->st_refresher ? "uac" : "uas");
++	else
++		err |= re_hprintf(pf, "Session-Expires: %u\r\n",
++				  sess->st_local);
++
++	if (sess->st_min_se)
++		err |= re_hprintf(pf, "Min-SE: %u\r\n", sess->st_min_se);
++
++	return err;
++}
++
++
++/**
++ * Print the session timer headers of a 2xx this side sends
++ *
++ * @param pf   Print handler
++ * @param sess SIP Session
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int sipsess_timer_print_reply(struct re_printf *pf,
++			      const struct sipsess *sess)
++{
++	int err;
++
++	if (!sess || !sess->st_local || !sess->st_interval)
++		return 0;
++
++	err = re_hprintf(pf, "Session-Expires: %u;refresher=%s\r\n",
++			 sess->st_interval,
++			 sess->st_refresher ? "uas" : "uac");
++
++	if (sess->st_peer_timer)
++		err |= re_hprintf(pf, "Require: timer\r\n");
++
++	return err;
++}
++
++
++/**
++ * Take the session interval and the refresher from an INVITE or UPDATE
++ * that this side answers
++ *
++ * @param sess SIP Session
++ * @param msg  Received request
++ */
++void sipsess_timer_request(struct sipsess *sess, const struct sip_msg *msg)
++{
++	struct pl refresher;
++	uint32_t interval;
++
++	if (!sess || !msg || !sess->st_local)
++		return;
++
++	peer_methods(sess, msg);
++	sess->st_peer_timer = supports_timer(msg);
++
++	interval = session_expires(msg, &refresher);
++	if (!interval) {
++		if (sess->established)
++			return;
++
++		if (!sess->st_peer_timer) {
++			sess->st_interval = 0;
++			return;
++		}
++
++		interval = sess->st_local;
++	}
++
++	sess->st_interval = interval;
++
++	if (pl_isset(&refresher))
++		sess->st_refresher = !pl_strcasecmp(&refresher, "uas");
++	else
++		sess->st_refresher = !sess->st_peer_timer;
++}
++
++
++/**
++ * Take the session interval and the refresher from a 2xx to an INVITE or
++ * UPDATE that this side sent, and start the timer
++ *
++ * @param sess SIP Session
++ * @param msg  Received 2xx response
++ */
++void sipsess_timer_response(struct sipsess *sess, const struct sip_msg *msg)
++{
++	struct pl refresher;
++	uint32_t interval;
++
++	if (!sess || !msg || !sess->st_local)
++		return;
++
++	peer_methods(sess, msg);
++
++	interval = session_expires(msg, &refresher);
++	sess->st_interval = interval;
++	sess->st_refresher = !pl_isset(&refresher)
++		|| !pl_strcasecmp(&refresher, "uac");
++
++	sipsess_timer_start(sess);
++}
++
++
++/**
++ * Answer a request whose session interval is below this side's Min-SE with
++ * 422 (Session Interval Too Small)
++ *
++ * @param sip     SIP stack
++ * @param min_se  Smallest session interval accepted, 0 to accept any
++ * @param msg     Received INVITE or UPDATE
++ *
++ * @return True if the request was answered with 422
++ */
++bool sipsess_timer_reject(struct sip *sip, uint32_t min_se,
++			  const struct sip_msg *msg)
++{
++	struct pl refresher;
++	uint32_t interval;
++
++	if (!min_se || !msg)
++		return false;
++
++	interval = session_expires(msg, &refresher);
++	if (!interval || interval >= min_se)
++		return false;
++
++	(void)sip_treplyf(NULL, NULL, sip, msg, false, 422,
++			  "Session Interval Too Small",
++			  "Min-SE: %u\r\n"
++			  "Content-Length: 0\r\n"
++			  "\r\n", min_se);
++
++	return true;
++}
++
++
++/**
++ * Raise the session interval after a 422 (Session Interval Too Small)
++ *
++ * @param sess SIP Session
++ * @param msg  Received 422 response
++ *
++ * @return True if the request should be sent again
++ */
++bool sipsess_timer_too_small(struct sipsess *sess, const struct sip_msg *msg)
++{
++	const struct sip_hdr *hdr;
++	uint32_t min_se;
++	uint32_t sent;
++
++	if (!sess || !msg || !sess->st_local)
++		return false;
++
++	hdr = sip_msg_hdr(msg, SIP_HDR_MIN_SE);
++	if (!hdr)
++		return false;
++
++	min_se = pl_u32(&hdr->val);
++	sent = sess->established && sess->st_interval ? sess->st_interval :
++		sess->st_local;
++	if (min_se <= sent)
++		return false;
++
++	sess->st_local = min_se;
++	sess->st_min_se = min_se;
++	if (sess->st_interval)
++		sess->st_interval = min_se;
++
++	return true;
++}
++
++
++/**
++ * Set the session timer of the SIP Sessions of a socket (RFC 4028)
++ *
++ * Sessions created afterwards offer the timer in their INVITE, accept it in
++ * an INVITE they answer when the caller supports it, refresh the session
++ * with UPDATE (or a re-INVITE when the peer does not allow UPDATE) when this
++ * side is the refresher, and end the session with BYE when the peer does
++ * not refresh it in time.
++ *
++ * @param sock    SIP Session socket
++ * @param expires Session interval in seconds, 0 to disable session timers
++ * @param min_se  Smallest session interval this side accepts, 0 to omit
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int sipsess_set_timer(struct sipsess_sock *sock, uint32_t expires,
++		      uint32_t min_se)
++{
++	if (!sock || (expires && min_se > expires))
++		return EINVAL;
++
++	sock->st_expires = expires;
++	sock->st_min_se = min_se;
++
++	return 0;
++}
++
++
++/**
++ * Get the negotiated session interval of a SIP Session
++ *
++ * @param sess      SIP Session
++ * @param refresher Set to true when this side refreshes the session
++ *
++ * @return Session interval in seconds, 0 when there is no session timer
++ */
++uint32_t sipsess_timer(const struct sipsess *sess, bool *refresher)
++{
++	if (!sess)
++		return 0;
++
++	if (refresher)
++		*refresher = sess->st_interval && sess->st_refresher;
++
++	return sess->st_interval;
++}
+diff --git a/src/sipsess/update.c b/src/sipsess/update.c
+index 1e982f8..9872a3f 100644
+--- a/src/sipsess/update.c
++++ b/src/sipsess/update.c
+@@ -45,6 +45,8 @@ static void update_resp_handler(int err, const struct sip_msg *msg, void *arg)
+ 	}
+ 	else if (msg->scode < 300) {
+ 		(void)sip_dialog_update(req->sess->dlg, msg);
++		if (req->sess->established)
++			sipsess_timer_response(req->sess, msg);
+ 
+ 		if (req->sess->neg_state == SDP_NEG_LOCAL_OFFER) {
+ 			(void)req->sess->answerh(msg, req->sess->arg);
+@@ -77,6 +79,18 @@ static void update_resp_handler(int err, const struct sip_msg *msg, void *arg)
+ 		case 481:
+ 			sipsess_terminate(req->sess, 0, msg);
+ 			break;
++
++		case 422:
++			if (!req->sess->established
++			    || !sipsess_timer_too_small(req->sess, msg))
++				break;
++
++			err = update_request(req);
++			if (err)
++				break;
++
++			return;
++
+ 		case 491:
+ 			tmr_start(&req->tmr, req->sess->owner ? 3000 : 1000,
+ 				  tmr_handler, req);
+@@ -130,10 +144,13 @@ static int update_request(struct sipsess_request *req)
+ 	err = sip_drequestf(&req->req, req->sess->sip, true, "UPDATE",
+ 			    req->sess->dlg, 0, req->sess->auth, send_handler,
+ 			    update_resp_handler, req,
++			    "%H"
+ 			    "%s%s%s"
+ 			    "Content-Length: %zu\r\n"
+ 			    "\r\n"
+ 			    "%b",
++			    sipsess_timer_print,
++			    req->sess->established ? req->sess : NULL,
+ 			    req->body ? "Content-Type: " : "",
+ 			    req->body ? req->ctype : "",
+ 			    req->body ? "\r\n" : "",
+@@ -141,7 +158,7 @@ static int update_request(struct sipsess_request *req)
+ 			    req->body ? mbuf_buf(req->body) : NULL,
+ 			    req->body ? mbuf_get_left(req->body):(size_t)0);
+ 
+-	if (!err && req->sess->desc)
++	if (!err && req->body)
+ 		req->sess->neg_state = SDP_NEG_LOCAL_OFFER;
+ 
+ 	return err;
+@@ -178,3 +195,30 @@ int sipsess_update(struct sipsess *sess)
+ 
+ 	return err;
+ }
++
++
++/**
++ * Send an UPDATE without a body that refreshes the session (RFC 4028)
++ *
++ * @param sess      SIP Session
++ *
++ * @return 0 if success, otherwise errorcode
++ */
++int sipsess_update_refresh(struct sipsess *sess)
++{
++	struct sipsess_request *req;
++	int err;
++
++	if (!sess || sess->terminated)
++		return EINVAL;
++
++	err = sipsess_request_alloc(&req, sess, NULL, NULL, NULL, NULL);
++	if (err)
++		return err;
++
++	err = update_request(req);
++	if (err)
++		mem_deref(req);
++
++	return err;
++}
+diff --git a/test/CMakeLists.txt b/test/CMakeLists.txt
+index d5fafde..2c65383 100644
+--- a/test/CMakeLists.txt
++++ b/test/CMakeLists.txt
+@@ -133,6 +133,7 @@ set(SRCS
+   sipevent.c
+   sipreg.c
+   sipsess.c
++  sipsess_timer.c
+   srtp.c
+   stun.c
+   sys.c
+diff --git a/test/sipsess_timer.c b/test/sipsess_timer.c
+new file mode 100644
+index 0000000..88ca9c0
+--- /dev/null
++++ b/test/sipsess_timer.c
+@@ -0,0 +1,494 @@
++/**
++ * @file sipsess_timer.c  SIP Session Timers (RFC 4028) testcode
++ *
++ * Copyright (C) 2026 BaresipKit contributors
++ */
++#include <string.h>
++#include <re.h>
++#include "test.h"
++
++#define DEBUG_MODULE "test_sipsess_timer"
++#define DEBUG_LEVEL 5
++#include <re_dbg.h>
++
++
++enum {
++	TIMER_INTERVAL = 2,
++	TIMER_MIN_SE   = 1,
++	RAW_MIN_SE     = 5,
++};
++
++
++struct timer_test;
++
++struct timer_peer {
++	struct timer_test *test;
++	struct sip *sip;
++	struct sipsess_sock *sock;
++	struct sip_lsnr *lsnr;
++	struct sipsess *sess;
++	struct sa laddr;
++	unsigned refresh_invites;
++	unsigned refresh_updates;
++	int close_err;
++	bool closed;
++	bool estab;
++};
++
++
++struct timer_test {
++	struct timer_peer a;
++	struct timer_peer b;
++	struct tmr stop;
++	struct tmr cut;
++	const char *answer_hdrs;
++	uint32_t seen_se;
++	uint32_t b_min_se;
++	bool raw_b;
++	bool cut_a;
++	int err;
++};
++
++
++static const char sdp[] = "v=0\r\n"
++			  "o=- 1 1 IN IP4 127.0.0.1\r\n"
++			  "s=-\r\n"
++			  "c=IN IP4 127.0.0.1\r\n"
++			  "t=0 0\r\n"
++			  "m=audio 49170 RTP/AVP 0\r\n"
++			  "a=rtpmap:0 PCMU/8000\r\n"
++			  "a=sendrecv\r\n";
++
++
++static void stop_handler(void *arg)
++{
++	(void)arg;
++	re_cancel();
++}
++
++
++static void exit_handler(void *arg)
++{
++	(void)arg;
++}
++
++
++static int make_sdp(struct mbuf **descp)
++{
++	struct mbuf *desc = mbuf_alloc(sizeof(sdp));
++	int err;
++
++	if (!desc)
++		return ENOMEM;
++
++	err = mbuf_write_str(desc, sdp);
++	mbuf_set_pos(desc, 0);
++
++	if (err)
++		mem_deref(desc);
++	else
++		*descp = desc;
++
++	return err;
++}
++
++
++static int desc_handler(struct mbuf **descp, const struct sa *src,
++			const struct sa *dst, void *arg)
++{
++	(void)src;
++	(void)dst;
++	(void)arg;
++
++	return make_sdp(descp);
++}
++
++
++static int offer_handler(struct mbuf **descp, const struct sip_msg *msg,
++			 void *arg)
++{
++	(void)msg;
++	(void)arg;
++
++	return make_sdp(descp);
++}
++
++
++static int answer_handler(const struct sip_msg *msg, void *arg)
++{
++	(void)msg;
++	(void)arg;
++
++	return 0;
++}
++
++
++static void cut_handler(void *arg)
++{
++	struct timer_test *test = arg;
++
++	sip_transp_flush(test->a.sip);
++}
++
++
++static void estab_handler(const struct sip_msg *msg, void *arg)
++{
++	struct timer_peer *peer = arg;
++	struct timer_test *test = peer->test;
++	(void)msg;
++
++	peer->estab = true;
++
++	if (peer == &test->a && test->cut_a)
++		tmr_start(&test->cut, 100, cut_handler, test);
++}
++
++
++static void close_handler(int err, const struct sip_msg *msg, void *arg)
++{
++	struct timer_peer *peer = arg;
++
++	peer->closed = true;
++	peer->close_err = err ? err : (msg ? (int)msg->scode : 0);
++}
++
++
++static uint32_t session_expires(const struct sip_msg *msg)
++{
++	const struct sip_hdr *hdr = sip_msg_hdr(msg,
++						SIP_HDR_SESSION_EXPIRES);
++
++	return hdr ? pl_u32(&hdr->val) : 0;
++}
++
++
++static bool raw_invite(struct timer_test *test, const struct sip_msg *msg)
++{
++	uint32_t se = session_expires(msg);
++
++	if (se < RAW_MIN_SE) {
++		(void)sip_treplyf(NULL, NULL, test->b.sip, msg, false, 422,
++				  "Session Interval Too Small",
++				  "Min-SE: %u\r\n"
++				  "Content-Length: 0\r\n"
++				  "\r\n", RAW_MIN_SE);
++		return true;
++	}
++
++	test->seen_se = se;
++	(void)sip_treply(NULL, test->b.sip, msg, 486, "Busy Here");
++
++	return true;
++}
++
++
++static bool peek_handler(const struct sip_msg *msg, void *arg)
++{
++	struct timer_peer *peer = arg;
++	struct timer_test *test = peer->test;
++	bool in_dialog = pl_isset(&msg->to.tag);
++
++	if (!pl_strcmp(&msg->met, "INVITE")) {
++		if (in_dialog)
++			++peer->refresh_invites;
++		else if (peer == &test->b && test->raw_b)
++			return raw_invite(test, msg);
++	}
++	else if (!pl_strcmp(&msg->met, "UPDATE")) {
++		++peer->refresh_updates;
++	}
++
++	return false;
++}
++
++
++static void conn_handler(const struct sip_msg *msg, void *arg)
++{
++	struct timer_test *test = arg;
++	struct mbuf *desc = NULL;
++	int err;
++
++	err = make_sdp(&desc);
++	if (err)
++		goto out;
++
++	err = sipsess_accept(&test->b.sess, test->b.sock, msg, 200, "OK",
++			     REL100_DISABLED, "b", "application/sdp", desc,
++			     NULL, NULL, false, offer_handler,
++			     answer_handler, estab_handler, NULL, NULL,
++			     close_handler, &test->b, "%s",
++			     test->answer_hdrs ? test->answer_hdrs : "");
++
++ out:
++	mem_deref(desc);
++	if (err)
++		test->err = err;
++}
++
++
++static int peer_alloc(struct timer_peer *peer, struct timer_test *test,
++		      bool listen, uint32_t expires)
++{
++	int err;
++
++	peer->test = test;
++	err = sip_alloc(&peer->sip, NULL, 32, 32, 32, "retest",
++			exit_handler, NULL);
++	if (err)
++		return err;
++
++	(void)sa_set_str(&peer->laddr, "127.0.0.1", 0);
++	err = sip_transp_add(peer->sip, SIP_TRANSP_UDP, &peer->laddr);
++	err |= sip_transp_laddr(peer->sip, &peer->laddr, SIP_TRANSP_UDP,
++				NULL);
++	if (err)
++		return err;
++
++	err = sip_listen(&peer->lsnr, peer->sip, true, peek_handler, peer);
++	if (err)
++		return err;
++
++	err = sipsess_listen(&peer->sock, peer->sip, 32,
++			     listen ? conn_handler : NULL, test);
++	if (err)
++		return err;
++
++	if (!expires)
++		return 0;
++
++	return sipsess_set_timer(peer->sock, expires,
++				 peer == &test->b && test->b_min_se ?
++					 test->b_min_se : TIMER_MIN_SE);
++}
++
++
++static void peer_close(struct timer_peer *peer)
++{
++	peer->sess = mem_deref(peer->sess);
++	if (peer->sock)
++		sipsess_close_all(peer->sock);
++	peer->sock = mem_deref(peer->sock);
++	peer->lsnr = mem_deref(peer->lsnr);
++	if (peer->sip)
++		sip_close(peer->sip, true);
++	peer->sip = mem_deref(peer->sip);
++}
++
++
++static int run(struct timer_test *test, uint32_t a_expires,
++	       uint32_t b_expires, const char *offer_hdrs, uint32_t run_ms)
++{
++	char to_uri[64];
++	int err;
++
++	err = peer_alloc(&test->a, test, false, a_expires);
++	err |= peer_alloc(&test->b, test, true, b_expires);
++	if (err)
++		return err;
++
++	(void)re_snprintf(to_uri, sizeof(to_uri), "sip:b@127.0.0.1:%u",
++			  sa_port(&test->b.laddr));
++
++	err = sipsess_connect(&test->a.sess, test->a.sock, to_uri, NULL,
++			      "sip:a@127.0.0.1", "a", NULL, 0,
++			      "application/sdp", NULL, NULL, false, NULL,
++			      desc_handler, offer_handler, answer_handler,
++			      NULL, estab_handler, NULL, NULL, close_handler,
++			      &test->a, "%s", offer_hdrs ? offer_hdrs : "");
++	if (err)
++		return err;
++
++	tmr_start(&test->stop, run_ms, stop_handler, test);
++	err = re_main_timeout(run_ms + 5000);
++	tmr_cancel(&test->stop);
++	tmr_cancel(&test->cut);
++
++	return err ? err : test->err;
++}
++
++
++int test_sipsess_timer_reinvite(void)
++{
++	struct timer_test test;
++	bool refresher = false;
++	int err;
++
++	memset(&test, 0, sizeof(test));
++
++	err = run(&test, TIMER_INTERVAL, TIMER_INTERVAL, NULL, 3500);
++	TEST_ERR(err);
++
++	ASSERT_TRUE(test.a.estab);
++	ASSERT_TRUE(test.b.estab);
++	ASSERT_TRUE(!test.a.closed);
++	ASSERT_TRUE(!test.b.closed);
++	ASSERT_EQ(TIMER_INTERVAL, sipsess_timer(test.a.sess, &refresher));
++	ASSERT_TRUE(refresher);
++	ASSERT_EQ(TIMER_INTERVAL, sipsess_timer(test.b.sess, &refresher));
++	ASSERT_TRUE(!refresher);
++	ASSERT_TRUE(test.b.refresh_invites >= 2);
++	ASSERT_EQ(0, test.b.refresh_updates);
++	ASSERT_EQ(0, test.a.refresh_invites);
++
++ out:
++	peer_close(&test.a);
++	peer_close(&test.b);
++
++	return err;
++}
++
++
++int test_sipsess_timer_update(void)
++{
++	struct timer_test test;
++	bool refresher = false;
++	int err;
++
++	memset(&test, 0, sizeof(test));
++	test.answer_hdrs = "Allow: INVITE, ACK, BYE, CANCEL, UPDATE\r\n";
++
++	err = run(&test, TIMER_INTERVAL, TIMER_INTERVAL,
++		  "Allow: INVITE, ACK, BYE, CANCEL, UPDATE\r\n", 3500);
++	TEST_ERR(err);
++
++	ASSERT_TRUE(!test.a.closed);
++	ASSERT_TRUE(!test.b.closed);
++	ASSERT_EQ(TIMER_INTERVAL, sipsess_timer(test.a.sess, &refresher));
++	ASSERT_TRUE(refresher);
++	ASSERT_TRUE(test.b.refresh_updates >= 2);
++	ASSERT_EQ(0, test.b.refresh_invites);
++
++ out:
++	peer_close(&test.a);
++	peer_close(&test.b);
++
++	return err;
++}
++
++
++int test_sipsess_timer_expire(void)
++{
++	struct timer_test test;
++	bool refresher = true;
++	int err;
++
++	memset(&test, 0, sizeof(test));
++
++	err = run(&test, 0, TIMER_INTERVAL,
++		  "Supported: timer\r\n"
++		  "Session-Expires: 2;refresher=uac\r\n", 3500);
++	TEST_ERR(err);
++
++	ASSERT_TRUE(test.a.estab);
++	ASSERT_TRUE(test.b.closed);
++	ASSERT_EQ(ETIMEDOUT, test.b.close_err);
++	ASSERT_TRUE(test.a.closed);
++	ASSERT_EQ(ECONNRESET, test.a.close_err);
++	ASSERT_EQ(0, sipsess_timer(test.a.sess, NULL));
++	ASSERT_EQ(TIMER_INTERVAL, sipsess_timer(test.b.sess, &refresher));
++	ASSERT_TRUE(!refresher);
++	ASSERT_EQ(0, test.b.refresh_invites);
++
++ out:
++	peer_close(&test.a);
++	peer_close(&test.b);
++
++	return err;
++}
++
++
++int test_sipsess_timer_unsupported(void)
++{
++	struct timer_test test;
++	int err;
++
++	memset(&test, 0, sizeof(test));
++
++	err = run(&test, 0, TIMER_INTERVAL, NULL, 1500);
++	TEST_ERR(err);
++
++	ASSERT_TRUE(test.a.estab);
++	ASSERT_TRUE(test.b.estab);
++	ASSERT_TRUE(!test.b.closed);
++	ASSERT_EQ(0, sipsess_timer(test.b.sess, NULL));
++	ASSERT_EQ(0, test.a.refresh_invites + test.a.refresh_updates);
++
++ out:
++	peer_close(&test.a);
++	peer_close(&test.b);
++
++	return err;
++}
++
++
++int test_sipsess_timer_too_small(void)
++{
++	struct timer_test test;
++	int err;
++
++	memset(&test, 0, sizeof(test));
++	test.raw_b = true;
++
++	err = run(&test, TIMER_INTERVAL, 0, NULL, 1000);
++	TEST_ERR(err);
++
++	ASSERT_EQ(RAW_MIN_SE, test.seen_se);
++	ASSERT_TRUE(test.a.closed);
++	ASSERT_EQ(486, test.a.close_err);
++
++ out:
++	peer_close(&test.a);
++	peer_close(&test.b);
++
++	return err;
++}
++
++
++int test_sipsess_timer_below_min_se(void)
++{
++	struct timer_test test;
++	int err;
++
++	memset(&test, 0, sizeof(test));
++	test.b_min_se = TIMER_INTERVAL;
++
++	err = run(&test, 0, TIMER_INTERVAL,
++		  "Supported: timer\r\n"
++		  "Session-Expires: 1\r\n", 1000);
++	TEST_ERR(err);
++
++	ASSERT_TRUE(!test.b.sess);
++	ASSERT_TRUE(!test.a.estab);
++	ASSERT_TRUE(test.a.closed);
++	ASSERT_EQ(422, test.a.close_err);
++
++ out:
++	peer_close(&test.a);
++	peer_close(&test.b);
++
++	return err;
++}
++
++
++int test_sipsess_timer_refresh_fails(void)
++{
++	struct timer_test test;
++	int err;
++
++	memset(&test, 0, sizeof(test));
++	test.cut_a = true;
++
++	err = run(&test, TIMER_INTERVAL, TIMER_INTERVAL, NULL, 3500);
++	TEST_ERR(err);
++
++	ASSERT_TRUE(test.a.estab);
++	ASSERT_TRUE(test.a.closed);
++	ASSERT_EQ(ETIMEDOUT, test.a.close_err);
++	ASSERT_EQ(0, test.b.refresh_invites);
++
++ out:
++	peer_close(&test.a);
++	peer_close(&test.b);
++
++	return err;
++}
+diff --git a/test/test.c b/test/test.c
+index a563b5a..8014926 100644
+--- a/test/test.c
++++ b/test/test.c
+@@ -228,6 +228,13 @@ static const struct test tests[] = {
+ 	TEST(test_sipsess_100rel_supported),
+ 	TEST(test_sipsess_blind_transfer),
+ 	TEST(test_sipsess_reject),
++	TEST(test_sipsess_timer_below_min_se),
++	TEST(test_sipsess_timer_expire),
++	TEST(test_sipsess_timer_refresh_fails),
++	TEST(test_sipsess_timer_reinvite),
++	TEST(test_sipsess_timer_too_small),
++	TEST(test_sipsess_timer_unsupported),
++	TEST(test_sipsess_timer_update),
+ 	TEST(test_sipsess_update_no_sdp),
+ 	TEST(test_sipsess_update_uac),
+ 	TEST(test_sipsess_update_uas),
+diff --git a/test/test.h b/test/test.h
+index 67419c1..645e64c 100644
+--- a/test/test.h
++++ b/test/test.h
+@@ -343,6 +343,13 @@ int test_sipsess_100rel_421(void);
+ int test_sipsess_update_uac(void);
+ int test_sipsess_update_uas(void);
+ int test_sipsess_update_no_sdp(void);
++int test_sipsess_timer_below_min_se(void);
++int test_sipsess_timer_expire(void);
++int test_sipsess_timer_refresh_fails(void);
++int test_sipsess_timer_reinvite(void);
++int test_sipsess_timer_too_small(void);
++int test_sipsess_timer_unsupported(void);
++int test_sipsess_timer_update(void);
+ int test_srtp(void);
+ int test_srtcp(void);
+ int test_srtp_gcm(void);
+
+-- 
+2.43.0
+

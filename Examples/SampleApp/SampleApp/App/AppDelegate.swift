@@ -38,4 +38,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         async -> UNNotificationPresentationOptions {
         [.banner, .sound, .list]
     }
+
+    /// Passes a tap on a ringing call's notification, or on one of its actions, to the model.
+    nonisolated func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                            didReceive response: UNNotificationResponse) async {
+        let action = response.actionIdentifier
+        let call = response.notification.request.content.userInfo[PreviewShare.callKey] as? String
+        await previewAction(action, call: call)
+    }
+
+    private func previewAction(_ action: String, call: String?) async {
+        await model?.previewNotificationAction(action, call: call)
+    }
 }

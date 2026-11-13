@@ -3,7 +3,9 @@
 ```
  App (SwiftUI / UIKit)
    │
-   ├── BaresipKitCallKit   BaresipKitPushKit   BaresipKitAudio   BaresipKitVideo   BaresipKitSwiftUI   (Layer 5, optional)
+   ├── BaresipKitCallKit   BaresipKitLiveCommunication   BaresipKitPushKit   BaresipKitAudio
+   │   BaresipKitVideo     BaresipKitSwiftUI                                                   (Layer 5, optional)
+   │     └── BaresipKitSystemCall   push-to-INVITE matching shared by both call adapters (internal)
    │
    └── BaresipKit          idiomatic Swift API: BaresipEngine, AsyncStream<BaresipEvent>   (Layer 4)
          │
@@ -69,10 +71,51 @@ Static inline C helpers that copy union members of `bsk_event` into plain struct
 
 - `BaresipKitAudio`: `BaresipAudioSessionController` forwards activation, route changes and interruptions to the engine; it never configures the session unless `configureForVoIP()` is called explicitly.
 - `BaresipKitCallKit`: `BaresipCallKitAdapter` maps call IDs to UUIDs, drives `CXProvider`, handles answer-before-INVITE after a push, and forwards audio activation.
+- `BaresipKitLiveCommunication`: `BaresipLiveCommunicationAdapter` does the same with LiveCommunicationKit's `ConversationManager` from iOS 17.4. Both adapters share `BaresipKitSystemCall`, an internal target with the ledger that matches pushed calls to INVITEs.
 - `BaresipKitPushKit`: `BaresipPushKitAdapter` collects the VoIP token, builds the Contact parameters and triggers the push wake-up.
 - `BaresipKitVideo`: `BaresipVideoView` renders frames with `AVSampleBufferDisplayLayer`; `BaresipVideoFrameRelay` forwards frames to closures. From iOS 17 frames go straight to the layer's renderer, which accepts them from any thread; before iOS 17 they are handed to the main actor. A failed renderer shows nothing until it is flushed, and iOS asks for a flush after an interruption such as the app going to the background, so the view flushes it in both cases; otherwise the picture freezes while frames keep arriving.
 - `BaresipKitSwiftUI`: `BaresipPhone` and `BaresipPhoneCall` apply the engine's events to published registration and call state for SwiftUI, and keep the active call. Actions go through a `BaresipCallController` such as the CallKit adapter for the calls it controls, and to the engine otherwise. `BaresipCallVideo` (in `BaresipKitVideo`) and `BaresipSelfView` show a call's video and your own camera.
 
+## Android
+
+```
+ App (Compose / Views)
+   │
+   ├── baresipkit-telecom   baresipkit-push   baresipkit-audio   baresipkit-video
+   │   baresipkit-compose                                                              (Layer 5, optional)
+   │
+   └── baresipkit          Kotlin API: BaresipEngine, SharedFlow<BaresipEvent>         (Layer 4)
+         │
+         ├── JNI bridge     Android/baresipkit/src/main/cpp, linked into libbaresipkit.so  (Layer 3)
+         │
+         └── BaresipKitCore the same C ABI and Core/src                                (Layer 2)
+               │
+               └── baresip + libre (+librem) + OpenSSL + Opus + libvpx, aaudio          (Layer 1)
+                   MediaCodec H.264 (Core/src/android/mediacodec.c), camera source
+                   (Core/src/android/bskcamera.c) fed from Camera2
+```
+
+Layers 1 and 2 are the same code as on Apple platforms, cross-compiled with the NDK by
+`PLATFORM=android Build/build-xcframework.sh` with the same pins and patches. Only the platform
+modules differ: `aaudio` instead of `audiounit`, `mediacodec` instead of `vidtoolbox`, and
+`bskcamera` instead of `bskcapture`.
+
+- **Layer 3, the JNI bridge**, is the counterpart of `BaresipKitBridge`: it turns `bsk_*` calls
+  into native methods and each `bsk_event` into a Kotlin object, attaching the engine and media
+  threads to the JVM as needed. It also builds for the Linux host, so the JVM unit tests run
+  against the real core.
+- **Layer 4, `baresipkit`**: `BaresipEngine` runs every C call on one dedicated thread through a
+  coroutine dispatcher, so operations are `suspend` functions; events go to a `SharedFlow` that
+  every collector receives in full. The type names follow the Swift API.
+- **Layer 5, the adapters**: `BaresipTelecomAdapter` adds calls to Telecom through Jetpack
+  core-telecom, with the same push-to-INVITE matching as the iOS call adapters;
+  `BaresipPushAdapter` turns Firebase tokens into `Contact` parameters and reports pushed calls;
+  `BaresipAudioController` holds audio focus and routes the output; `BaresipVideoView` renders
+  frames with OpenGL ES and `BaresipCamera` feeds Camera2 frames to the core; `BaresipPhone` and
+  `BaresipPhoneCall` are the Compose state holders.
+
+The differences from iOS, and why, are listed in [Platforms.md](Platforms.md#parity-with-ios).
+
 ## What the core never does
 
-It never owns `AVAudioSession`, never sends APNs or FCM traffic, never accepts a TLS certificate without verification unless `insecure_skip_verify` is explicitly set (possible from Swift in DEBUG builds only), never follows a transfer or answers a call on its own except for a REFER on an established call and an INVITE whose `Replaces` header names one, and never logs credentials or complete push tokens.
+It never owns `AVAudioSession` or Android's audio focus, never sends APNs or FCM traffic, never accepts a TLS certificate without verification unless `insecure_skip_verify` is explicitly set (possible from Swift in DEBUG builds only, and from Kotlin only through `BaresipTlsConfiguration.insecureSkippingServerVerification()`), never follows a transfer or answers a call on its own except for a REFER on an established call and an INVITE whose `Replaces` header names one, and never logs credentials or complete push tokens.

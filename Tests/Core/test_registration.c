@@ -10,10 +10,6 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	record_event(&w, ev);
 }
 
-static int registered(struct waiter *x)
-{
-	return x->reg_state == BSK_REG_REGISTERED;
-}
 static int registered_twice(struct waiter *x)
 {
 	return x->reg_count >= 2;
@@ -30,33 +26,6 @@ static int unregistered(struct waiter *x)
 {
 	return x->reg_state == BSK_REG_NONE;
 }
-static int running(struct waiter *x)
-{
-	return x->engine_state == BSK_ENGINE_RUNNING;
-}
-
-static char *read_file(const char *path, size_t *len)
-{
-	FILE *f = fopen(path, "rb");
-	char *buf;
-	long n;
-
-	if (!f)
-		return NULL;
-	fseek(f, 0, SEEK_END);
-	n = ftell(f);
-	fseek(f, 0, SEEK_SET);
-	buf = calloc(1, (size_t)n + 1);
-	if (fread(buf, 1, (size_t)n, f) != (size_t)n) {
-		free(buf);
-		fclose(f);
-		return NULL;
-	}
-	fclose(f);
-	*len = (size_t)n;
-	return buf;
-}
-
 
 int main(int argc, char **argv)
 {

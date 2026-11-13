@@ -5,6 +5,9 @@
 - macOS with Xcode 16 or newer (verified with Xcode 27.2), CMake 3.18+ (`brew install cmake`), Python 3.
 - For the host build on Linux: cmake, a C compiler, libssl-dev, zlib, yasm (for libvpx), Python 3.
 
+This page covers the XCFramework, the host build and CI. Building the Android core and libraries
+(`PLATFORM=android`, Gradle) is described in [Android.md](Android.md#building-from-source).
+
 ## XCFramework
 
 ```bash
@@ -29,7 +32,7 @@ The script clones each pinned source (`Build/versions.env`), verifies the commit
 - **Local build**: when `Build/out/BaresipKitCore.xcframework` exists (after running the build script), or when no release has been made yet, the target uses that path.
 - **Release**: otherwise it downloads the zip from the GitHub release named in `coreReleaseURL` and verifies `coreReleaseChecksum`.
 
-There is no release yet, so `coreReleaseURL` is empty and the local build is always used. Apps add the checkout as a local package (`.package(path: "../baresip-swift")`). After the first release, they add it by URL with a version.
+There is no release yet, so `coreReleaseURL` is empty and the local build is always used. Apps add the checkout as a local package (`.package(path: "../baresipkit")`). After the first release, they add it by URL with a version.
 
 ## Releasing
 
@@ -57,4 +60,17 @@ Builds a libFuzzer harness over the parsing code the facade owns (Contact parame
 
 ## CI
 
-`.github/workflows/ci.yml` runs the Linux host suite and the macOS XCFramework build, the host suite, the simulator package build and XCTest on every push and pull request.
+`.github/workflows/ci.yml` runs on every push and pull request. Its jobs run in parallel:
+
+| Job | Runs |
+|---|---|
+| `lint` | SwiftFormat, SwiftLint and clang-format |
+| `linux-core` | the host build under ASan/UBSan, the core test suite and the fuzzers |
+| `android` | the core for both Android ABIs, the Kotlin libraries, ktlint, the JVM tests against the host core, and Zvono |
+| `android-emulator` | the instrumented tests and Zvono's UI tests and screenshots on an Android emulator, against a TLS registrar, a SIP peer and coturn on the runner |
+| `macos` | the XCFramework, the Swift package for iOS, the simulator and macOS, its tests on macOS and a simulator, and the documentation |
+| `macos-core` | the host build and the core test suite on macOS |
+| `sample-app` | the sample app for the simulator and a device, its UI test and its screenshots |
+| `integration` | the integration suite against Asterisk and coturn in Docker |
+
+The pinned sources and built prefixes are cached under a key made from `Build/versions.env`, the module sets, the build script, `Build/cmake` and `Patches`, so the C core is rebuilt only when one of them changes. `sample-app` builds every prefix the macOS jobs use and saves that cache; `macos` and `macos-core` only restore it.

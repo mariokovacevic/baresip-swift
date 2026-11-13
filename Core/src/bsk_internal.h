@@ -12,6 +12,11 @@
 #include "bsk_rate.h"
 
 #define BSK_VERSION_STRING "beta"
+#ifdef __ANDROID__
+#define BSK_DEFAULT_VIDEO_SOURCE "bskcamera"
+#else
+#define BSK_DEFAULT_VIDEO_SOURCE "bskcapture"
+#endif
 
 #define BSK_MAX_MODULES 32
 #define BSK_MAX_DTMF 64
@@ -30,7 +35,6 @@ struct bsk_account_ctx {
 	bool registered;
 	bool has_pending_cparams;
 	char pending_cparams[BSK_CPARAMS_MAX];
-	bool pending_reregister;
 	bool is_default;
 	bool tls;
 	bool answer_early_media;
@@ -50,6 +54,7 @@ struct bsk_call_ctx {
 	bsk_account_id account;
 	bsk_call_state state;
 	bsk_call_state steady_state;
+	bsk_call_end_reason end_reason;
 	bool outgoing;
 	bool video;
 	bool local_hold;
@@ -87,6 +92,7 @@ struct bsk_call_ctx {
 	char hangup_reason[64];
 	struct tmr tmr_hangup;
 	struct tmr tmr_modify;
+	bool hold_music;
 };
 
 struct bsk_engine {
@@ -168,7 +174,12 @@ struct bsk_engine {
 	struct tmr tmr_rate;
 	bool video_adaptive;
 	uint32_t video_min_bitrate;
+	uint32_t session_expires;
+	uint32_t session_min_se;
 	bool audio_active;
+	int16_t *hold_pcm;
+	size_t hold_samples;
+	uint32_t hold_srate;
 	bool suspended;
 	bool stop_requested;
 	uint64_t t0_ms;
@@ -260,6 +271,13 @@ void bsk_calls_recording_failed(bsk_engine *engine, const void *handle);
 void bsk_message_close(bsk_engine *engine);
 
 bsk_engine *bsk_global_engine(void);
+
+#define BSK_HOLD_MODULE "bskhold"
+int bsk_hold_init(void);
+void bsk_hold_close(void);
+int bsk_hold_music_load(bsk_engine *engine, const char *path);
+bool bsk_call_hold_music(const bsk_engine *engine,
+			 const struct bsk_call_ctx *c);
 
 int bsk_tls_install(bsk_engine *engine, struct tls *tls);
 bool bsk_trust_system(const char *host, const uint8_t *const *derv,

@@ -111,10 +111,10 @@ index cbac2ce..0bac938 100644
  {
  	return reg_test(SIP_TRANSP_UDP, 0);
 diff --git a/test/test.c b/test/test.c
-index 3fbeab0..c9ed4c5 100644
+index e61c68e..389094f 100644
 --- a/test/test.c
 +++ b/test/test.c
-@@ -211,6 +211,7 @@ static const struct test tests[] = {
+@@ -212,6 +212,7 @@ static const struct test tests[] = {
  #endif
  	TEST(test_fmt_trim),
  	TEST(test_sipevent),
@@ -122,7 +122,7 @@ index 3fbeab0..c9ed4c5 100644
  	TEST(test_sipreg_tcp),
  #ifdef USE_TLS
  	TEST(test_sipreg_tls),
-@@ -301,6 +302,7 @@ static const struct test tests_integration[] = {
+@@ -303,6 +304,7 @@ static const struct test tests_integration[] = {
  	TEST(test_rtp_listen),
  	TEST(test_sip_drequestf_network),
  	TEST(test_sipevent_network),
@@ -131,10 +131,10 @@ index 3fbeab0..c9ed4c5 100644
  #ifdef USE_TLS
  	TEST(test_sipreg_tls),
 diff --git a/test/test.h b/test/test.h
-index 6a20ce0..bc212fd 100644
+index 29e35a6..8badcd8 100644
 --- a/test/test.h
 +++ b/test/test.h
-@@ -323,6 +323,7 @@ int test_sip_transp_add_client_cert(void);
+@@ -324,6 +324,7 @@ int test_sip_transp_add_client_cert(void);
  int test_sip_transp_wss_verify_host(void);
  #endif
  int test_sipevent(void);

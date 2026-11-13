@@ -15,6 +15,7 @@ DEFAULT_SIP_PORT = 5060
 DEFAULT_PEER_PORT = 5070
 
 tls_connections = {}
+contact_flows = {}
 tls_lock = threading.Lock()
 udp_socket = None
 
@@ -35,9 +36,13 @@ def uri_target(uri):
     return host, int(port) if port else DEFAULT_SIP_PORT, transport
 
 
-def peer_address():
-    host, _, port = os.environ.get("REGISTRAR_PEER", "%s:%d" % (HOST, DEFAULT_PEER_PORT)).rpartition(":")
-    return host, int(port)
+def peer_addresses():
+    """The UDP peers the proxy may send to: REGISTRAR_PEER, host:port separated by commas."""
+    peers = set()
+    for entry in os.environ.get("REGISTRAR_PEER", "%s:%d" % (HOST, DEFAULT_PEER_PORT)).split(","):
+        host, _, port = entry.strip().rpartition(":")
+        peers.add((host, int(port)))
+    return peers
 
 
 def trace_forward(trace, transport, host, port, data):
@@ -45,15 +50,33 @@ def trace_forward(trace, transport, host, port, data):
     trace.flush()
 
 
+def remember_flow(contact, expires, conn):
+    """A client's Contact names its listening port, while its registration came on a
+    connection from another port: requests for that Contact go back on the connection."""
+    match = re.search(r"<?(sips?:[^>;]+[^>]*)>?", contact or "")
+    if not match:
+        return
+    host, port, _ = uri_target(match.group(1))
+    with tls_lock:
+        if expires == "0":
+            contact_flows.pop((host, port), None)
+        else:
+            contact_flows[(host, port)] = conn
+
+
 def send(transport, host, port, data, trace):
     if transport == "tls":
         with tls_lock:
-            conn = tls_connections.get((host, port))
+            conn = tls_connections.get((host, port)) or contact_flows.get((host, port))
             if conn:
                 trace_forward(trace, transport, host, port, data)
-                conn.sendall(data)
+                try:
+                    conn.sendall(data)
+                except OSError as error:
+                    trace.write("---- send failed: %s ----\n" % error)
+                    trace.flush()
                 return
-    if (host, port) != peer_address():
+    if (host, port) not in peer_addresses():
         trace.write("---- refused: %s:%d is neither a registered connection nor the peer ----\n" % (host, port))
         trace.flush()
         return
@@ -147,6 +170,7 @@ def handle(conn, trace, nonce):
                         m = re.search(r"expires=(\d+)", contact or "")
                         exp = m.group(1) if m else (header(req, "Expires") or "3600")
                         contact_echo = re.sub(r";expires=\d+", "", contact)
+                        remember_flow(contact, exp, conn)
                         resp = build_response(req, "200 OK", "Contact: %s;expires=%s\r\n" % (contact_echo, exp))
                 with tls_lock:
                     conn.sendall(resp.encode())

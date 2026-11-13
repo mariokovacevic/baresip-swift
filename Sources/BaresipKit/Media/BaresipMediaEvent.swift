@@ -4,20 +4,12 @@ public enum BaresipMediaEvent: Int, Sendable, Codable {
     case unknown = -1
     /// The audio stream started.
     case audioStarted = 0
-    /// The audio stream stopped.
-    case audioStopped = 1
-    /// The video stream started.
-    case videoStarted = 2
-    /// The video stream stopped.
-    case videoStopped = 3
     /// The remote side put the call on hold.
     case remoteHold = 4
     /// The remote side resumed the call.
     case remoteResume = 5
     /// Media encryption was established.
     case encryptionEstablished = 6
-    /// No RTP arrived within the configured timeout.
-    case rtpTimeout = 7
     /// The remote side asked for a video keyframe.
     case keyframeRequested = 8
     /// The caller offers video during early media.

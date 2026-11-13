@@ -14,7 +14,7 @@ import BaresipKitPushKit
 
 let push = BaresipPushKitAdapter(engine: engine, appID: "com.example.app", accountID: account) { payload in
     callKit.reportIncomingCallFromPush(
-        uuid: UUID(),
+        uuid: nil,
         remoteURI: payload["from"] as? String,
         displayName: nil,
         hasVideo: false
@@ -22,6 +22,11 @@ let push = BaresipPushKitAdapter(engine: engine, appID: "com.example.app", accou
 }
 push.updateRemoteToken(apnsToken)
 ```
+
+When the server puts a UUID for the call in the payload and in a header of the INVITE, pass the
+payload's UUID instead of a new one and name the header in
+`BaresipCallKitConfiguration.callUUIDHeader`: the INVITE is then bound to its push exactly, and
+a push sent twice is recognized. See <doc:CallKit>.
 
 ### Report the call before the handler returns
 
@@ -76,7 +81,7 @@ let push = BaresipPushKitAdapter(
     appID: "com.example.app",
     additionalContactParameters: [BaresipContactParameter("x-device", "door-1")]
 ) { payload in
-    callKit.reportIncomingCallFromPush(uuid: UUID(), remoteURI: payload["from"] as? String,
+    callKit.reportIncomingCallFromPush(uuid: nil, remoteURI: payload["from"] as? String,
                                        displayName: nil, hasVideo: false) { _ in }
 }
 push.updateAdditionalContactParameters([BaresipContactParameter("x-device", "door-2")])

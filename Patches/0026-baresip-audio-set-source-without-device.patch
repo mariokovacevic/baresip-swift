@@ -1,0 +1,46 @@
+From 9308f18fda84aabdd4ea46ded8b2725f86e11d03 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Thu, 12 Nov 2026 12:00:00 +0100
+Subject: [PATCH] audio: allow audio_set_source() without a device
+
+Since v4.13.0 audio_set_source() keeps the module and device names of the
+new source and calls str_dup() on the device, which fails with EINVAL for
+a NULL device. A source that needs no device name, such as one an
+application registers itself, can no longer be set, and with no source
+module the same happens when the account's source has no device. Copy
+the device name only when there is one, and take references to the
+initial names the way audio_alloc() does.
+---
+ src/audio.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/audio.c b/src/audio.c
+index a10a61e..5393b87 100644
+--- a/src/audio.c
++++ b/src/audio.c
+@@ -1774,8 +1774,9 @@ int audio_set_source(struct audio *au, const char *mod, const char *device)
+ 	tx->ausrc = mem_deref(tx->ausrc);
+ 
+ 	if (str_isset(mod)) {
+-		err  = str_dup(&tx->module, mod);
+-		err |= str_dup(&tx->device, device);
++		err = str_dup(&tx->module, mod);
++		if (!err && device)
++			err = str_dup(&tx->device, device);
+ 		if (err)
+ 			return err;
+ 
+@@ -1791,8 +1792,8 @@ int audio_set_source(struct audio *au, const char *mod, const char *device)
+ 		tx->as = ausrc_find(baresip_ausrcl(), mod);
+ 	}
+ 	else {
+-		err  = str_dup(&tx->module, au->ausrc_mod);
+-		err |= str_dup(&tx->device, au->ausrc_dev);
++		tx->module = mem_ref(au->ausrc_mod);
++		tx->device = mem_ref(au->ausrc_dev);
+ 	}
+ 
+ 	return err;
+-- 
+2.43.0
+

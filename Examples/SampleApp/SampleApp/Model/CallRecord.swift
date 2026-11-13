@@ -17,6 +17,9 @@ struct CallRecord: Identifiable, Codable, Equatable {
     var dtmfHangUp: Bool
     /// A small picture of the caller's video, in `CallSnapshots`.
     var snapshotFile: String?
+    /// Whether another phone answered (`answered`) or declined (`declined`) the ring; `nil` when
+    /// the call ended here.
+    var elsewhere: String?
 
     init(row: CallRow, endedAt: Date = Date(), snapshotFile: String? = nil) {
         self.snapshotFile = snapshotFile
@@ -30,6 +33,11 @@ struct CallRecord: Identifiable, Codable, Equatable {
         dtmfResult = row.dtmf == nil ? nil : (row.dtmfSent ? row.dtmfResult : "not sent")
         dtmfAck = row.dtmf?.ack
         dtmfHangUp = row.dtmf?.hangUp ?? true
+        switch row.endedElsewhere {
+        case .answeredElsewhere: elsewhere = "answered"
+        case .declinedElsewhere: elsewhere = "declined"
+        case nil: elsewhere = nil
+        }
     }
 
     /// The same DTMF request again, when the call was placed to send DTMF.
@@ -46,11 +54,6 @@ struct CallRecord: Identifiable, Codable, Equatable {
         return video ? "Video call" : "Audio call"
     }
 
-    var dtmfText: String {
-        guard !dtmf.isEmpty else { return "" }
-        return " · DTMF \(dtmf)" + (dtmfResult.map { " (\($0))" } ?? "")
-    }
-
     var initials: String {
         CallRow.initials(name)
     }
@@ -58,6 +61,9 @@ struct CallRecord: Identifiable, Codable, Equatable {
     var statusText: String {
         let when = startedAt.formatted(date: .abbreviated, time: .shortened)
         guard let duration else {
+            if let elsewhere {
+                return "\(when) · \(elsewhere == "answered" ? "Answered" : "Declined") on another phone"
+            }
             return "\(when) · \(outgoing ? "Not connected" : "Missed")"
         }
         let seconds = Int(duration.rounded())

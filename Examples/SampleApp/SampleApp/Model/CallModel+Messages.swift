@@ -16,6 +16,18 @@ extension CallModel {
         messages.filter { CallRow.displayName($0.peer) == peer }
     }
 
+    func send(_ text: String, to peer: String) async {
+        messageTo = peer
+        messageText = text
+        await sendMessage()
+    }
+
+    /// Sends a message that was not delivered again, in place of the failed one.
+    func resend(_ message: ChatMessage) async {
+        messages.removeAll { $0.id == message.id }
+        await send(message.text, to: message.peer)
+    }
+
     func sendMessage() async {
         guard let engine else { return }
         let to = normalizedDestination(messageTo)

@@ -148,6 +148,7 @@ size_t bsk_capabilities(char *buf, size_t buf_len)
 		"reg.outbound reg.contact-params "
 		"call.hold call.transfer.blind call.transfer.attended "
 		"call.early-media call.recording call.no-audio call.headers "
+		"call.session-timer "
 		"message.sip "
 		"dtmf.rfc4733 dtmf.sip-info "
 		"nat.ice nat.stun nat.turn-udp nat.turn-tcp nat.turn-tls "
@@ -157,7 +158,7 @@ size_t bsk_capabilities(char *buf, size_t buf_len)
 		"codec.opus codec.g722 codec.g711 "
 		"video.h264.videotoolbox video.vp8:optional "
 		"video.adaptive-bitrate video.picture-update.sip-info "
-		"tls.pinning";
+		"audio.hold-music tls.pinning";
 	size_t len = sizeof(caps) - 1;
 
 	if (buf && buf_len) {

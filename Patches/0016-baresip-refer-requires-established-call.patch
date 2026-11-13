@@ -1,5 +1,5 @@
 diff --git a/src/call.c b/src/call.c
-index b70557c..aae7c38 100644
+index 628eade..75ba427 100644
 --- a/src/call.c
 +++ b/src/call.c
 @@ -2228,6 +2228,13 @@ static void sipsess_refer_handler(struct sip *sip, const struct sip_msg *msg,

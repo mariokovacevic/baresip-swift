@@ -1,0 +1,87 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Fri, 13 Nov 2026 09:00:00 +0100
+Subject: [PATCH] call: tell whether a received DTMF digit came in a SIP INFO
+
+A call reports received DTMF digits through the same handler and the
+same CALL_DTMF_START and CALL_DTMF_END events whether they arrived as
+RTP telephone events or in a SIP INFO request, so an application cannot
+tell how the peer sent them. The call now remembers the source of the
+last digit and call_dtmf_via_info() returns it; the end of a SIP INFO
+digit, reported later by its timer, is flagged as SIP INFO again even if
+an RTP event came in between.
+---
+  include/baresip.h |  1 +
+  src/call.c        | 17 +++++++++++++++++
+  2 files changed, 18 insertions(+)
+
+diff --git a/include/baresip.h b/include/baresip.h
+index 7cf0a78..5a05f8b 100644
+--- a/include/baresip.h
++++ b/include/baresip.h
+@@ -248,6 +248,7 @@ int  call_send_digit(struct call *call, char key);
+ int  call_send_picture_update(struct call *call);
+ bool call_has_audio(const struct call *call);
+ bool call_has_video(const struct call *call);
++bool call_dtmf_via_info(const struct call *call);
+ bool call_early_video_available(const struct call *call);
+ bool call_refresh_allowed(const struct call *call);
+ int  call_restart_mnat(struct call *call);
+diff --git a/src/call.c b/src/call.c
+index 75ba427..4e85437 100644
+--- a/src/call.c
++++ b/src/call.c
+@@ -71,6 +71,7 @@ struct call {
+ 	uint16_t scode;           /**< Termination status code              */
+ 	call_event_h *eh;         /**< Event handler                        */
+ 	call_dtmf_h *dtmfh;       /**< DTMF handler                         */
++	bool dtmf_info;           /**< Last DTMF came in a SIP INFO         */
+ 	void *arg;                /**< Handler argument                     */
+ 
+ 	struct config_avt config_avt;    /**< AVT config                    */
+@@ -380,6 +381,7 @@ static void audio_event_handler(int key, bool end, void *arg)
+ 
+ 	info("received in-band DTMF event: '%c' (end=%d)\n", key, end);
+ 
++	call->dtmf_info = false;
+ 	if (call->dtmfh)
+ 		call->dtmfh(call, end ? KEYCODE_REL : key, call->arg);
+ }
+@@ -1444,6 +1446,19 @@ bool call_has_audio(const struct call *call)
+ }
+ 
+ 
++/**
++ * Check if the last DTMF digit received on the call came in a SIP INFO
++ *
++ * @param call Call object
++ *
++ * @return True for SIP INFO, false for RTP telephone events
++ */
++bool call_dtmf_via_info(const struct call *call)
++{
++	return call ? call->dtmf_info : false;
++}
++
++
+ /**
+  * Check if the current call has an active video stream
+  *
+@@ -2123,6 +2138,7 @@ static void dtmfend_handler(void *arg)
+ {
+ 	struct call *call = arg;
+ 
++	call->dtmf_info = true;
+ 	if (call->dtmfh)
+ 		call->dtmfh(call, KEYCODE_REL, call->arg);
+ }
+@@ -2170,6 +2186,7 @@ static void sipsess_info_handler(struct sip *sip, const struct sip_msg *msg,
+ 
+ 			(void)sip_reply(sip, msg, 200, "OK");
+ 
++			call->dtmf_info = true;
+ 			if (call->dtmfh) {
+ 				tmr_start(&call->tmr_dtmf, duration,
+ 					  dtmfend_handler, call);
+-- 
+2.43.0

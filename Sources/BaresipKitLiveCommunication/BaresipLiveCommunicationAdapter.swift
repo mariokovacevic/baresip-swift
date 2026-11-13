@@ -1,0 +1,260 @@
+#if os(iOS)
+    import Foundation
+    import LiveCommunicationKit
+    import BaresipKit
+    import BaresipKitSystemCall
+
+    /// Connects a `BaresipEngine` to LiveCommunicationKit, the successor of CallKit.
+    ///
+    /// The adapter reports incoming calls to the system call screen as conversations, starts
+    /// outgoing calls through the conversation manager, and carries out the user's actions (join,
+    /// end, pause, mute, keypad tones) on the engine. It works like `BaresipCallKitAdapter`:
+    /// calls announced by a VoIP push are matched to the INVITE that follows by the caller's SIP
+    /// URI, or by a UUID header. The `From` header of an INVITE is not authenticated, so the match
+    /// shows who the INVITE claims to be from, not who sent it.
+    ///
+    /// Use one adapter per app, either this one or `BaresipCallKitAdapter`, and report every VoIP
+    /// push to the same one.
+    ///
+    /// ```swift
+    /// let calls = BaresipLiveCommunicationAdapter(engine: engine,
+    ///                                             configuration: BaresipLiveCommunicationConfiguration())
+    /// let uuid = try await calls.startOutgoingCall(to: "sip:bob@example.com")
+    /// ```
+    @available(iOS 17.4, *)
+    public final class BaresipLiveCommunicationAdapter: @unchecked Sendable {
+        // SAFETY: the mutable dictionaries, sets and `pushCalls` are read and written only while
+        // holding `lock`; the conversation manager is used as LiveCommunicationKit allows from
+        // any thread.
+
+        let engine: BaresipEngine
+        let manager: ConversationManager
+        let pushInviteTimeout: Duration
+        let sendsCameraOnAnswer: Bool
+        let callUUIDHeader: String?
+        let handleStyle: BaresipHandleStyle
+        let lock = NSLock()
+        var uuidByCall: [BaresipCallID: UUID] = [:]
+        var callByUUID: [UUID: BaresipCallID] = [:]
+        var pendingAnswers: Set<UUID> = []
+        var outgoing: Set<UUID> = []
+        var pushCalls: PushCallLedger
+        var muteObservers: [@Sendable (BaresipCallID, Bool) -> Void] = []
+        /// Callers of `placeCall(to:video:)` waiting for the engine call of their start action.
+        var placedCallWaiters: [UUID: CheckedContinuation<BaresipCallID, Error>] = [:]
+        /// Whether to send the camera, for answers the app requested with `answer(_:video:)`.
+        var answerVideo: [UUID: Bool] = [:]
+        /// Callers waiting until the adapter carried out their action, by action UUID.
+        var actionWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
+        /// Outgoing calls whose start action timed out before the engine placed them.
+        var abandonedStarts: Set<UUID> = []
+        /// What to dial for the outgoing calls the adapter asked the system to start; the handle
+        /// the system gets can be the number alone.
+        var startDestinations: [UUID: String] = [:]
+        private var eventTask: Task<Void, Never>?
+
+        /// Creates the adapter and its conversation manager, and starts following engine events.
+        ///
+        /// The adapter is subscribed to the engine's events when the initializer returns, so a
+        /// call that arrives right afterwards is not missed.
+        ///
+        /// - Parameters:
+        ///   - engine: The engine whose calls are shown by the system.
+        ///   - configuration: LiveCommunicationKit settings.
+        public init(engine: BaresipEngine, configuration: BaresipLiveCommunicationConfiguration) {
+            self.engine = engine
+            pushInviteTimeout = configuration.pushInviteTimeout
+            sendsCameraOnAnswer = configuration.sendsCameraOnAnswer
+            callUUIDHeader = configuration.callUUIDHeader
+            handleStyle = configuration.handleStyle
+            pushCalls = PushCallLedger(matchesPushWithoutCaller: configuration.matchesPushWithoutCaller)
+            let managerConfiguration = ConversationManager.Configuration(
+                ringtoneName: configuration.ringtoneName,
+                iconTemplateImageData: configuration.iconTemplateImageData,
+                maximumConversationGroups: configuration.maximumConversationGroups,
+                maximumConversationsPerConversationGroup: configuration.maximumConversationsPerConversationGroup,
+                includesConversationInRecents: configuration.includesCallsInRecents,
+                supportsVideo: configuration.supportsVideo,
+                supportedHandleTypes: [.generic, .phoneNumber]
+            )
+            manager = ConversationManager(configuration: managerConfiguration)
+            let events = engine.events
+            manager.delegate = self
+            eventTask = Task { [weak self] in
+                for await event in events {
+                    await self?.handle(event)
+                }
+            }
+        }
+
+        deinit {
+            eventTask?.cancel()
+            manager.invalidate()
+        }
+
+        /// The conversation UUID of an engine call, if the system shows the call.
+        ///
+        /// - Parameter call: The engine call.
+        /// - Returns: The UUID used with LiveCommunicationKit, or `nil`.
+        public func uuid(for call: BaresipCallID) -> UUID? {
+            lock.withLock { uuidByCall[call] }
+        }
+
+        /// Starts an outgoing call through LiveCommunicationKit.
+        ///
+        /// The system asks the adapter to start the conversation, which then calls
+        /// `BaresipEngine.makeCall(accountID:destination:video:audio:)`.
+        ///
+        /// - Parameters:
+        ///   - destination: A SIP URI, user name or number.
+        ///   - displayName: The name the system shows for the other side.
+        ///   - video: Whether to offer video.
+        /// - Returns: The conversation UUID of the call.
+        /// - Throws: The LiveCommunicationKit error when the system refuses the call.
+        public func startOutgoingCall(to destination: String, displayName: String? = nil,
+                                      video: Bool = false) async throws -> UUID {
+            let uuid = UUID()
+            try await requestOutgoingCall(uuid: uuid, to: destination, displayName: displayName, video: video)
+            return uuid
+        }
+
+        func requestOutgoingCall(uuid: UUID, to destination: String, displayName: String?,
+                                 video: Bool) async throws {
+            let action = StartConversationAction(conversationUUID: uuid,
+                                                 handles: [handle(for: destination, displayName: displayName)],
+                                                 isVideo: video)
+            lock.withLock { startDestinations[uuid] = destination }
+            do {
+                try await manager.perform([action])
+            } catch {
+                lock.withLock { startDestinations[uuid] = nil }
+                throw error
+            }
+        }
+
+        /// Answers (joins) an incoming call through LiveCommunicationKit.
+        ///
+        /// Use this when the app's own incoming call screen answers, so the system call screen
+        /// stops ringing and the system activates the audio session.
+        ///
+        /// - Parameter uuid: The conversation UUID of the call, from ``uuid(for:)``.
+        /// - Throws: The LiveCommunicationKit error when the system refuses the request, or the
+        ///   engine's error when the action fails on the call.
+        public func answerCall(uuid: UUID) async throws {
+            try await requestAndWait(JoinConversationAction(conversationUUID: uuid))
+        }
+
+        /// Mutes or unmutes the microphone through LiveCommunicationKit, so the system call screen
+        /// shows the same state as the app.
+        ///
+        /// - Parameters:
+        ///   - muted: `true` to mute.
+        ///   - uuid: The conversation UUID of the call.
+        /// - Throws: The LiveCommunicationKit error when the system refuses the request, or the
+        ///   engine's error when the action fails on the call.
+        public func setMuted(_ muted: Bool, uuid: UUID) async throws {
+            try await requestAndWait(MuteConversationAction(conversationUUID: uuid, isMuted: muted))
+        }
+
+        /// Holds or resumes a call through LiveCommunicationKit, which calls it pausing.
+        ///
+        /// - Parameters:
+        ///   - onHold: `true` to hold.
+        ///   - uuid: The conversation UUID of the call.
+        /// - Throws: The LiveCommunicationKit error when the system refuses the request, or the
+        ///   engine's error when the action fails on the call.
+        public func setHeld(_ onHold: Bool, uuid: UUID) async throws {
+            try await requestAndWait(PauseConversationAction(conversationUUID: uuid, isPaused: onHold))
+        }
+
+        /// Ends a call through LiveCommunicationKit.
+        ///
+        /// - Parameter uuid: The conversation UUID of the call.
+        /// - Throws: The LiveCommunicationKit error when the system refuses the request, or the
+        ///   engine's error when the action fails on the call.
+        public func endCall(uuid: UUID) async throws {
+            try await requestAndWait(EndConversationAction(conversationUUID: uuid))
+        }
+
+        /// Requests an action and returns once the adapter carried it out on the engine, so a
+        /// failure on the engine reaches the caller.
+        func requestAndWait(_ action: ConversationAction) async throws {
+            let id = action.uuid
+            let box = UncheckedSendable(value: action)
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                lock.withLock { actionWaiters[id] = continuation }
+                Task {
+                    do {
+                        try await manager.perform([box.value])
+                    } catch {
+                        takeActionWaiter(id)?.resume(throwing: error)
+                    }
+                }
+            }
+        }
+
+        func takeActionWaiter(_ id: UUID) -> CheckedContinuation<Void, Error>? {
+            lock.withLock { actionWaiters.removeValue(forKey: id) }
+        }
+
+        /// Fulfills or fails an action and tells a caller waiting in ``requestAndWait(_:)``.
+        ///
+        /// - Parameters:
+        ///   - action: The action.
+        ///   - error: The error that failed it, or `nil`.
+        ///   - fulfill: Fulfills an action whose class takes a date; `nil` for the others.
+        func complete(_ action: ConversationAction, error: Error?, fulfill: (() -> Void)? = nil) {
+            if let error {
+                action.fail()
+                takeActionWaiter(action.uuid)?.resume(throwing: error)
+            } else {
+                if let fulfill {
+                    fulfill()
+                } else {
+                    action.fulfill()
+                }
+                takeActionWaiter(action.uuid)?.resume()
+            }
+        }
+
+        /// The handle of a SIP URI, user name or number, as `BaresipHandleStyle` says.
+        func handle(for address: String, displayName: String? = nil) -> Handle {
+            if handleStyle == .phoneNumberWhenNumeric, let number = SIPIdentity(address).phoneNumber {
+                return Handle(type: .phoneNumber, value: number, displayName: displayName)
+            }
+            return Handle(type: .generic, value: address, displayName: displayName)
+        }
+
+        /// What the system offers on the call screen: keypad tones and hold always, video when
+        /// the call has it.
+        func capabilities(video: Bool) -> Conversation.Capabilities {
+            var capabilities: Conversation.Capabilities = [.playingTones, .pausing]
+            if video {
+                capabilities.insert(.video)
+            }
+            return capabilities
+        }
+
+        /// Reports an event of a call the system shows; nothing happens for a conversation the
+        /// manager does not know.
+        func report(_ event: Conversation.Event, for uuid: UUID) {
+            guard let conversation = manager.conversations.first(where: { $0.uuid == uuid }) else { return }
+            manager.reportConversationEvent(event, for: conversation)
+        }
+
+        func unbind(_ call: BaresipCallID) -> UUID? {
+            lock.withLock {
+                guard let uuid = uuidByCall.removeValue(forKey: call) else { return nil }
+                callByUUID[uuid] = nil
+                pendingAnswers.remove(uuid)
+                outgoing.remove(uuid)
+                answerVideo[uuid] = nil
+                return uuid
+            }
+        }
+
+        func callID(for uuid: UUID) -> BaresipCallID? {
+            lock.withLock { callByUUID[uuid] }
+        }
+    }
+#endif

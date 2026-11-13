@@ -1,0 +1,84 @@
+name: doorstack
+
+x-doorstack: &doorstack
+  image: baresipkit-doorstack
+  network_mode: host
+  restart: unless-stopped
+  depends_on:
+    init:
+      condition: service_completed_successfully
+
+services:
+  init:
+    build: .
+    image: baresipkit-doorstack
+    network_mode: host
+    environment:
+      HOSTIP: ${HOSTIP:?set HOSTIP to the address of this computer in your network}
+    volumes:
+      - ./state:/state
+    command: ["/opt/doorstack/init.sh"]
+
+  asterisk:
+    image: andrius/asterisk:23.5.0_debian-trixie-1b724ca@sha256:921d1fdc86d328fa3b9e73aee13d40599fe335ce6edefd31c7874729c3582d95
+    network_mode: host
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    volumes:
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./asterisk/manager.conf:/etc/asterisk/manager.conf:ro
+      - ./asterisk/cdr.conf:/etc/asterisk/cdr.conf:ro
+      - ./state/asterisk:/etc/asterisk/doorstack:ro
+
+  apns-mock:
+    <<: *doorstack
+    volumes:
+      - ./state:/state:ro
+    command: ["python3", "apns_mock.py"]
+
+  fcm-mock:
+    <<: *doorstack
+    command: ["python3", "fcm_mock.py"]
+
+  push-gateway:
+    <<: *doorstack
+    environment:
+      SIP_DOMAIN: ${HOSTIP}
+      APNS_HOST: ${APNS_HOST:-127.0.0.1:8443}
+      APNS_KEY_ID: ${APNS_KEY_ID:-}
+      APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+      APNS_KEY_FILE: /apns/AuthKey.p8
+      FCM_HOST: ${FCM_HOST:-127.0.0.1:8444}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-doorstack}
+      FCM_SERVICE_ACCOUNT_FILE: /fcm/service-account.json
+    volumes:
+      - ./state:/state:ro
+      - ${APNS_KEY_PATH:-/dev/null}:/apns/AuthKey.p8:ro
+      - ${FCM_SERVICE_ACCOUNT_PATH:-/dev/null}:/fcm/service-account.json:ro
+    command: ["python3", "push_gateway.py"]
+
+  doorstation:
+    <<: *doorstack
+    environment:
+      SIP_SERVER: ${PBX_ADDRESS:-${HOSTIP}}:5060
+      DOOR_CODE: ${DOOR_CODE:-1234}
+      RING_EVERY: ${RING_EVERY:-0}
+    volumes:
+      - ./state:/state:ro
+    command: ["python3", "doorstation.py"]
+
+  phone-sim:
+    image: baresipkit-doorstack
+    network_mode: host
+    profiles: ["test"]
+    environment:
+      SIP_SERVER: ${PBX_ADDRESS:-${HOSTIP}}:5060
+      LOCAL_IP: ${PBX_ADDRESS:-${HOSTIP}}
+      DOOR_CODE: ${DOOR_CODE:-1234}
+    volumes:
+      - ./state:/state:ro
+    command: ["python3", "phone_sim.py"]

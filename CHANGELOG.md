@@ -28,9 +28,36 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 - H.264 video calls through VideoToolbox with zero-copy decoded frames, recovering after the app
   returns from the background; VP8 in the `full` module set. Snapshots with
   `BaresipVideoFrame.makeImage()` and `BaresipVideoView.snapshot()`.
+- SIP session timers (RFC 4028), on by default with `BaresipConfiguration.sessionTimer` (30
+  minutes) and `minimumSessionTimer` (90 seconds): offered in every INVITE, accepted from callers
+  that support them, refreshed with UPDATE (or a re-INVITE without an offer) at half the
+  interval, and a call that is not refreshed is ended with BYE. A 422 raises the interval to the
+  peer's `Min-SE`, an interval below `minimumSessionTimer` is answered with 422, an INVITE with
+  `Require: timer` is accepted, and a refresher that cannot send its refresh ends the call itself
+  when the interval runs out. libre and baresip have none; patches 0024 and 0025 add them. C ABI 0.10:
+  `bsk_engine_config.session_expires` and `session_min_se`; capability `call.session-timer`.
+- Calls answered or declined on another phone: when several phones ring for one call and one
+  answers, the server cancels the others with `Reason: SIP;cause=200` (RFC 3326). The ended
+  event's `BaresipError.endReason` then says `answeredElsewhere` (or `declinedElsewhere` for
+  cause 600 or 603), with the cause and text in `sipStatus` and `sipReason`, and the CallKit and
+  LiveCommunicationKit adapters report the call as answered or declined elsewhere instead of
+  missed. C ABI 0.11: `bsk_event.u.call_state.end_reason`. The sample lists such calls as
+  "Answered on another phone" and leaves no missed ring notification.
 - Hold, resume, mute (`BaresipCallInfo.isMicrophoneMuted`), DTMF over RFC 4733 and SIP INFO,
   several calls with switching, blind and attended transfer (REFER with Replaces), and following
   incoming transfers.
+- Music on hold from the phone, like liblinphone's play file: with
+  `BaresipAudioConfiguration.holdMusicFile` (a 16-bit PCM WAV file) a held call plays it to the
+  other side in a loop instead of the microphone, also while iOS has deactivated the audio
+  session, and also when baresip renews the audio source during the hold. baresip drops every
+  RTP packet of a held stream; patch 0023 lets the core send the music. Without the file a held
+  call sends nothing, as before. The file is read with libre's WAV reader and resampled with its
+  filtered resampler when its rate is a whole multiple or fraction of the call's (linear
+  interpolation otherwise, for example 44.1 kHz); muting a held call keeps the music playing. A
+  file that is missing fails with `notFound`, one in another format with `unsupported`, one that
+  is too short or too long with `invalidArgument`. C ABI 0.9: `bsk_engine_config.hold_music_path`.
+- `BaresipCallKitAdapter.setRingtoneSound(_:)` changes the ringtone of the running CallKit
+  provider, for a ringtone the user picks in the app's settings.
 - Door stations and intercoms: every call negotiates video, so the other side's picture is shown
   in audio calls too, and `video` only decides whether the camera is sent; calls without audio
   (`makeCall(…audio:)`, `answer(callID:video:audio:)`); a video-only early media preview
@@ -60,6 +87,33 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   without suspending, for use inside the PushKit delegate method, and a pushed call that CallKit
   refuses leaves nothing behind. A pushed call declined before its INVITE arrives rejects that
   INVITE with 486, and a push for a call that already rings does not ring a second time.
+- `BaresipCallKitAdapter` binds a pushed call to its INVITE by a UUID from the server instead
+  of by the caller when `BaresipCallKitConfiguration.callUUIDHeader` names the INVITE header
+  that carries it: the UUID from the push payload identifies the call, an INVITE that arrives
+  first keeps the UUID from its header, and a push repeated for a call CallKit already shows is
+  reported under a new UUID and ended at once. `reportIncomingCallFromPush(uuid:…)` takes `nil`
+  when the payload has no UUID; such a push is matched by its caller, also with an INVITE that
+  carries a UUID, instead of ringing as a second call. A start action that CallKit times out
+  while the engine is placing the call no longer leaves the call running without a CallKit
+  call. `includesCallsInRecents` controls the Recents
+  list of the Phone app, and `BaresipRedialRequest` reads the request to call again that a tap
+  there sends to the app. `handleStyle` reports callers with a numeric user as phone numbers,
+  so iOS shows the matching contact. An action CallKit times out fails its caller with
+  `BaresipCallKitError.actionTimedOut`, and the call whose start or answer timed out is ended
+  on the engine too.
+- `BaresipPhone.call(withPeer:)` finds the established call with the sender of a SIP MESSAGE,
+  and `BaresipPhoneCall.isPeer(_:)` and `samePeer(_:_:)` compare SIP addresses by user and host,
+  ignoring display names, ports and parameters. The sample shows a message from the call's
+  other side as a caption over the call's video and opens the conversation over the call with
+  a chat button that counts the unread messages.
+- LiveCommunicationKit, CallKit's successor, from iOS 17.4: `BaresipLiveCommunicationAdapter`
+  in the new `BaresipKitLiveCommunication` product reports calls as conversations, carries out
+  join, end, pause, mute and keypad tones on the engine, and matches pushes to INVITEs like the
+  CallKit adapter. `BaresipPushKitAdapter.reportingAsynchronously` takes an `async` push handler
+  and completes the push after it returned, because LiveCommunicationKit reports calls only
+  asynchronously. `BaresipRedialRequest` and the handle style (now `BaresipHandleStyle`) moved
+  to `BaresipKit` so both adapters use them. The sample app chooses between CallKit and
+  LiveCommunicationKit under Settings, Call screen.
 - `BaresipPushKitAdapter` calls its handler inside the PushKit delegate method, so the call is
   reported to CallKit before that method returns; when the handler throws, a placeholder call is
   reported and ended in place. Token updates are sent in order and coalesced,
@@ -139,6 +193,21 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 - `Scripts/dev-pbx.sh`: the integration tests' Asterisk and coturn as a local server for manual
   testing on a phone, with a random TURN password and without relaying to the computer's
   loopback interface.
+- The sample app has a prototype of a preview for a call that rings while the app is in the
+  background: a notification with the caller's picture, Answer, Decline and Open door, and a
+  notification content extension that follows the picture while the call rings. It has not been
+  tried on a device yet; see the sample's README.
+- `Tools/DoorStack`: a PBX, a push gateway and a door station simulator in Docker, for trying the
+  sample app as a video intercom. A ring wakes a suspended phone with a VoIP push and reaches it
+  once it has registered again; a scripted phone checks the whole path without Apple's servers.
+- The sample app looks like a video intercom, Zvono: a dark design with brass for ringing and
+  opening, a bell with a keyhole as its icon and logo, Barlow Semi Condensed for titles, and the
+  tabs Doors, Activity, Keypad, Messages and Settings. Saved doors carry their own SIP user,
+  code, camera and opening options; Open calls the door, sends the code and hangs up, and the
+  ringing, in-call and notification screens offer Open door for a saved door. The door code in
+  Account is gone, the ring notification's picture can be turned off, and the registration time
+  goes up to a week. The call screen moves transfer, recording, sound output and call quality to
+  More; the engine state and the log are in Settings, Diagnostics.
 - A SwiftUI sample app with call history, DTMF codes, a file log and local profiles, and a UI
   test that runs in CI. SIP messages are logged only when turned on in the Log screen (off in
   release builds), stored certificates can be read after the first unlock and are deleted only
@@ -149,9 +218,10 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   size, frame rate, bitrate and adaptive bitrate. Saved settings from earlier versions are kept.
 - DocC documentation for every public symbol, with Getting Started, Audio Session, Video,
   CallKit, PushKit and Push Contact Parameters articles.
-- Built on baresip and libre 4.12.0, with the patches in `Patches/` rebased onto it.
+- Built on baresip and libre 4.13.0, with the patches in `Patches/` rebased onto it, and patch
+  0026 for a 4.13.0 regression that kept music on hold from replacing the microphone.
 - iOS 16 or later, Swift 6 language mode with strict concurrency; Swift and C sources build
-  without warnings. C ABI 0.8.
+  without warnings. C ABI 0.9.
 - Lint and format scripts, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, and issue and pull request
   templates.
 - CI builds libre and baresip with ASan and UBSan on Linux for the core tests, the fuzzer and
@@ -164,4 +234,4 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   it pushes the commit and the tag in one atomic push, and can be run again after a failure.
 - OpenSSL is built with `no-autoload-config` and without the build path in the library.
 
-[Unreleased]: https://github.com/mariokovacevic/baresip-swift/commits/main
+[Unreleased]: https://github.com/mariokovacevic/baresipkit/commits/main

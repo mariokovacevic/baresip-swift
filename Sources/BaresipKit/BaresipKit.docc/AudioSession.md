@@ -90,6 +90,23 @@ if let speaker = audio.availableOutputs.first(where: { $0.route == .speaker }) {
 `currentOutput` is the output in use. Call the list again after the route change callback,
 because outputs appear and go away while a call runs.
 
+### Music on hold
+
+A held call sends nothing unless the engine has music on hold. Many PBXs pass a phone's hold
+through to the other side instead of playing their own music, so the phone plays it, as
+liblinphone does with its play file:
+
+```swift
+var configuration = BaresipConfiguration()
+configuration.audio.holdMusicFile = Bundle.main.url(forResource: "HoldMusic", withExtension: "wav")
+```
+
+The file is a 16-bit PCM WAV file, mono or stereo, 8 to 48 kHz; the engine reads it when it is
+created and throws if it cannot. While ``BaresipEngine/hold(callID:)`` holds a call, the tune
+replaces the microphone and plays in a loop, resampled to the call's codec. It needs no audio
+session, so it keeps playing when iOS deactivates the session of a call that is only on hold.
+On resume the microphone comes back.
+
 ### Voice processing
 
 Echo cancellation, noise suppression and gain control come from the VoiceProcessingIO audio

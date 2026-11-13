@@ -1,0 +1,73 @@
+name: Release Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish to Maven Central, e.g. 0.1.0"
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: release-android
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
+jobs:
+  publish:
+    name: Build the Android libraries and publish them to Maven Central
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    env:
+      VERSION: ${{ inputs.version }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Validate the version, the branch and the CI result
+        run: |
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::The version must look like 1.2.3 or 1.2.3-beta.1."
+            exit 1
+          fi
+          if [[ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]]; then
+            echo "::error::Run the release from $DEFAULT_BRANCH, not from $GITHUB_REF."
+            exit 1
+          fi
+          CONCLUSION="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // "missing"')"
+          if [[ "$CONCLUSION" != success ]]; then
+            echo "::error::The latest CI run for $GITHUB_SHA is '${CONCLUSION:-still running}', not 'success'."
+            exit 1
+          fi
+      - name: Install build dependencies and the NDK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake nasm zlib1g-dev
+          source Build/versions.env
+          { yes || true; } | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ANDROID_NDK_VERSION" >/dev/null
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+      - name: Build the core for Android
+        run: PLATFORM=android MODULE_SET=full JOBS=4 Build/build-xcframework.sh
+      - name: Publish to Maven Central
+        working-directory: Android
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          ./gradlew --no-daemon -PVERSION_NAME="$VERSION" -PsignAllPublications=true \
+            publishAndReleaseToMavenCentral :dokkaGeneratePublicationHtml
+      - name: Upload the API documentation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: baresipkit-android-api-${{ inputs.version }}
+          path: Android/build/dokka/html

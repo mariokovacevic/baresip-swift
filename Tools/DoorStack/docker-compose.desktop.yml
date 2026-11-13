@@ -1,0 +1,55 @@
+# Docker Desktop (macOS): doorstack.sh adds this to docker-compose.yml there.
+#
+# Docker Desktop's host networking runs the containers in a VM: UDP replies to the Mac's network do
+# not come back, and a connection from outside reaches Asterisk from 127.0.0.1, which it then puts in
+# the Contact and SDP it sends the phone. Published ports on a bridge network do neither: a phone or
+# a simulator arrives from the network's gateway, and Asterisk sends it EXTERNAL_ADDRESS, the Mac's
+# address (see init.sh). The other services share Asterisk's network namespace, so they still reach
+# it and each other at 127.0.0.1, as with host networking on Linux.
+networks:
+  doorstack:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+x-pbx-namespace: &pbx-namespace
+  network_mode: service:asterisk
+
+services:
+  init:
+    environment:
+      EXTERNAL_ADDRESS: ${EXTERNAL_ADDRESS:-}
+      LOCAL_NET: ${LOCAL_NET:-}
+
+  asterisk:
+    network_mode: !reset null
+    networks:
+      doorstack:
+        ipv4_address: 172.30.0.10
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "5061:5061/tcp"
+      - "20000-20200:20000-20200/udp"
+      # The push gateway's status and the door station's control, for doorstack.sh on this Mac only.
+      - "127.0.0.1:8088:8088"
+      - "127.0.0.1:8089:8089"
+
+  apns-mock:
+    <<: *pbx-namespace
+
+  fcm-mock:
+    <<: *pbx-namespace
+
+  push-gateway:
+    <<: *pbx-namespace
+    environment:
+      HTTP_LISTEN: 0.0.0.0:8088
+
+  doorstation:
+    <<: *pbx-namespace
+    environment:
+      HTTP_LISTEN: 0.0.0.0:8089
+
+  phone-sim:
+    <<: *pbx-namespace

@@ -3,7 +3,7 @@ import BaresipKit
 import BaresipKitAudio
 
 extension CallModel {
-    /// Mutes through CallKit on a device, so the system call screen shows the same state.
+    /// Mutes through the system call screen on a device, so the system call screen shows the same state.
     func toggleMute() async {
         guard let activeCall else { return }
         do {
@@ -42,6 +42,7 @@ extension CallModel {
     }
 
     func selectOutput(_ output: BaresipAudioOutput) {
+        userChoseOutput()
         do {
             try audio?.selectOutput(output)
             append("audio output: \(output.name)")

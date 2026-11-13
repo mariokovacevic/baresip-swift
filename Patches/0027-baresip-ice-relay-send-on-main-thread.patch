@@ -1,0 +1,222 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: BaresipKit <baresipkit@users.noreply.github.com>
+Date: Thu, 12 Nov 2026 23:30:00 +0100
+Subject: [PATCH] ice: send a relayed component's packets from the re thread
+
+baresip sends audio from its "Audio TX" thread and video from the source
+thread. For a component with a TURN relay those packets went on that
+thread into the TURN client: over UDP its channel and permission lookups,
+over TCP or TLS (0007) turnc_send(), tcp_send() and SSL_write(). The re
+thread uses the same TURN client and, for TLS, the same OpenSSL object
+for connectivity checks, ChannelBind, refreshes and reads. Neither is
+safe to share between threads: under load the TLS connection failed with
+SSL_write() returning SSL_ERROR_SSL, the relay was closed and the call
+lost its media.
+
+A component that gathers a relay now registers a helper above the ICE
+layer and below SRTP. A packet sent from another thread is copied into a
+mutex-guarded queue of at most 256 packets and sent from the re thread,
+woken through an mqueue, down through the ICE and TURN helpers. Packets
+sent on the re thread pass straight through. The queue is emptied when
+the media is destroyed, after baresip has joined the sending threads.
+---
+  modules/ice/ice.c | 152 +++++++++++++++++++++++++++++++++++++++++++++++++++++-
+  1 file changed, 151 insertions(+), 1 deletion(-)
+
+diff --git a/modules/ice/ice.c b/modules/ice/ice.c
+index 042026e..5553aef 100644
+--- a/modules/ice/ice.c
++++ b/modules/ice/ice.c
+@@ -76,6 +76,11 @@ struct mnat_media {
+ 		bool tcp_gathering;           /* counted in nstun */
+ 		struct sa relay;
+ 		struct sa mapped;
++		struct udp_helper *uh_thread;
++		struct mqueue *mq;
++		mtx_t *mtx;
++		struct list txq;
++		size_t txn;
+ 	} compv[2];
+ 	struct le le;
+ 	struct mnat_sess *sess;
+@@ -334,10 +339,139 @@ static void turnc_handler(int err, uint16_t scode, const char *reason,
+ }
+ 
+ 
++enum { HEADROOM = 64, THREAD_LAYER = ICE_LAYER + 10, TXQ_MAX = 256 };
++
++
++struct thread_tx {
++	struct le le;
++	struct sa dst;
++	struct mbuf *mb;
++};
++
++
++static void thread_tx_destructor(void *arg)
++{
++	struct thread_tx *tx = arg;
++
++	mem_deref(tx->mb);
++}
++
++
++static int thread_tx_queue(struct comp *comp, const struct sa *dst,
++			   struct mbuf *mb)
++{
++	struct thread_tx *tx;
++	size_t len = mbuf_get_left(mb);
++	bool full;
++	int err;
++
++	tx = mem_zalloc(sizeof(*tx), thread_tx_destructor);
++	if (!tx)
++		return ENOMEM;
++
++	tx->dst = *dst;
++	tx->mb = mbuf_alloc(HEADROOM + len);
++	if (!tx->mb) {
++		mem_deref(tx);
++		return ENOMEM;
++	}
++
++	tx->mb->pos = tx->mb->end = HEADROOM;
++	err = mbuf_write_mem(tx->mb, mbuf_buf(mb), len);
++	tx->mb->pos = HEADROOM;
++	if (err) {
++		mem_deref(tx);
++		return err;
++	}
++
++	mtx_lock(comp->mtx);
++	full = comp->txn >= TXQ_MAX;
++	if (!full) {
++		list_append(&comp->txq, &tx->le, tx);
++		++comp->txn;
++	}
++	mtx_unlock(comp->mtx);
++
++	if (full) {
++		mem_deref(tx);
++		return ENOBUFS;
++	}
++
++	return mqueue_push(comp->mq, 0, NULL);
++}
++
++
++static void thread_txq_handler(int id, void *data, void *arg)
++{
++	struct comp *comp = arg;
++	(void)id;
++	(void)data;
++
++	for (;;) {
++		struct thread_tx *tx;
++		struct le *le;
++
++		mtx_lock(comp->mtx);
++		le = list_head(&comp->txq);
++		if (le) {
++			list_unlink(le);
++			--comp->txn;
++		}
++		mtx_unlock(comp->mtx);
++
++		if (!le)
++			break;
++
++		tx = le->data;
++		if (comp->sock && comp->uh_thread)
++			(void)udp_send_helper(comp->sock, &tx->dst, tx->mb,
++					      comp->uh_thread);
++		mem_deref(tx);
++	}
++}
++
++
++static bool thread_send_handler(int *err, struct sa *dst, struct mbuf *mb,
++				void *arg)
++{
++	struct comp *comp = arg;
++
++	if (!re_thread_check(false))
++		return false;
++
++	*err = thread_tx_queue(comp, dst, mb);
++	return true;
++}
++
++
++static int thread_helper_register(struct comp *comp)
++{
++	int err;
++
++	if (comp->uh_thread)
++		return 0;
++
++	if (!comp->mtx) {
++		err = mutex_alloc(&comp->mtx);
++		if (err)
++			return err;
++	}
++
++	if (!comp->mq) {
++		err = mqueue_alloc(&comp->mq, thread_txq_handler, comp);
++		if (err)
++			return err;
++	}
++
++	return udp_register_helper(&comp->uh_thread, comp->sock,
++				   THREAD_LAYER, thread_send_handler, NULL,
++				   comp);
++}
++
++
+ static bool tcp_send_handler(int *err, struct sa *dst, struct mbuf *mb,
+ 			     void *arg)
+ {
+-	enum { HEADROOM = 64 };  /* TURN ChannelData or Send indication */
+ 	struct comp *comp = arg;
+ 	struct mbuf *mbr;
+ 	size_t len;
+@@ -545,6 +679,10 @@ static int cand_gather_relayed_tcp(struct mnat_media *m, struct comp *comp)
+ {
+ 	int err;
+ 
++	err = thread_helper_register(comp);
++	if (err)
++		return err;
++
+ 	if (!comp->uh) {
+ 		err = udp_register_helper(&comp->uh, comp->sock,
+ 					  ICE_LAYER - 10, tcp_send_handler,
+@@ -596,6 +734,10 @@ static int cand_gather_relayed(struct mnat_media *m, struct comp *comp,
+ 	if (m->sess->proto == IPPROTO_TCP)
+ 		return cand_gather_relayed_tcp(m, comp);
+ 
++	err = thread_helper_register(comp);
++	if (err)
++		return err;
++
+ 	err = turnc_alloc(&turnc, stun_conf(icem_stun(m->icem)),
+ 			  IPPROTO_UDP, comp->sock, layer, &m->sess->srv,
+ 			  username, password,
+@@ -710,7 +852,15 @@ static void media_destructor(void *arg)
+ 		mem_deref(m->compv[i].tlsc);
+ 		mem_deref(m->compv[i].tc);
+ 		mem_deref(m->compv[i].mb);
++		mem_deref(m->compv[i].uh_thread);
+ 		mem_deref(m->compv[i].sock);
++		mem_deref(m->compv[i].mq);
++		if (m->compv[i].mtx) {
++			mtx_lock(m->compv[i].mtx);
++			list_flush(&m->compv[i].txq);
++			mtx_unlock(m->compv[i].mtx);
++		}
++		mem_deref(m->compv[i].mtx);
+ 	}
+ }
+ 
+-- 
+2.43.0

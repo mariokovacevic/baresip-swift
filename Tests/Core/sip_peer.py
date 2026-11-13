@@ -1,10 +1,12 @@
 """Scripted SIP peer for the security stages of the core tests.
 
-Plays the other side of a call against bsk_test_security over UDP and checks
-the responses.
+Plays the other side of a call against bsk_test_security, or against
+bsk_test_call in the peer role for require-timer, over UDP and checks the
+responses.
 
 Usage: sip_peer.py SCENARIO HOST CALLEE_PORT
-Scenarios: refer-ringing, fake-replace, reentrant, remove-live, stop-live.
+Scenarios: refer-ringing, fake-replace, reentrant, remove-live, stop-live,
+require-timer, cancel-elsewhere.
 Exits 0 when the callee behaved as expected, else 1.
 """
 
@@ -107,10 +109,23 @@ class Peer:
         self.request("ACK", cseq=self.invite_cseq,
                      branch=self.invite_branch if final_error else None)
 
-    def cancel(self):
+    def cancel(self, headers=()):
         saved, self.to_tag = self.to_tag, None
-        self.request("CANCEL", cseq=self.invite_cseq, branch=self.invite_branch)
+        self.request("CANCEL", headers, cseq=self.invite_cseq, branch=self.invite_branch)
         self.to_tag = saved
+
+    def send_rtp(self, answer, packets):
+        port = re.search(r"^m=audio (\d+)", answer, re.M)
+        addr = re.search(r"^c=IN IP4 ([0-9.]+)", answer, re.M)
+        if not port or not addr:
+            return False
+        ssrc = random.getrandbits(32)
+        for seq in range(packets):
+            header = bytes([0x80, 0x00, seq >> 8 & 0xff, seq & 0xff])
+            header += (seq * 160).to_bytes(4, "big") + ssrc.to_bytes(4, "big")
+            self.rtp.sendto(header + b"\xff" * 160, (addr.group(1), int(port.group(1))))
+            time.sleep(0.02)
+        return True
 
     def bye_from_callee(self, seconds):
         return self.receive(seconds, lambda data: True if data.startswith("BYE ") else None)
@@ -186,6 +201,63 @@ def reentrant(peer):
     return None
 
 
+def final_response(peer, seconds):
+    def accept(data):
+        match = re.match(r"SIP/2.0 (\d+)", data)
+        if not match or peer.call_id not in data or int(match.group(1)) < 200:
+            return None
+        return data if re.search(r"^CSeq: \d+ INVITE", data, re.M | re.I) else None
+    return peer.receive(seconds, accept)
+
+
+def require_timer(peer):
+    peer.invite(("Supported: timer", "Session-Expires: 30"))
+    answer = final_response(peer, 10)
+    if not answer or not answer.startswith("SIP/2.0 422"):
+        return "an interval below Min-SE was not answered with 422"
+    peer.ack(final_error=True)
+    if not re.search(r"^Min-SE: 90\r?$", answer, re.M | re.I):
+        return "the 422 names no Min-SE of 90"
+
+    peer.new_dialog()
+    peer.invite(("Supported: timer", "Require: timer", "Session-Expires: 90;refresher=uac"))
+    answer = final_response(peer, 10)
+    if not answer or not answer.startswith("SIP/2.0 200"):
+        return "an INVITE that requires timers was not answered with 200"
+    peer.ack()
+    if not re.search(r"^Session-Expires: 90;refresher=uac\r?$", answer, re.M | re.I):
+        return "the 200 has no Session-Expires with the caller as refresher"
+    if not re.search(r"^Require:.*\btimer\b", answer, re.M | re.I):
+        return "the 200 does not require timer"
+    if not peer.send_rtp(answer, 50):
+        return "the 200 has no audio address"
+    peer.request("BYE")
+    if peer.status(5, "BYE", lambda code: code == 200) != 200:
+        return "BYE not answered"
+    return None
+
+
+def cancel_elsewhere(peer):
+    reasons = (
+        ('Reason: SIP;cause=200;text="Call completed elsewhere"',),
+        ('Reason: SIP ;cause=603 ;text="Decline"',),
+        (),
+    )
+    for headers in reasons:
+        peer.new_dialog()
+        peer.invite()
+        if peer.status(10, "INVITE", lambda code: code == 180) != 180:
+            return "the INVITE did not ring"
+        peer.cancel(headers)
+        if peer.status(5, "CANCEL", lambda code: code == 200) != 200:
+            return "CANCEL not answered with 200"
+        if peer.status(5, "INVITE", lambda code: code == 487) != 487:
+            return "the INVITE did not end with 487"
+        peer.ack(final_error=True)
+        time.sleep(0.3)
+    return None
+
+
 def ended_by_callee(peer):
     if not establish(peer):
         return "call not answered"
@@ -200,6 +272,8 @@ SCENARIOS = {
     "reentrant": reentrant,
     "remove-live": ended_by_callee,
     "stop-live": ended_by_callee,
+    "require-timer": require_timer,
+    "cancel-elsewhere": cancel_elsewhere,
 }
 
 
