@@ -25,7 +25,7 @@ extension CoreEngine {
         }
     }
 
-    func hangup(_ call: BaresipCallID) throws {
+    func hangUp(_ call: BaresipCallID) throws {
         try Self.check { bsk_call_hangup(raw, call.rawValue, &$0) }
     }
 

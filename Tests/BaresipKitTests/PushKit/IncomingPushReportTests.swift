@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import BaresipKitPushKit
 
@@ -46,19 +47,32 @@ final class IncomingPushReportTests: XCTestCase {
     }
 
     func testAnAsynchronousHandlerThatHangsTimesOutAndIsCancelled() async {
-        let cancelled = expectation(description: "the hanging handler is cancelled")
+        let cancelled = Flag()
         let started = ContinuousClock.now
 
         let failure = await IncomingPushReport.deliver(within: .milliseconds(100)) {
             await withTaskCancellationHandler {
                 try? await Task.sleep(for: .seconds(60))
             } onCancel: {
-                cancelled.fulfill()
+                cancelled.set()
             }
         }
 
         XCTAssertEqual(failure?.error as? BaresipPushKitError, .reportTimedOut)
         XCTAssertLessThan(ContinuousClock.now - started, .seconds(5))
-        await fulfillment(of: [cancelled], timeout: 5)
+        XCTAssertTrue(cancelled.isSet)
+    }
+}
+
+private final class Flag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = false
+
+    var isSet: Bool {
+        lock.withLock { value }
+    }
+
+    func set() {
+        lock.withLock { value = true }
     }
 }
