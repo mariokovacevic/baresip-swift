@@ -53,12 +53,14 @@ extension CallModel {
             try await engine.start()
             startNetworkMonitor(engine: engine)
             startLifecycle(engine: engine)
-            audio = BaresipAudioSessionController(engine: engine) { [weak self] _ in
+            let audio = BaresipAudioSessionController(engine: engine) { [weak self] _ in
                 self?.audioRouteChanges += 1
             }
+            self.audio = audio
+            forwardSystemAudioSession(to: audio)
             // An intercom is held away from the ear, to see the door: calls start on the
             // loudspeaker, or on a connected headset.
-            try audio?.configureForVoIP(defaultToSpeaker: true)
+            try audio.configureForVoIP(defaultToSpeaker: true)
             append(
                 """
                 engine started, core \(BaresipEngine.coreVersion), CA \
@@ -83,6 +85,20 @@ extension CallModel {
             startCallKit(engine: engine)
         }
         append("call screen: \(screen.title)")
+    }
+
+    private func forwardSystemAudioSession(to audio: BaresipAudioSessionController) {
+        let handler: @Sendable (Bool) async -> Void = { active in
+            if active {
+                await audio.didActivateFromCallKit()
+            } else {
+                await audio.didDeactivateFromCallKit()
+            }
+        }
+        callKit?.setAudioSessionHandler(handler)
+        if #available(iOS 17.4, *), let adapter = liveCommunication as? BaresipLiveCommunicationAdapter {
+            adapter.setAudioSessionHandler(handler)
+        }
     }
 
     private func startCallKit(engine: BaresipEngine) {

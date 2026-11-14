@@ -245,6 +245,12 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 
 ### Changed
 
+- `BaresipCallKitAdapter` and `BaresipLiveCommunicationAdapter` have `setAudioSessionHandler(_:)`,
+  which sends the system's audio session activation to a handler, such as a
+  `BaresipAudioSessionController`, instead of to the engine. Until now the controller could not
+  learn that CallKit owned the session while an adapter was in use, so after an interruption it
+  resumed the engine without waiting for CallKit, and its CallKit path was unreachable.
+
 - `Docs/STABILITY.md` states what Semantic Versioning covers from 1.0 on: the public Swift and
   Kotlin API, documented behaviour and the minimum OS versions. The C ABI, internal modules, log
   formats and the samples are not covered. Enumerations and sealed types can gain cases in a minor

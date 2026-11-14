@@ -40,10 +40,21 @@ depends on what iOS reports and on who activated the session:
   `activate()`.
 - CallKit activated the session and you forwarded it with `didActivateFromCallKit()`: the
   controller waits for the next `didActivateFromCallKit()`, because only CallKit may activate
-  the session of a CallKit call.
-- Neither is known to the controller, for example because `BaresipCallKitAdapter` forwards
-  CallKit's activation to the engine itself: the controller resumes the engine and leaves the
-  session to its owner.
+  the session of a CallKit call. With `BaresipCallKitAdapter` or
+  `BaresipLiveCommunicationAdapter`, forward it with the adapter's `setAudioSessionHandler(_:)`:
+
+  ```swift
+  callKit.setAudioSessionHandler { active in
+      if active {
+          await audio.didActivateFromCallKit()
+      } else {
+          await audio.didDeactivateFromCallKit()
+      }
+  }
+  ```
+- Neither is known to the controller, for example because an adapter without an audio session
+  handler forwards the system's activation to the engine itself: the controller resumes the
+  engine and leaves the session to its owner.
 
 When iOS resets its media services, the controller applies the category from
 `configureForVoIP(allowBluetooth:defaultToSpeaker:)` again, activates the session again if

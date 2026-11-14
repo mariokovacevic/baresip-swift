@@ -38,6 +38,7 @@
         static let systemActionDeadline: Duration = .seconds(60)
         var book: SystemCallBook
         var muteObservers: [@Sendable (BaresipCallID, Bool) -> Void] = []
+        var audioSessionHandler: AudioSessionHandler?
         /// Callers of `placeCall(to:video:)` waiting for the engine call of their start action.
         var placedCallWaiters: [UUID: CheckedContinuation<BaresipCallID, Error>] = [:]
         /// Callers waiting until the adapter carried out their action, by action UUID.
@@ -82,6 +83,45 @@
         deinit {
             eventTask?.cancel()
             manager.invalidate()
+        }
+
+        /// Called when the system activates (`true`) or deactivates (`false`) the audio session of
+        /// the calls.
+        public typealias AudioSessionHandler = @Sendable (_ active: Bool) async -> Void
+
+        /// Sends the system's audio session activation to a handler instead of to the engine.
+        ///
+        /// Use it to tell a `BaresipAudioSessionController` that LiveCommunicationKit owns the session, so the
+        /// controller handles interruptions and resets of the media services accordingly:
+        ///
+        /// ```swift
+        /// calls.setAudioSessionHandler { active in
+        ///     if active {
+        ///         await audio.didActivateFromCallKit()
+        ///     } else {
+        ///         await audio.didDeactivateFromCallKit()
+        ///     }
+        /// }
+        /// ```
+        ///
+        /// The handler must tell the engine, as the controller does. Without a handler, the
+        /// adapter calls `audioSessionDidActivate()` and `audioSessionDidDeactivate()` on the engine
+        /// itself.
+        ///
+        /// - Parameter handler: The handler, or `nil` to tell the engine directly.
+        public func setAudioSessionHandler(_ handler: AudioSessionHandler?) {
+            lock.withLock { audioSessionHandler = handler }
+        }
+
+        func audioSessionChanged(active: Bool) async {
+            let handler = lock.withLock { audioSessionHandler }
+            if let handler {
+                await handler(active)
+            } else if active {
+                await engine.audioSessionDidActivate()
+            } else {
+                await engine.audioSessionDidDeactivate()
+            }
         }
 
         /// The conversation UUID of an engine call, if the system shows the call.

@@ -37,7 +37,7 @@
                 for call in calls {
                     try? await engine.hangUp(callID: call)
                 }
-                await engine.audioSessionDidDeactivate()
+                await audioSessionChanged(active: false)
             }
         }
 
@@ -49,25 +49,25 @@
         func conversationManager(_ manager: ConversationManager,
                                  conversationChanged conversation: Conversation) {}
 
-        /// Tells the engine that the system activated the audio session.
+        /// Tells the audio session handler, or else the engine, that the system activated the session.
         ///
         /// - Parameters:
         ///   - manager: The conversation manager.
         ///   - audioSession: The activated session.
         func conversationManager(_ manager: ConversationManager, didActivate audioSession: AVAudioSession) {
             Task {
-                await engine.audioSessionDidActivate()
+                await audioSessionChanged(active: true)
             }
         }
 
-        /// Tells the engine that the system deactivated the audio session.
+        /// Tells the audio session handler, or else the engine, that the system deactivated the session.
         ///
         /// - Parameters:
         ///   - manager: The conversation manager.
         ///   - audioSession: The deactivated session.
         func conversationManager(_ manager: ConversationManager, didDeactivate audioSession: AVAudioSession) {
             Task {
-                await engine.audioSessionDidDeactivate()
+                await audioSessionChanged(active: false)
             }
         }
 

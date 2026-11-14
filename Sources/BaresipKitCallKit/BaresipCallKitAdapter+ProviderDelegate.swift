@@ -31,7 +31,7 @@
                 for call in calls {
                     try? await engine.hangUp(callID: call)
                 }
-                await engine.audioSessionDidDeactivate()
+                await audioSessionChanged(active: false)
             }
         }
 
@@ -198,25 +198,25 @@
             }
         }
 
-        /// Tells the engine that CallKit activated the audio session.
+        /// Tells the audio session handler, or else the engine, that CallKit activated the session.
         ///
         /// - Parameters:
         ///   - provider: The provider.
         ///   - audioSession: The activated session.
         func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
             Task {
-                await engine.audioSessionDidActivate()
+                await audioSessionChanged(active: true)
             }
         }
 
-        /// Tells the engine that CallKit deactivated the audio session.
+        /// Tells the audio session handler, or else the engine, that CallKit deactivated the session.
         ///
         /// - Parameters:
         ///   - provider: The provider.
         ///   - audioSession: The deactivated session.
         func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
             Task {
-                await engine.audioSessionDidDeactivate()
+                await audioSessionChanged(active: false)
             }
         }
 
