@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <stddef.h>
 #include <unistd.h>
 #include "test_common.h"
@@ -6,6 +7,7 @@
 #include "../../Core/src/bsk_reason.h"
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
+bsk_status bsk_status_from_errno(int err);
 
 
 static void test_contact_params(void)
@@ -163,8 +165,19 @@ static void test_capabilities(void)
 }
 
 
+static void test_errno_mapping(void)
+{
+	CHECK(bsk_status_from_errno(0) == BSK_OK);
+	CHECK(bsk_status_from_errno(EALREADY) == BSK_ERR_INVALID_STATE);
+	CHECK(bsk_status_from_errno(ECANCELED) == BSK_ERR_INVALID_STATE);
+	CHECK(bsk_status_from_errno(EOVERFLOW) == BSK_ERR_BUFFER_TOO_SMALL);
+	CHECK(bsk_status_from_errno(EPROTO) == BSK_ERR_INTERNAL);
+}
+
+
 static void test_status_strings(void)
 {
+	test_errno_mapping();
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
 	CHECK(0 ==
 	      strcmp(bsk_status_string(BSK_ERR_AUTH), "authentication failed"));
@@ -485,7 +498,7 @@ static void test_config_validation(void)
 		long_codecs[i] = "opus/48000/2";
 	cfg.audio.codecs = long_codecs;
 	cfg.audio.codec_count = 40;
-	CHECK(BSK_OK != create_status(&cfg));
+	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
 
 	base_config(&cfg);
 	cfg.user_agent = "Agent\r\nX-Injected: 1";

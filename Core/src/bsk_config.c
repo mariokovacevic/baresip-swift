@@ -24,7 +24,7 @@ static int join_list(char *buf, size_t len, const char *const *v, size_t n)
 		if (!str_isset(v[i]) || !bsk_name_safe(v[i], "-./"))
 			return EINVAL;
 		if (used + need + 1 > len)
-			return EOVERFLOW;
+			return EINVAL;
 		(void)re_snprintf(buf + used, len - used, "%s%s",
 				  used ? "," : "", v[i]);
 		used += need;

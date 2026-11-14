@@ -88,6 +88,8 @@ bsk_status bsk_status_from_errno(int err)
 	case EPROTONOSUPPORT: return BSK_ERR_UNSUPPORTED;
 	case EBUSY: return BSK_ERR_BUSY;
 	case EALREADY: return BSK_ERR_INVALID_STATE;
+	case ECANCELED: return BSK_ERR_INVALID_STATE;
+	case EOVERFLOW: return BSK_ERR_BUFFER_TOO_SMALL;
 	case ETIMEDOUT: return BSK_ERR_TIMEOUT;
 	case EAUTH: return BSK_ERR_AUTH;
 	case ECONNREFUSED:
