@@ -1,5 +1,6 @@
 add_executable(bsk_test_unit test_unit.c)
 target_link_libraries(bsk_test_unit PRIVATE baresipkitcore)
+target_include_directories(bsk_test_unit SYSTEM PRIVATE ${BARESIP_INCLUDE_DIR})
 add_test(NAME unit COMMAND bsk_test_unit)
 
 add_executable(bsk_test_registration test_registration.c)

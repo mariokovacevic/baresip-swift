@@ -5,6 +5,7 @@
 #include "../../Core/src/bsk_rate.h"
 #include "../../Core/src/bsk_h264.h"
 #include "../../Core/src/bsk_reason.h"
+#include <baresip.h>
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
 bsk_status bsk_status_from_errno(int err);
@@ -734,6 +735,25 @@ static void test_text_validation(void)
 }
 
 
+static void test_sip_transports(void)
+{
+	const uint32_t want = (1u << SIP_TRANSP_UDP) | (1u << SIP_TRANSP_TCP) |
+			      (1u << SIP_TRANSP_TLS) | (1u << SIP_TRANSP_WSS);
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+
+	base_config(&cfg);
+	cfg.extra_config = "sip_listen\t\t0.0.0.0:0\n"
+			   "sip_transports\t\tudp,tcp,tls,ws,wss";
+	CHECK_OK(bsk_engine_create(&cfg, NULL, NULL, &e, &err), &err);
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+	CHECK(conf_config()->sip.transports == want);
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	bsk_engine_destroy(e);
+}
+
+
 static void test_single_running_engine(void)
 {
 	bsk_engine_config cfg;
@@ -1037,6 +1057,7 @@ int main(void)
 	test_config_validation();
 	test_hold_music_config();
 	test_text_validation();
+	test_sip_transports();
 	test_single_running_engine();
 	test_concurrent_stop();
 	test_status_strings();

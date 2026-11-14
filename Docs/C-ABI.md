@@ -56,6 +56,11 @@ The C ABI is not covered by Semantic Versioning: the Swift and Kotlin SDKs bundl
 - After `bsk_account_unregister` the account reports `UNREGISTERING` and then `NONE`, and stays unregistered across network changes until `bsk_account_register` is called again.
 - Events are never dropped; if the handler is slow the engine thread is slowed. `BSK_EVENT_DIAGNOSTIC` is reserved and not emitted yet.
 
+## Transports
+
+- The engine opens the SIP transports UDP, TCP, TLS and WSS (`sip_transports udp,tcp,tls,wss` in the generated configuration, which baresip parses). Plain WebSocket (`ws`) is off. The facade's line comes first, so a `sip_transports` line in `extra_config` has no effect.
+- An account uses the transport in `bsk_account_config.transport`; a registrar or outbound proxy URI without a `transport` parameter gets that transport, and a URI that names another one is rejected.
+
 ## TLS
 
 - The server certificate is always verified. `bsk_tls_config.insecure_skip_verify` is accepted only by a core built with the CMake option `BARESIPKIT_ALLOW_INSECURE_TLS` (off by default, and off in every released XCFramework and AAR); otherwise `bsk_engine_create` fails with `BSK_ERR_INVALID_ARGUMENT`. Pins together with `insecure_skip_verify` are always rejected. `extra_config` may not set `sip_verify_server`, `sip_cafile`, `sip_capath`, `sip_certificate` or `sip_verify_client`.
