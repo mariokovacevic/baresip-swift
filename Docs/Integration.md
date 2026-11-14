@@ -174,6 +174,8 @@ H.264 (`packetization-mode=1`, baseline `42e01f`) is encoded and decoded by Vide
 
 Verification is on by default with TLS 1.2 as the minimum. Without further settings the server is verified against the system trust store (SecTrust), so a server with a public certificate works as is. Provide a private CA in memory with `tls.caCertificatesPEM`, which may hold several certificates; a chain it does not anchor is still checked against the system store. Pin SPKI SHA-256 hashes (base64, the same format as HPKP) with `tls.pinnedSPKISHA256`; a connection is accepted only when the chain verifies and at least one certificate matches a pin. The same settings apply to SIP over TLS, WSS and TURN over TLS. Verification cannot be turned off: for a test server with a self-signed certificate, put that certificate (or its CA) in `tls.caCertificatesPEM`. The account's `transport` is enforced: a registrar or outbound proxy without a `transport` parameter gets the account's, and one that names another transport is rejected.
 
+Media is encrypted with SRTP when `mediaEncryption` asks for it. The default, `.srtpOptional`, is best effort: with a peer that does not support SRTP the call goes on with unencrypted media, which `callStatistics` shows; `.srtpMandatory` offers SRTP only. Both SRTP modes send the media keys inside the SIP message (SDES), so they protect the media only when the account uses `.tls` or `.wss`; with `.udp` or `.tcp` the core logs a warning. [C-ABI.md](C-ABI.md#media-encryption) describes the defaults and the risks.
+
 Compute a pin:
 
 ```bash

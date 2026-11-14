@@ -779,6 +779,64 @@ static void test_sip_transports(void)
 }
 
 
+static int sdes_warnings;
+
+
+static void sdes_log(bsk_log_level level, bsk_log_domain domain,
+		     const char *line, size_t len, void *user)
+{
+	(void)domain;
+	(void)len;
+	(void)user;
+
+	if (level == BSK_LOG_WARNING && strstr(line, "SDES-SRTP"))
+		__atomic_add_fetch(&sdes_warnings, 1, __ATOMIC_SEQ_CST);
+}
+
+
+static int sdes_warnings_for(bsk_engine *e, bsk_transport transport,
+			     bsk_media_encryption enc)
+{
+	bsk_account_config ac = BSK_ACCOUNT_CONFIG_INIT;
+
+	ac.aor = "sip:alice@example.invalid";
+	ac.transport = transport;
+	ac.media_encryption = enc;
+	__atomic_store_n(&sdes_warnings, 0, __ATOMIC_SEQ_CST);
+	CHECK(BSK_OK == add_status(e, &ac));
+	return __atomic_load_n(&sdes_warnings, __ATOMIC_SEQ_CST);
+}
+
+
+static void test_sdes_warning(void)
+{
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+
+	base_config(&cfg);
+	cfg.log_level = BSK_LOG_WARNING;
+	CHECK_OK(bsk_engine_create(&cfg, NULL, NULL, &e, &err), &err);
+	bsk_engine_set_log_handler(e, sdes_log, NULL);
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+
+	CHECK(1 == sdes_warnings_for(e, BSK_TRANSPORT_UDP,
+				     BSK_MEDIA_ENC_SRTP_OPTIONAL));
+	CHECK(1 == sdes_warnings_for(e, BSK_TRANSPORT_TCP,
+				     BSK_MEDIA_ENC_SRTP_MANDATORY));
+	CHECK(0 == sdes_warnings_for(e, BSK_TRANSPORT_TLS,
+				     BSK_MEDIA_ENC_SRTP_MANDATORY));
+	CHECK(0 == sdes_warnings_for(e, BSK_TRANSPORT_WSS,
+				     BSK_MEDIA_ENC_SRTP_OPTIONAL));
+	CHECK(0 ==
+	      sdes_warnings_for(e, BSK_TRANSPORT_UDP, BSK_MEDIA_ENC_DTLS_SRTP));
+	CHECK(0 == sdes_warnings_for(e, BSK_TRANSPORT_UDP, BSK_MEDIA_ENC_NONE));
+
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	bsk_engine_destroy(e);
+}
+
+
 static void test_single_running_engine(void)
 {
 	bsk_engine_config cfg;
@@ -1083,6 +1141,7 @@ int main(void)
 	test_hold_music_config();
 	test_text_validation();
 	test_sip_transports();
+	test_sdes_warning();
 	test_single_running_engine();
 	test_concurrent_stop();
 	test_status_strings();

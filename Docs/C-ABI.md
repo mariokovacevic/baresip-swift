@@ -61,6 +61,13 @@ The C ABI is not covered by Semantic Versioning: the Swift and Kotlin SDKs bundl
 - The engine opens the SIP transports UDP, TCP, TLS and WSS (`sip_transports udp,tcp,tls,wss` in the generated configuration, which baresip parses). Plain WebSocket (`ws`) is off. The facade's line comes first, so a `sip_transports` line in `extra_config` has no effect.
 - An account uses the transport in `bsk_account_config.transport`; a registrar or outbound proxy URI without a `transport` parameter gets that transport, and a URI that names another one is rejected.
 
+## Media encryption
+
+- A zeroed `bsk_account_config` uses `BSK_TRANSPORT_UDP` and `BSK_MEDIA_ENC_NONE`: SIP and RTP both travel unencrypted. The Swift and Kotlin SDKs default to TLS and `BSK_MEDIA_ENC_SRTP_OPTIONAL` instead.
+- `BSK_MEDIA_ENC_SRTP_OPTIONAL` is best effort: it offers SRTP keys in a plain `RTP/AVP` offer, so with a peer that ignores them the call goes on with unencrypted media. `BSK_MEDIA_ENC_SRTP_MANDATORY` offers `RTP/SAVP` only. `bsk_stream_statistics.secure` and `BSK_MEDIA_ENCRYPTION_ESTABLISHED` tell whether a stream is encrypted.
+- The two SRTP modes use SDES (RFC 4568): the media keys are written into the SDP, in the clear inside the SIP message. Over UDP or TCP anyone who sees the signaling can decrypt the media. Use SDES only with `BSK_TRANSPORT_TLS` or `BSK_TRANSPORT_WSS`; `bsk_account_add` accepts other combinations but logs a warning (`BSK_LOG_WARNING`, "SDES-SRTP sends the media keys ... over unencrypted SIP").
+- `BSK_MEDIA_ENC_DTLS_SRTP` (RFC 5764) negotiates the keys on the media path, so they never appear in the signaling. The certificate fingerprints still travel in the SDP, and without TLS a party that can change the signaling can replace them, so TLS or WSS is recommended with DTLS-SRTP too.
+
 ## TLS
 
 - The server certificate is always verified. `bsk_tls_config.insecure_skip_verify` is accepted only by a core built with the CMake option `BARESIPKIT_ALLOW_INSECURE_TLS` (off by default, and off in every released XCFramework and AAR); otherwise `bsk_engine_create` fails with `BSK_ERR_INVALID_ARGUMENT`. Pins together with `insecure_skip_verify` are always rejected. `extra_config` may not set `sip_verify_server`, `sip_cafile`, `sip_capath`, `sip_certificate` or `sip_verify_client`.
