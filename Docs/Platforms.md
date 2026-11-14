@@ -70,9 +70,9 @@ patches and the tests are shared; only the layers that talk to the operating sys
    module (patched if needed), H.264 through a new `mediacodec` module (the counterpart of
    `vidtoolbox`), the camera through a new `bskcamera` source fed from Camera2, and TLS trust of
    the system store through a callback into Kotlin (the counterpart of `bsk_trust.c`).
-6. **minSdk 28, compileSdk 36, Kotlin with coroutines, Compose for UI.** Packages and the
-   Maven group are `io.github.mariokovacevic.baresipkit`, the namespace Maven Central verifies
-   for this GitHub account; the build uses the Gradle wrapper (8.14.3), the Android Gradle
+6. **minSdk 28, compileSdk 36, Kotlin with coroutines, Compose for UI.** Packages are under
+   `io.github.mariokovacevic.baresipkit`, and the Maven group is `io.github.mariokovacevic`, the
+   namespace Maven Central verifies for this GitHub account; the build uses the Gradle wrapper (8.14.3), the Android Gradle
    plugin 8.13 and NDK r30.
 7. **Tests without a device first:** the JNI bridge also builds for the Linux host, so the
    Kotlin layer runs its unit tests on the JVM against the real core (calls between two engines,

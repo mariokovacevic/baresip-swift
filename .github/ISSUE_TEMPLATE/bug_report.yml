@@ -25,6 +25,17 @@ body:
         3. ...
     validations:
       required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - iOS
+        - Android
+        - Both
+        - C core only
+    validations:
+      required: true
   - type: input
     id: version
     attributes:
@@ -34,8 +45,8 @@ body:
   - type: input
     id: environment
     attributes:
-      label: Device, iOS and Xcode version
-      placeholder: iPhone 15, iOS 18.1, Xcode 16.1
+      label: Device, OS version and toolchain
+      placeholder: iPhone 15, iOS 18.1, Xcode 16.1 / Pixel 8, Android 15, AGP 8.13
     validations:
       required: true
   - type: input
@@ -47,5 +58,5 @@ body:
     id: logs
     attributes:
       label: Redacted logs or SIP trace
-      description: Engine log with `logSIPTrace` enabled, redacted.
+      description: Engine log with the SIP trace enabled (`logSIPTrace` on iOS, `logSipTrace` on Android), redacted.
       render: text

@@ -37,8 +37,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: BaresipKit version or commit, device and iOS version
-      placeholder: commit 89e4d7d, iPhone 15, iOS 26.1
+      label: BaresipKit version or commit, device and OS version
+      placeholder: 1.0.0, iPhone 15, iOS 26.1 / Pixel 8, Android 16
     validations:
       required: true
   - type: checkboxes

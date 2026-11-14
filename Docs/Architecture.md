@@ -57,7 +57,7 @@ Built from pinned upstream sources by `Build/build-xcframework.sh` with the patc
 - **Incoming headers.** baresip keeps the headers named in an account's incoming header list for incoming calls; `bsk_call_get_header` reads them.
 - **VideoToolbox sessions in the background.** iOS invalidates compression and decompression sessions while the app is in the background, and a decoder failure may only reach the output callback. A lost encoder session is dropped, so the next frame opens a new one and sends a key frame. A lost decoder session is reopened at the next key frame, and `EPROTO` makes baresip ask the peer for one.
 
-Threading and ownership rules are in [C-ABI.md](C-ABI.md). In one sentence: every `bsk_*` call is thread-safe and executes on the engine thread; events arrive on the engine thread; video frames arrive on media threads.
+Threading and ownership rules are in [C-ABI.md](C-ABI.md). In one sentence: every `bsk_*` call is thread-safe and executes on the engine thread; events arrive on the engine thread; camera frames arrive on the capture queue and remote frames on the engine thread.
 
 ## Layer 3: BaresipKitBridge
 
@@ -73,7 +73,7 @@ Static inline C helpers that copy union members of `bsk_event` into plain struct
 - `BaresipKitCallKit`: `BaresipCallKitAdapter` maps call IDs to UUIDs, drives `CXProvider`, handles answer-before-INVITE after a push, and forwards audio activation.
 - `BaresipKitLiveCommunication`: `BaresipLiveCommunicationAdapter` does the same with LiveCommunicationKit's `ConversationManager` from iOS 17.4. Both adapters share `BaresipKitSystemCall`, an internal target with `SystemCallBook`, which holds the UUID of every call, pushed calls and their early answers and declines, and the outgoing calls being started, and the ledger that matches pushed calls to INVITEs. Each adapter keeps one `SystemCallBook` behind its lock and only talks to CallKit or LiveCommunicationKit itself.
 - `BaresipKitPushKit`: `BaresipPushKitAdapter` collects the VoIP token, builds the Contact parameters and triggers the push wake-up.
-- `BaresipKitVideo`: `BaresipVideoView` renders frames with `AVSampleBufferDisplayLayer`; `BaresipVideoFrameRelay` forwards frames to closures. From iOS 17 frames go straight to the layer's renderer, which accepts them from any thread; before iOS 17 they are handed to the main actor. A failed renderer shows nothing until it is flushed, and iOS asks for a flush after an interruption such as the app going to the background, so the view flushes it in both cases; otherwise the picture freezes while frames keep arriving.
+- `BaresipKitVideo`: `BaresipVideoView` renders frames with `AVSampleBufferDisplayLayer`; `BaresipVideoFrameRelay` forwards frames to closures. From iOS 17 frames go straight to the layer's renderer, which accepts them from any thread; before iOS 17 the newest frame is handed to the main thread, one hop at a time. A failed renderer shows nothing until it is flushed, and iOS asks for a flush after an interruption such as the app going to the background, so the view flushes it in both cases; otherwise the picture freezes while frames keep arriving.
 - `BaresipKitSwiftUI`: `BaresipPhone` and `BaresipPhoneCall` apply the engine's events to published registration and call state for SwiftUI, and keep the active call. Actions go through a `BaresipCallController` such as the CallKit adapter for the calls it controls, and to the engine otherwise. `BaresipCallVideo` (in `BaresipKitVideo`) and `BaresipSelfView` show a call's video and your own camera.
 
 ## Android

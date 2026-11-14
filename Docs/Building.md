@@ -20,7 +20,7 @@ Produces `Build/out/BaresipKitCore.xcframework` with separate iOS device arm64, 
 |---|---|---|
 | `MODULE_SET` | `minimal`, `default`, `full` (adds VP8 via libvpx) | `default` |
 | `SLICES` | `ios-arm64`, `ios-arm64-simulator`, `ios-x86_64-simulator`, `macos-arm64` | iOS device, iOS simulator and macOS, all arm64 |
-| `PLATFORM` | `ios`, `host` | `ios` |
+| `PLATFORM` | `ios`, `host`, `android` (see [Android.md](Android.md#building-from-source)) | `ios` |
 | `SANITIZE` | `address,undefined` (host only) | unset |
 
 The script clones each pinned source (`Build/versions.env`), verifies the commit, applies `Patches/*.patch`, builds OpenSSL, Opus, libvpx (full), libre, baresip and the facade per slice, merges the archives with `libtool -static` and runs `xcodebuild -create-xcframework`. `OUT_DIR` must not contain symlinks (CMake path resolution). A checkout in `Build/.deps` that is not at the pinned commit is deleted and cloned again, and the libre and baresip checkouts are reset and cleaned (`git clean -fdx`) before the patches are applied, so do not keep work in them. OpenSSL is configured with `no-autoload-config` and with fixed directories (`/etc/ssl` for the configuration, `/usr/lib/ossl-modules` for engines and providers, neither of which is used), so the libraries never read a configuration file on their own and do not contain the build path.

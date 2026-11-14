@@ -9,7 +9,7 @@
 | RTCP multiplexing with ICE | With `rtcpMultiplexing` on, baresip gathers ICE candidates for the RTP component only. A peer that does not accept `a=rtcp-mux` still expects an RTCP candidate, answers with `a=ice-mismatch`, and no media flows; turn RTCP multiplexing off for such peers. Asterisk and current SIP servers accept it | offer an RTCP component as well when needed |
 | Trickle ICE | not supported (full candidate exchange in SDP) | none planned |
 | Video bitrate adaptation | loss-based only: the encoder target follows RTCP receiver reports (cut on more than 10 % loss, slow increase below 2 %); no REMB/TWCC bandwidth estimation, so congestion without loss is not detected. With VP8 every change re-creates the encoder context (H.264 via VideoToolbox changes in place) | delay-based estimation if needed |
-| External audio injection | not exposed in ABI 0.1 | `ausrc`/`auplay` style callbacks in a later ABI revision |
+| External audio injection | not exposed in the C ABI | `ausrc`/`auplay` style callbacks in a later ABI revision |
 | RTCP-XR (RFC 3611) | not sent | none planned |
 | ZRTP | needs libzrtpcpp; capability check only | none planned |
 | Software AEC | not needed on iOS (VoiceProcessingIO); `webrtc_aec` module needs an external library | none planned |
