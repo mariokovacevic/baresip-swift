@@ -47,10 +47,10 @@ tasks.withType<Test>().configureEach {
 dependencies {
     api(project(":baresipkit"))
     api(project(":baresipkit-video"))
-    implementation(platform(libs.compose.bom))
+    api(platform(libs.compose.bom))
     api(libs.compose.runtime)
-    implementation(libs.compose.ui)
-    implementation("androidx.compose.foundation:foundation")
+    api(libs.compose.ui)
+    implementation(libs.compose.foundation)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
 }

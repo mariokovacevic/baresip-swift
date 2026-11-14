@@ -31,7 +31,7 @@ kotlin {
 
 dependencies {
     api(project(":baresipkit"))
-    implementation(libs.core.telecom)
+    api(libs.core.telecom)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
 }
