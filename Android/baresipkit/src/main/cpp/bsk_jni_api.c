@@ -16,49 +16,64 @@ static bsk_engine *engine_of(jlong handle)
 	return owner ? owner->engine : NULL;
 }
 
+static jfieldID field_id(JNIEnv *env, jobject obj, const char *name,
+			 const char *signature)
+{
+	if ((*env)->ExceptionCheck(env))
+		return NULL;
+	jclass cls = (*env)->GetObjectClass(env, obj);
+	if (!cls)
+		return NULL;
+	jfieldID field = (*env)->GetFieldID(env, cls, name, signature);
+	(*env)->DeleteLocalRef(env, cls);
+	return (*env)->ExceptionCheck(env) ? NULL : field;
+}
+
 static jbyteArray bytes_field(JNIEnv *env, jobject obj, const char *name)
 {
-	jclass cls = (*env)->GetObjectClass(env, obj);
-	jfieldID field = (*env)->GetFieldID(env, cls, name, "[B");
-	(*env)->DeleteLocalRef(env, cls);
+	jfieldID field = field_id(env, obj, name, "[B");
 	return field ? (*env)->GetObjectField(env, obj, field) : NULL;
 }
 
 static jobjectArray strings_field(JNIEnv *env, jobject obj, const char *name)
 {
-	jclass cls = (*env)->GetObjectClass(env, obj);
-	jfieldID field = (*env)->GetFieldID(env, cls, name, "[[B");
-	(*env)->DeleteLocalRef(env, cls);
+	jfieldID field = field_id(env, obj, name, "[[B");
 	return field ? (*env)->GetObjectField(env, obj, field) : NULL;
 }
 
 static jint int_field(JNIEnv *env, jobject obj, const char *name)
 {
-	jclass cls = (*env)->GetObjectClass(env, obj);
-	jfieldID field = (*env)->GetFieldID(env, cls, name, "I");
-	(*env)->DeleteLocalRef(env, cls);
+	jfieldID field = field_id(env, obj, name, "I");
 	return field ? (*env)->GetIntField(env, obj, field) : 0;
 }
 
 static bool bool_field(JNIEnv *env, jobject obj, const char *name)
 {
-	jclass cls = (*env)->GetObjectClass(env, obj);
-	jfieldID field = (*env)->GetFieldID(env, cls, name, "Z");
-	(*env)->DeleteLocalRef(env, cls);
+	jfieldID field = field_id(env, obj, name, "Z");
 	return field ? (*env)->GetBooleanField(env, obj, field) : false;
+}
+
+static const char *field_bytes(struct bsk_jni_arena *arena, jobject obj,
+			       const char *name, size_t *len)
+{
+	return bsk_jni_take_bytes(arena, bytes_field(arena->env, obj, name),
+				  len);
 }
 
 static const char *cstr(struct bsk_jni_arena *arena, jobject obj,
 			const char *name)
 {
-	return bsk_jni_bytes(arena, bytes_field(arena->env, obj, name), NULL);
+	return field_bytes(arena, obj, name, NULL);
 }
 
 static const char *const *cstrs(struct bsk_jni_arena *arena, jobject obj,
 				const char *name, size_t *count)
 {
-	return bsk_jni_strings(arena, strings_field(arena->env, obj, name),
-			       count);
+	jobjectArray array = strings_field(arena->env, obj, name);
+	const char *const *list = bsk_jni_strings(arena, array, count);
+	if (array)
+		(*arena->env)->DeleteLocalRef(arena->env, array);
+	return list;
 }
 
 static bool missing_field(JNIEnv *env)
@@ -115,11 +130,10 @@ static void read_engine_config(struct bsk_jni_arena *arena, jobject obj,
 	cfg->video.codecs =
 		cstrs(arena, obj, "videoCodecs", &cfg->video.codec_count);
 
-	cfg->tls.ca_pem = bsk_jni_bytes(arena, bytes_field(env, obj, "caPem"),
-					&cfg->tls.ca_pem_len);
-	cfg->tls.client_cert_pem =
-		bsk_jni_bytes(arena, bytes_field(env, obj, "clientCertPem"),
-			      &cfg->tls.client_cert_pem_len);
+	cfg->tls.ca_pem =
+		field_bytes(arena, obj, "caPem", &cfg->tls.ca_pem_len);
+	cfg->tls.client_cert_pem = field_bytes(arena, obj, "clientCertPem",
+					       &cfg->tls.client_cert_pem_len);
 	cfg->tls.pinned_spki_sha256_base64 =
 		cstrs(arena, obj, "pins", &cfg->tls.pinned_count);
 	cfg->tls.cipher_list = cstr(arena, obj, "cipherList");
@@ -167,10 +181,14 @@ static void read_account_config(struct bsk_jni_arena *arena, jobject obj,
 	cfg->media_encryption =
 		(bsk_media_encryption)int_field(env, obj, "mediaEncryption");
 	cfg->dtmf_mode = (bsk_dtmf_mode)int_field(env, obj, "dtmfMode");
+	jobjectArray names = strings_field(env, obj, "contactNames");
+	jobjectArray values = strings_field(env, obj, "contactValues");
 	cfg->contact_params =
-		contact_params(arena, strings_field(env, obj, "contactNames"),
-			       strings_field(env, obj, "contactValues"),
-			       &cfg->contact_param_count);
+		contact_params(arena, names, values, &cfg->contact_param_count);
+	if (names)
+		(*env)->DeleteLocalRef(env, names);
+	if (values)
+		(*env)->DeleteLocalRef(env, values);
 	cfg->audio_codecs =
 		cstrs(arena, obj, "audioCodecs", &cfg->audio_codec_count);
 	cfg->video_codecs =

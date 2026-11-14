@@ -27,6 +27,7 @@ struct bsk_jni_engine {
 struct bsk_jni_pin {
 	jbyteArray array;
 	jbyte *bytes;
+	bool owned;
 };
 
 struct bsk_jni_arena {
@@ -49,6 +50,8 @@ bool bsk_jni_check(JNIEnv *env, bsk_status status, const bsk_error *err);
 void bsk_jni_arena_init(struct bsk_jni_arena *arena, JNIEnv *env);
 const char *bsk_jni_bytes(struct bsk_jni_arena *arena, jbyteArray array,
 			  size_t *out_len);
+const char *bsk_jni_take_bytes(struct bsk_jni_arena *arena, jbyteArray array,
+			       size_t *out_len);
 const char *const *bsk_jni_strings(struct bsk_jni_arena *arena,
 				   jobjectArray array, size_t *out_count);
 void *bsk_jni_alloc(struct bsk_jni_arena *arena, size_t size);
