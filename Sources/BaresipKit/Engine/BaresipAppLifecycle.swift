@@ -62,6 +62,9 @@
         public var disconnectsOnTermination = true
 
         /// How long going offline and termination wait for the accounts to unregister.
+        ///
+        /// iOS ends the process as soon as the termination notification returns, so termination
+        /// waits on the main thread, for at most this long plus one second.
         public var unregisterTimeout: Duration = .seconds(2)
 
         /// Whether the lifecycle suspended the engine or took it offline and has not brought it
@@ -77,7 +80,7 @@
         private var isGoingAway = false
         /// The accounts that unregistered in the background, to register again.
         private var offlineAccounts: [BaresipAccountID] = []
-        private var observers: [NSObjectProtocol] = []
+        private let observers = NotificationObservers()
         private var eventTask: Task<Void, Never>?
         private var changeHandler: (@MainActor (Change) -> Void)?
 
@@ -100,25 +103,24 @@
             guard observers.isEmpty else { return }
             isInBackground = UIApplication.shared.applicationState == .background
             let center = NotificationCenter.default
-            observers = [
-                center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil,
-                                   queue: .main) { [weak self] _ in
+            observers.add(center.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil,
+                                             queue: .main) { [weak self] _ in
                     MainActor.assumeIsolated { self?.didEnterBackground() }
-                },
-                center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil,
-                                   queue: .main) { [weak self] _ in
+                })
+            observers.add(center.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil,
+                                             queue: .main) { [weak self] _ in
                     MainActor.assumeIsolated { self?.didBecomeActive() }
-                },
-                center.addObserver(forName: UIApplication.willTerminateNotification, object: nil,
-                                   queue: .main) { [weak self] _ in
+                })
+            observers.add(center.addObserver(forName: UIApplication.willTerminateNotification, object: nil,
+                                             queue: .main) { [weak self] _ in
                     MainActor.assumeIsolated { self?.willTerminate() }
-                },
-            ]
+                })
             let events = engine.events
             eventTask = Task { [weak self] in
                 for await event in events {
+                    guard let self else { return }
                     if case .call(_, .released, _) = event {
-                        await self?.goAwayIfIdle()
+                        await goAwayIfIdle()
                     }
                 }
             }
@@ -126,10 +128,7 @@
 
         /// Stops following the app. An engine that is away stays away.
         public func stop() {
-            for observer in observers {
-                NotificationCenter.default.removeObserver(observer)
-            }
-            observers = []
+            observers.removeAll()
             eventTask?.cancel()
             eventTask = nil
         }
@@ -147,10 +146,8 @@
             offlineAccounts = []
             Task {
                 if accounts.isEmpty {
-                    // Fails only when the engine is no longer running; nothing to bring back then.
                     try? await engine.resumeFromBackground()
                 } else {
-                    // The connections may have closed in the background: open them again first.
                     await engine.networkDidChange(reregister: false, updateCalls: false)
                     for account in accounts {
                         try? await engine.register(accountID: account)
@@ -190,7 +187,6 @@
                 do {
                     try await engine.suspend()
                 } catch {
-                    // The engine stopped in the meantime.
                     return
                 }
                 isAway = true
@@ -201,7 +197,6 @@
                 changeHandler?(.wentOffline)
             }
             if !isInBackground {
-                // The app came back while going away.
                 didBecomeActive()
             }
         }
