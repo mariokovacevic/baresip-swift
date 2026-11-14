@@ -250,6 +250,9 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 - Android: an exception while the Telecom adapter handles one event, for example a call Telecom
   never added, no longer stops it from handling every later call, and no wait for Telecom blocks
   the events behind it longer than `actionTimeout`.
+- Android: `BaresipCallVideo` and `BaresipCameraPreview` attach and detach in one coroutine, so
+  leaving the screen quickly no longer leaves the camera running, and a composable that leaves
+  no longer stops the preview or renderer of the one that replaced it.
 
 ### Security
 

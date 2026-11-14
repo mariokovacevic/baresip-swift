@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -24,10 +24,10 @@ import androidx.compose.ui.viewinterop.AndroidView
 import io.github.mariokovacevic.baresipkit.BaresipCallID
 import io.github.mariokovacevic.baresipkit.BaresipEngine
 import io.github.mariokovacevic.baresipkit.video.BaresipVideoView
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Which video of a call [BaresipCallVideo] shows. */
 enum class BaresipVideoSource {
@@ -61,13 +61,18 @@ fun BaresipCallVideo(
         }
     view.scaleMode = scaleMode
     view.isMirrored = mirrored
-    DisposableEffect(engine, call, source) {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    LaunchedEffect(engine, call, source) {
         val local = source == BaresipVideoSource.LOCAL
-        scope.launch { runCatching { engine.setVideoRenderer(view.renderer, call, local) } }
-        onDispose {
-            scope.launch {
-                runCatching { engine.setVideoRenderer(null, call, local) }
+        val key = VideoClaims.Key(engine, call, local)
+        val claim = VideoClaims.claim(key)
+        try {
+            runCatching { engine.setVideoRenderer(view.renderer, call, local) }
+            awaitCancellation()
+        } finally {
+            withContext(NonCancellable) {
+                if (VideoClaims.release(key, claim)) {
+                    runCatching { engine.setVideoRenderer(null, call, local) }
+                }
                 view.flush()
             }
         }
@@ -90,10 +95,19 @@ fun BaresipCameraPreview(
     val context = LocalContext.current
     val view = remember(context) { BaresipVideoView(context) }
     view.isMirrored = mirrored
-    DisposableEffect(engine, device) {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        scope.launch { runCatching { engine.startVideoPreview(device, view.renderer) } }
-        onDispose { scope.launch { runCatching { engine.stopVideoPreview() } } }
+    LaunchedEffect(engine, device) {
+        val key = VideoClaims.Key(engine, null, true)
+        val claim = VideoClaims.claim(key)
+        try {
+            runCatching { engine.startVideoPreview(device, view.renderer) }
+            awaitCancellation()
+        } finally {
+            withContext(NonCancellable) {
+                if (VideoClaims.release(key, claim)) {
+                    runCatching { engine.stopVideoPreview() }
+                }
+            }
+        }
     }
     AndroidView(factory = { view }, modifier = modifier)
 }
