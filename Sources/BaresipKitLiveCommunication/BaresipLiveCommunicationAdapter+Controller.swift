@@ -32,6 +32,10 @@
                         takePlacedCallWaiter(uuid)?.resume(throwing: error)
                     }
                 }
+                Task { [weak self] in
+                    try? await Task.sleep(for: BaresipLiveCommunicationAdapter.systemActionDeadline)
+                    self?.takePlacedCallWaiter(uuid)?.resume(throwing: BaresipLiveCommunicationError.actionTimedOut)
+                }
             }
         }
 

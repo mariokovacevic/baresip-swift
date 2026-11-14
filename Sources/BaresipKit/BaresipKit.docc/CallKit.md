@@ -225,6 +225,11 @@ time, the adapter gives up on it: whoever waits for the action, for example in
 or answer timed out, so the adapter ends the engine's side as well: an outgoing call is hung up
 as soon as the engine has placed it, and an incoming one at once.
 
+A request that CallKit accepts but never carries out also ends with `actionTimedOut` after a
+minute, so a caller of `placeCall(to:video:)` or of an action method never waits forever. When
+CallKit resets the provider, every pending request fails with
+`BaresipCallKitError.providerReset`, and every call is hung up.
+
 ### App name and icon
 
 CallKit shows the app name from the Info.plist. Set the icon with

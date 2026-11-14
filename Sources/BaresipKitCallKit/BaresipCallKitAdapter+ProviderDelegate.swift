@@ -18,14 +18,14 @@
                 return (calls, waiters)
             }
             for waiter in waiters {
-                waiter.resume(throwing: CancellationError())
+                waiter.resume(throwing: BaresipCallKitError.providerReset)
             }
             let pendingActions = lock.withLock { () -> [CheckedContinuation<Void, Error>] in
                 defer { self.actionWaiters.removeAll() }
                 return Array(self.actionWaiters.values)
             }
             for waiter in pendingActions {
-                waiter.resume(throwing: CancellationError())
+                waiter.resume(throwing: BaresipCallKitError.providerReset)
             }
             Task {
                 for call in calls {

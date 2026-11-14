@@ -35,6 +35,7 @@
         let callUUIDHeader: String?
         let handleStyle: BaresipHandleStyle
         let lock = NSLock()
+        static let systemActionDeadline: Duration = .seconds(60)
         var book: SystemCallBook
         var muteObservers: [@Sendable (BaresipCallID, Bool) -> Void] = []
         /// Callers of `placeCall(to:video:)` waiting for the engine call of their start action.
@@ -180,6 +181,10 @@
                     } catch {
                         takeActionWaiter(id)?.resume(throwing: error)
                     }
+                }
+                Task { [weak self] in
+                    try? await Task.sleep(for: BaresipLiveCommunicationAdapter.systemActionDeadline)
+                    self?.takeActionWaiter(id)?.resume(throwing: BaresipLiveCommunicationError.actionTimedOut)
                 }
             }
         }

@@ -31,6 +31,10 @@
                         takePlacedCallWaiter(uuid)?.resume(throwing: error)
                     }
                 }
+                Task { [weak self] in
+                    try? await Task.sleep(for: BaresipCallKitAdapter.systemActionDeadline)
+                    self?.takePlacedCallWaiter(uuid)?.resume(throwing: BaresipCallKitError.actionTimedOut)
+                }
             }
         }
 

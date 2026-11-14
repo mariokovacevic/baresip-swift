@@ -8,8 +8,12 @@ public enum BaresipLiveCommunicationError: Error, Sendable, Equatable {
     case unknownCall
     /// The system asked for an action the adapter does not carry out, such as merging calls.
     case unsupportedAction
-    /// LiveCommunicationKit gave up on an action because the adapter did not finish it in time.
+    /// LiveCommunicationKit gave up on an action because the adapter did not finish it in time,
+    /// or the system did not carry out a requested action within a minute.
     case actionTimedOut
+    /// The system reset the conversation manager while the action was pending; every call was
+    /// ended.
+    case managerReset
 }
 
 /// Settings for the conversation manager created by `BaresipLiveCommunicationAdapter`.

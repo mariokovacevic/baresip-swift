@@ -3,8 +3,11 @@ import BaresipKit
 
 /// An error of ``BaresipCallKitAdapter`` that comes neither from CallKit nor from the engine.
 public enum BaresipCallKitError: Error, Sendable, Equatable {
-    /// CallKit gave up on an action because the adapter did not finish it in time.
+    /// CallKit gave up on an action because the adapter did not finish it in time, or CallKit
+    /// did not carry out a requested action within a minute.
     case actionTimedOut
+    /// CallKit reset the provider while the action was pending; every call was ended.
+    case providerReset
 }
 
 /// Settings for the CallKit provider created by ``BaresipCallKitAdapter``.

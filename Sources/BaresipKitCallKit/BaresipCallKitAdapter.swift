@@ -29,6 +29,7 @@
         let callUUIDHeader: String?
         let handleStyle: BaresipHandleStyle
         let lock = NSLock()
+        static let systemActionDeadline: Duration = .seconds(60)
         var book: SystemCallBook
         var muteHandler: (@Sendable (BaresipCallID, Bool) -> Void)?
         var muteObservers: [@Sendable (BaresipCallID, Bool) -> Void] = []
@@ -197,6 +198,10 @@
                     } catch {
                         takeActionWaiter(id)?.resume(throwing: error)
                     }
+                }
+                Task { [weak self] in
+                    try? await Task.sleep(for: BaresipCallKitAdapter.systemActionDeadline)
+                    self?.takeActionWaiter(id)?.resume(throwing: BaresipCallKitError.actionTimedOut)
                 }
             }
         }

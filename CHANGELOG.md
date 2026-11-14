@@ -290,6 +290,11 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   push open until iOS ended the app. It now has a deadline, `reportDeadline` (5 seconds by
   default): the handler is cancelled, a placeholder call is reported and ended, and the error
   handler gets `BaresipPushKitError.reportTimedOut`.
+- CallKit and LiveCommunicationKit: a request the system accepted but never carried out kept
+  `placeCall(to:video:)` and the action methods waiting forever; they now fail with
+  `actionTimedOut` after a minute. A reset of the provider or conversation manager fails pending
+  requests with the new `BaresipCallKitError.providerReset` or
+  `BaresipLiveCommunicationError.managerReset` instead of `CancellationError`.
 - Android: a pushed call answered as audio-only from the system UI before its INVITE arrived no
   longer sends the camera.
 - Android: an exception while the Telecom adapter handles one event, for example a call Telecom
