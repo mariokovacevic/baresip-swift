@@ -12,7 +12,6 @@ mode=${1:-}
 root=$(cd "$(dirname "$0")/.." && pwd)
 baselines="$root/API/Swift"
 out="$root/Build/out/swift-api"
-derived="$out/DerivedData"
 dumps="$out/dumps"
 modules=(BaresipKit BaresipKitAudio BaresipKitVideo BaresipKitCallKit BaresipKitLiveCommunication BaresipKitPushKit
   BaresipKitSwiftUI)
@@ -27,14 +26,20 @@ rm -rf "$dumps"
 mkdir -p "$dumps"
 
 echo "Building the package for the iOS Simulator"
-if ! xcodebuild build -scheme BaresipKit-Package -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath "$derived" ARCHS=arm64 >"$out/build.log" 2>&1; then
+build=(-scheme BaresipKit-Package -destination 'generic/platform=iOS Simulator')
+if ! (cd "$root" && xcodebuild build "${build[@]}") >"$out/build.log" 2>&1; then
   grep -E "error:" "$out/build.log" | sort -u | head -40 || true
   tail -20 "$out/build.log"
   exit 1
 fi
 
-products="$derived/Build/Products/Debug-iphonesimulator"
+products=$(cd "$root" && xcodebuild -showBuildSettings "${build[@]}" 2>/dev/null \
+  | awk -F' = ' '/^ *BUILT_PRODUCTS_DIR = / { print $2; exit }')
+[[ -d "$products" ]] || {
+  echo "error: could not find the build products directory" >&2
+  exit 1
+}
+echo "Products: $products"
 headers=$(find "$root/Build/out/BaresipKitCore.xcframework" -type d -path '*simulator/Headers' | head -1)
 [[ -n "$headers" ]] || {
   echo "no simulator slice in the XCFramework" >&2
