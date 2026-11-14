@@ -397,6 +397,29 @@ static void test_rate_control(void)
 }
 
 
+static void test_loss_and_mos(void)
+{
+	float clean = bsk_mos_estimate(0, 0, 0);
+
+	CHECK(bsk_loss_permille(0, 0) == 0);
+	CHECK(bsk_loss_permille(1000, 0) == 0);
+	CHECK(bsk_loss_permille(90, 10) == 100);
+	CHECK(bsk_loss_permille(0, 25) == 1000);
+	CHECK(bsk_loss_permille(100, -5) == 0);
+	CHECK(bsk_loss_permille(5, -100) == 0);
+	CHECK(bsk_loss_permille(0, -1) == 0);
+	CHECK(bsk_loss_permille(UINT32_MAX, INT32_MAX) == 333);
+
+	CHECK(clean > 4.0f && clean < 4.5f);
+	CHECK(bsk_mos_estimate(100, 0, 0) < clean);
+	CHECK(bsk_mos_estimate(1000, 0, 0) >= 1.0f);
+	CHECK(bsk_mos_estimate(UINT32_MAX, UINT32_MAX, UINT32_MAX) >= 1.0f);
+	CHECK(bsk_mos_estimate(UINT32_MAX, 0, 0) ==
+	      bsk_mos_estimate(1000, 0, 0));
+	CHECK(bsk_mos_estimate(0, 300, 200) < clean);
+}
+
+
 static void base_config(bsk_engine_config *cfg)
 {
 	memset(cfg, 0, sizeof(*cfg));
@@ -1015,6 +1038,7 @@ int main(void)
 	test_engine_lifecycle_without_network();
 	test_config_size_compat();
 	test_rate_control();
+	test_loss_and_mos();
 	test_h264_depacketizer();
 	test_h264_access_unit();
 	test_reason_header();

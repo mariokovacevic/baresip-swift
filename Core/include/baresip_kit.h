@@ -313,6 +313,9 @@ typedef struct bsk_stream_statistics {
 	uint32_t rx_packets;
 	uint64_t tx_bytes;
 	uint64_t rx_bytes;
+	/* Packets lost since the stream started, never negative: the
+	 * cumulative loss of RTCP (RFC 3550) counts duplicates against
+	 * losses and can drop below zero, which is reported as 0. */
 	int32_t rx_lost;
 	uint32_t rx_fraction_lost_permille;
 	uint32_t rx_jitter_ms;
