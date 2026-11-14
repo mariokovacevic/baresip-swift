@@ -70,8 +70,8 @@ class PushMatchTest {
     @Test
     fun onlyANumericUserIsAPhoneNumber() {
         assertEquals("100", SipIdentity("sip:100@pbx.example.com").phoneNumber)
-        assertEquals("+38751123456", SipIdentity("<sip:+38751123456@pbx.example.com;user=phone>").phoneNumber)
-        assertEquals("+38751123456", SipIdentity("tel:+38751123456").phoneNumber)
+        assertEquals("+15555550100", SipIdentity("<sip:+15555550100@pbx.example.com;user=phone>").phoneNumber)
+        assertEquals("+15555550100", SipIdentity("tel:+15555550100").phoneNumber)
         assertEquals("100", SipIdentity("100").phoneNumber)
         assertNull(SipIdentity("sip:door1@pbx.example.com").phoneNumber)
         assertNull(SipIdentity("sip:+@pbx.example.com").phoneNumber)

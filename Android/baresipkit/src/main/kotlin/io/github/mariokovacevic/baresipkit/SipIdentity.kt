@@ -66,7 +66,7 @@ enum class BaresipHandleStyle {
     SIP_URI,
 
     /**
-     * A caller whose user part is a phone number, such as `100` or `+38751123456`, is reported as
+     * A caller whose user part is a phone number, such as `100` or `+15555550100`, is reported as
      * a `tel:` address, so the system can show a contact with that number. Other callers keep the
      * SIP URI.
      */

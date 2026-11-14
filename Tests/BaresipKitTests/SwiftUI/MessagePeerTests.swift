@@ -13,7 +13,7 @@ final class MessagePeerTests: XCTestCase {
 
     func testAUserWithoutHostMatchesAnyHost() {
         XCTAssertTrue(BaresipPhoneCall.samePeer("door1", "sip:door1@pbx.example.com"))
-        XCTAssertTrue(BaresipPhoneCall.samePeer("tel:+38751123456", "sip:+38751123456@pbx.example.com"))
+        XCTAssertTrue(BaresipPhoneCall.samePeer("tel:+15555550100", "sip:+15555550100@pbx.example.com"))
     }
 
     func testOtherUsersOrHostsAreOtherPeers() {

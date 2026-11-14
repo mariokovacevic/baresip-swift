@@ -16,7 +16,7 @@ class DoorMatchingTest {
 
     @Test
     fun matchesByTheSipUserWhateverTheHostPortAndParameters() {
-        assertEquals(front, doors.matching("sip:frontdoor@10.0.0.7;transport=tls"))
+        assertEquals(front, doors.matching("sip:frontdoor@192.0.2.7;transport=tls"))
         assertEquals(front, doors.matching("sip:frontdoor@pbx.example.com"))
         assertEquals(gate, doors.matching("sips:gate@pbx.example.com"))
     }

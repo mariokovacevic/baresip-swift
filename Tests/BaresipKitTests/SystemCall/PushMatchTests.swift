@@ -55,8 +55,8 @@ final class PushMatchTests: XCTestCase {
 
     func testOnlyANumericUserIsAPhoneNumber() {
         XCTAssertEqual(SIPIdentity("sip:100@pbx.example.com").phoneNumber, "100")
-        XCTAssertEqual(SIPIdentity("<sip:+38751123456@pbx.example.com;user=phone>").phoneNumber, "+38751123456")
-        XCTAssertEqual(SIPIdentity("tel:+38751123456").phoneNumber, "+38751123456")
+        XCTAssertEqual(SIPIdentity("<sip:+15555550100@pbx.example.com;user=phone>").phoneNumber, "+15555550100")
+        XCTAssertEqual(SIPIdentity("tel:+15555550100").phoneNumber, "+15555550100")
         XCTAssertEqual(SIPIdentity("100").phoneNumber, "100")
         XCTAssertNil(SIPIdentity("sip:door1@pbx.example.com").phoneNumber)
         XCTAssertNil(SIPIdentity("sip:+@pbx.example.com").phoneNumber)

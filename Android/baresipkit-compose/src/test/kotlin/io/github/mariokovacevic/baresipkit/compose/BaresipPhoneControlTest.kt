@@ -239,7 +239,7 @@ class BaresipPhoneControlTest {
         assertTrue(BaresipPhoneCall.samePeer("sips:door1@pbx.example.com?subject=x", "<sip:door1@pbx.example.com>"))
         assertTrue(BaresipPhoneCall.samePeer("sip:100@[2001:db8::1]:5060", "sip:100@[2001:db8::1]"))
         assertTrue(BaresipPhoneCall.samePeer("door1", "sip:door1@pbx.example.com"))
-        assertTrue(BaresipPhoneCall.samePeer("tel:+38751123456", "sip:+38751123456@pbx.example.com"))
+        assertTrue(BaresipPhoneCall.samePeer("tel:+15555550100", "sip:+15555550100@pbx.example.com"))
         assertFalse(BaresipPhoneCall.samePeer("sip:door2@pbx.example.com", "sip:door1@pbx.example.com"))
         assertFalse(BaresipPhoneCall.samePeer("sip:door1@other.example.com", "sip:door1@pbx.example.com"))
         assertFalse(BaresipPhoneCall.samePeer("sip:door10@pbx.example.com", "sip:door1@pbx.example.com"))

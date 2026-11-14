@@ -34,7 +34,7 @@ class CaptionTest {
         val messages =
             listOf(
                 ChatMessage(peer = "sip:frontdoor@pbx.example.com", text = "Hi", outgoing = false, status = ChatStatus.Received, read = false),
-                ChatMessage(peer = "sip:frontdoor@10.0.0.2", text = "Again", outgoing = false, status = ChatStatus.Received, read = false),
+                ChatMessage(peer = "sip:frontdoor@192.0.2.2", text = "Again", outgoing = false, status = ChatStatus.Received, read = false),
                 ChatMessage(peer = "sip:reception@pbx.example.com", text = "Parcel", outgoing = false, status = ChatStatus.Received, read = false),
                 ChatMessage(peer = "sip:frontdoor@pbx.example.com", text = "Mine", outgoing = true, status = ChatStatus.Delivered, read = false),
             )

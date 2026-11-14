@@ -190,7 +190,7 @@ configuration.handleStyle = .phoneNumberWhenNumeric
 ```
 
 a caller whose user part is a number, such as `sip:100@pbx.example.com` or
-`sip:+38751123456@pbx.example.com`, is reported as the phone number `100` or `+38751123456`.
+`sip:+15555550100@pbx.example.com`, is reported as the phone number `100` or `+15555550100`.
 iOS then shows the name and photo of a contact with that number on the call screen and in
 Recents, and a redial request carries the number, which the app turns into a SIP URI for its
 server. Other callers, such as `sip:door1@pbx.example.com`, stay generic handles. The same
