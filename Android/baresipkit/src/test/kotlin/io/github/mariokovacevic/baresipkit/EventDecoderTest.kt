@@ -42,6 +42,30 @@ class EventDecoderTest {
     }
 
     @Test
+    fun aCallAnotherCallTookOverIsReplacedNotFailed() {
+        val error = ended(0, 3).error!!
+        assertEquals(BaresipCallEndReason.REPLACED, error.endReason)
+        assertFalse(error.isFailure)
+    }
+
+    @Test
+    fun anIncomingCallNamesTheCallItReplacesAndKeepsItsEarlyVideoFlag() {
+        val n = LongArray(4 + EventDecoder.CALL_INFO_LONGS + 1)
+        n[4] = 8
+        n[4 + 10] = 7
+        n[4 + EventDecoder.CALL_INFO_LONGS] = 1
+        val event = EventDecoder.decode(3, 1, 8, n, arrayOfNulls(2 + 5), null) as BaresipEvent.IncomingCall
+        assertEquals(BaresipCallID(7), event.info.replacesCallId)
+        assertTrue(event.earlyVideo)
+
+        n[4 + 10] = 0
+        n[4 + EventDecoder.CALL_INFO_LONGS] = 0
+        val plain = EventDecoder.decode(3, 1, 8, n, arrayOfNulls(2 + 5), null) as BaresipEvent.IncomingCall
+        assertNull(plain.info.replacesCallId)
+        assertFalse(plain.earlyVideo)
+    }
+
+    @Test
     fun anOrdinaryEndHasNoReason() {
         assertNull(ended(0, 0).error)
     }

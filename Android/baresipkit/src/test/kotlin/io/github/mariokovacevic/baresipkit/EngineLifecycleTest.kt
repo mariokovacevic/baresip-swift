@@ -44,7 +44,7 @@ class EngineLifecycleTest {
         assertTrue(BaresipEngine.capabilities.contains("audio.hold-music"))
         assertTrue(BaresipEngine.capabilities.contains("call.session-timer"))
         assertFalse(BaresipEngine.coreVersion.isEmpty())
-        assertEquals(BaresipEngine.AbiVersion(0, 11), BaresipEngine.abiVersion)
+        assertEquals(BaresipEngine.AbiVersion(0, 12), BaresipEngine.abiVersion)
     }
 
     @Test

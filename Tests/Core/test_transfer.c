@@ -9,6 +9,9 @@ static int message_n;
 static int delivered_n;
 static char last_message[256];
 static char last_from[256];
+static bsk_call_id ended_ids[4];
+static bsk_call_end_reason ended_reasons[4];
+static int ended_n;
 
 static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 {
@@ -22,6 +25,10 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 			streams_n++;
 		if (ev->u.call_state.state == BSK_CALL_RELEASED)
 			released_n++;
+		if (ev->u.call_state.state == BSK_CALL_ENDED && ended_n < 4) {
+			ended_ids[ended_n] = ev->call;
+			ended_reasons[ended_n++] = ev->u.call_state.end_reason;
+		}
 	} else if (ev->type == BSK_EVENT_MESSAGE) {
 		size_t n = ev->u.message.body_len < sizeof(last_message) - 1
 				   ? ev->u.message.body_len
@@ -39,6 +46,32 @@ static void on_event(bsk_engine *engine, const bsk_event *ev, void *user)
 	pthread_mutex_unlock(&w.mtx);
 	record_event(&w, ev);
 }
+
+static int end_reason_of(bsk_call_id call)
+{
+	int i, reason = -1;
+
+	pthread_mutex_lock(&w.mtx);
+	for (i = 0; i < ended_n; i++) {
+		if (ended_ids[i] == call)
+			reason = (int)ended_reasons[i];
+	}
+	pthread_mutex_unlock(&w.mtx);
+
+	return reason;
+}
+
+
+static bsk_call_id replaces_of(bsk_engine *e, bsk_call_id call)
+{
+	bsk_call_info info;
+
+	if (BSK_OK != bsk_call_get_info(e, call, &info))
+		return BSK_ID_NONE;
+
+	return info.replaces;
+}
+
 
 static int streams1(struct waiter *x)
 {
@@ -162,6 +195,7 @@ static int run_b(const char *host)
 	bsk_error err;
 	char remote[256];
 	bsk_call_id call;
+	bsk_call_id first;
 
 	tag = "B";
 	e = start_engine("5370", 30400);
@@ -174,12 +208,16 @@ static int run_b(const char *host)
 	CHECK(strstr(last_from, "alice") != NULL);
 
 	CHECK(wait_until(&w, incoming, 15000));
-	CHECK_OK(bsk_call_answer(e, w.incoming_call, false, &err), &err);
+	first = w.incoming_call;
+	CHECK(replaces_of(e, first) == BSK_ID_NONE);
+	CHECK_OK(bsk_call_answer(e, first, false, &err), &err);
 
 	CHECK(wait_until(&w, released1, 30000));
 	call = running_call_with(e, "carol", 15000);
 	CHECK(call != BSK_ID_NONE);
 	CHECK(bsk_call_list(e, NULL, 0) == 1);
+	CHECK(replaces_of(e, call) == first);
+	CHECK(end_reason_of(first) == BSK_END_REPLACED);
 	remote_of(e, call, remote, sizeof(remote));
 	sleep(2);
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
@@ -198,6 +236,7 @@ static int run_c(const char *host)
 	bsk_error err;
 	char remote[256];
 	bsk_call_id call;
+	bsk_call_id first;
 
 	tag = "C";
 	e = start_engine("5380", 30600);
@@ -206,13 +245,16 @@ static int run_c(const char *host)
 	fflush(stdout);
 
 	CHECK(wait_until(&w, incoming, 20000));
-	remote_of(e, w.incoming_call, remote, sizeof(remote));
+	first = w.incoming_call;
+	remote_of(e, first, remote, sizeof(remote));
 	CHECK(strstr(remote, "alice") != NULL);
-	CHECK_OK(bsk_call_answer(e, w.incoming_call, false, &err), &err);
+	CHECK_OK(bsk_call_answer(e, first, false, &err), &err);
 	CHECK(wait_until(&w, streams1, 10000));
 
 	call = running_call_with(e, "bob", 20000);
 	CHECK(call != BSK_ID_NONE);
+	CHECK(replaces_of(e, call) == first);
+	CHECK(end_reason_of(first) == BSK_END_REPLACED);
 	remote_of(e, call, remote, sizeof(remote));
 	CHECK(wait_until(&w, released2, 20000));
 

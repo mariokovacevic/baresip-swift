@@ -150,6 +150,12 @@ example one the server sent twice, is reported under a new UUID and ended at onc
 CallKit refuses a second call with a UUID it knows. An INVITE without the header is matched by
 its caller as described above.
 
+The UUID names the call the caller made, not one leg of it. A queue, hunt group or ring group
+that sends a new INVITE for every attempt, or for every phone it rings, must put the same UUID
+in the push and in each of those INVITEs: the UUID of the incoming call, not of the channel to
+the phone. An INVITE with a UUID no push named rings as a call of its own, and the pushed call
+waits for its INVITE until `pushInviteTimeout`.
+
 The UUID is random and travels only in the push and in the INVITE, so an INVITE from someone
 else cannot take a pushed call's place without it. `Tools/DoorStack` shows the server side: the
 dialplan creates the UUID, the push gateway sends it as `uuid`, and the INVITE carries it as
@@ -197,6 +203,19 @@ door, the server cancels the others once one answers and usually says so in the 
 `Reason: SIP;cause=200;text="Call completed elsewhere"` (RFC 3326). The adapter then ends the
 call as answered elsewhere, so it is not listed as missed; with `cause=600` or `603` it ends it
 as declined elsewhere. The ended event carries the same in ``BaresipError/endReason``.
+
+### Calls the server replaces or transfers
+
+A call can go on in a new SIP call after it was answered. Servers replace an established call
+with an INVITE that carries `Replaces` (RFC 3891) for call pickup, queues, parking and attended
+transfers, and the other side can transfer a call with REFER (RFC 3515), which the engine
+follows by calling the transfer target. The new call's ``BaresipCallInfo/replacesCallID`` names
+the old call, and the old call ends with ``BaresipCallEndReason/replaced``.
+
+The adapter moves the CallKit call to the new call: it neither ends the CallKit call nor rings
+again, so the call screen, the audio session and Bluetooth stay as they were, and only the
+caller shown changes. An INVITE with `Replaces` is answered at once. If no new call takes over
+within five seconds, the CallKit call ends.
 
 ### Actions that time out
 

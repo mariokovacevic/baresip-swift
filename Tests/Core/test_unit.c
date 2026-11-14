@@ -168,7 +168,7 @@ static void test_status_strings(void)
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
 	CHECK(0 ==
 	      strcmp(bsk_status_string(BSK_ERR_AUTH), "authentication failed"));
-	CHECK(bsk_abi_version() == 11);
+	CHECK(bsk_abi_version() == 12);
 	CHECK(bsk_capabilities(NULL, 0) > 0);
 	test_capabilities();
 }

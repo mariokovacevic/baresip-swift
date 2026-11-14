@@ -150,15 +150,15 @@ same behaviour through the Kotlin API:
 | `AccountConfigurationTests`, `ContactParameterTests` (8) | `AccountConfigurationTest` (7), `EventDecoderTest.hugeDurationsAreClamped` | Same validation, secure defaults, `Contact` parameter encoding, clamped durations |
 | `EngineLifecycleTests` (4) | `EngineLifecycleTest` (6) | Plus a closed engine and unknown calls |
 | `AppLifecycleTests` (5) | `AppLifecycleTest` (4) | No `TerminationStopsTheEngine`: Android has no reliable termination callback |
-| `CallEndReasonTests` (3), `NetworkEventTests` (2) | `EventDecoderTest` (7), `EngineLifecycleTest.capabilitiesAndVersions` | Answered or declined elsewhere, network events, ABI version |
+| `CallEndReasonTests` (5), `NetworkEventTests` (2) | `EventDecoderTest` (9), `EngineLifecycleTest.capabilitiesAndVersions` | Answered or declined elsewhere, replaced calls and the call they replace, network events, ABI version |
 | `FileLogTests` (5) | `FileLogTest` (5) | One to one |
 | `CertificatesTests` (11) | `CertificatesTest` (7) | Kotlin takes non-null bundles, so the nil cases do not exist |
 | `NetworkMonitorTests` (5) | `NetworkMonitorTest` (3) | Same rules for first, changed, lost and repeated networks |
 | `VideoSinkTests` (7) | `VideoTest` (3), `VideoGeometryTest` (8), `H264LoopbackTest` (emulator), `EventDecoderTest` | `CVPixelBuffer`/IOSurface cases are Apple only; Android adds rendering geometry and MediaCodec H.264 |
 | `AudioInterruptionTests` (6), `AudioOptionsTests` (4) | `AudioControllerTest` (7) | Focus loss pauses, regained focus resumes only what the controller activated, Telecom-owned audio waits; iOS media-services reset and Bluetooth profile flags have no Android counterpart |
-| `CallKitActionResultTests` (9), `LiveCommunicationAdapterTests` (8) | `TelecomActionsTest` (4), `DisconnectCauseTest` (3), `PushCallLedgerTest` | Successful, refused and timed-out actions, abandoned starts, calls ended elsewhere, SIP URI or number handles; ending an unknown call succeeds |
+| `CallKitActionResultTests` (9), `LiveCommunicationAdapterTests` (8) | `TelecomActionsTest` (4), `DisconnectCauseTest` (4), `PushCallLedgerTest` | Successful, refused and timed-out actions, abandoned starts, calls ended elsewhere, SIP URI or number handles; ending an unknown call succeeds |
 | `PushCallLedgerTests` (25), `PushMatchTests` (8) | `PushCallLedgerTest` (24), `PushMatchTest` (7) | Ported one to one |
-| `SystemCallBookTests` (13) | `PushCallLedgerTest`, `TelecomActionsTest` | The call bookkeeping both iOS adapters share: pushed and unannounced calls, early answers and declines, placed and abandoned starts, the camera on answer; on Android it lives in `BaresipTelecomAdapter` |
+| `SystemCallBookTests` (19) | `PushCallLedgerTest`, `TelecomActionsTest` | The call bookkeeping both iOS adapters share: pushed and unannounced calls, early answers and declines, placed and abandoned starts, the camera on answer, calls handed over to the call that replaces them; on Android it lives in `BaresipTelecomAdapter` |
 | `ContactParameterUpdatesTests` (7), `IncomingPushReportTests` (2) | `PushTest` (5) | PushKit's "report before returning" rule does not apply to FCM |
 | `BaresipPhoneTests` (14), `BaresipPhoneControlTests` (16), `MessagePeerTests` (4) | `BaresipPhoneTest` (12), `BaresipPhoneControlTest` (18) | Ported one to one; snapshot cases merged |
 | `RedialRequestTests` (3) | `BaresipRedialRequestTest` (5), `RedialTest` (emulator) | Intents instead of user activities, with the trusted `CALL` rule |

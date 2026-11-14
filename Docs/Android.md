@@ -90,7 +90,10 @@ val call = phone.makeCall("sip:door@example.com", video = true)
 account's `Contact` parameters (`pn-type=firebase`, `pn-tok`, `app-id`) current and reports a
 pushed call to Telecom before waking the engine. A server matches the INVITE to the push by the
 UUID in an INVITE header (`BaresipTelecomConfiguration.callUuidHeader`) or by the caller. The
-door stack in `Tools/DoorStack` sends such pushes, to Google or to a local stand-in.
+door stack in `Tools/DoorStack` sends such pushes, to Google or to a local stand-in. A call the
+server replaces with an INVITE carrying `Replaces`, or one the other side transfers with REFER,
+keeps its Telecom call: the new call's `BaresipCallInfo.replacesCallId` names the old one, which
+ends with `BaresipCallEndReason.REPLACED`, and the adapter moves the Telecom call over.
 
 ```kotlin
 val push = BaresipPushAdapter(engine, appId = context.packageName) { call ->

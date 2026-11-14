@@ -43,6 +43,15 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   LiveCommunicationKit adapters report the call as answered or declined elsewhere instead of
   missed. C ABI 0.11: `bsk_event.u.call_state.end_reason`. The sample lists such calls as
   "Answered on another phone" and leaves no missed ring notification.
+- Calls that go on in another call keep their system call: when the server replaces an
+  established call with an INVITE carrying `Replaces` (RFC 3891), as call pickup, queues, parking
+  and attended transfers do, or when the other side transfers a call with REFER (RFC 3515) and
+  the engine follows it, the new call's `BaresipCallInfo.replacesCallID` names the old call and
+  the old call ends with `BaresipCallEndReason.replaced`. The CallKit, LiveCommunicationKit and
+  Telecom adapters move the system call to the new call instead of ending it and ringing again,
+  so the call screen, the audio session and Bluetooth stay as they were; if no call replaces it
+  within five seconds the system call ends. C ABI 0.12: `bsk_call_info.replaces` and
+  `BSK_END_REPLACED`.
 - Hold, resume, mute (`BaresipCallInfo.isMicrophoneMuted`), DTMF over RFC 4733 and SIP INFO,
   several calls with switching, blind and attended transfer (REFER with Replaces), and following
   incoming transfers.

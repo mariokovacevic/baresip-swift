@@ -7,19 +7,70 @@
     extension BaresipCallKitAdapter {
         static let busyStatusCode = 486
         static let declineStatusCode = 600
+        static let replacementTimeout: Duration = .seconds(5)
 
         func handle(_ event: BaresipEvent) async {
             switch event {
             case .incomingCall(let info, _):
                 await handleIncoming(info)
             case .call(let call, let state, let error):
-                handleState(state, of: call, error: error)
+                if state == .outgoingInit {
+                    await linkTransferredCall(call)
+                }
+                if state == .ended || state == .failed, error?.endReason == .replaced {
+                    await handOver(call)
+                } else {
+                    handleState(state, of: call, error: error)
+                }
             default:
                 break
             }
         }
 
+        /// Notes that an outgoing call follows a transfer of a call CallKit shows, so the CallKit
+        /// call moves to it when the transferred call ends.
+        private func linkTransferredCall(_ call: BaresipCallID) async {
+            guard lock.withLock({ book.needsReplacementCheck(call) }),
+                  let old = try? await engine.callInfo(callID: call).replacesCallID
+            else { return }
+            _ = lock.withLock { book.link(call, replacing: old) }
+        }
+
+        /// Moves the CallKit call of a call that another call took over to that call, or keeps it
+        /// briefly for an INVITE with `Replaces` that follows.
+        private func handOver(_ call: BaresipCallID) async {
+            switch lock.withLock({ book.callReplaced(call) }) {
+            case .handedOver(let uuid, let successor):
+                if let info = try? await engine.callInfo(callID: successor) {
+                    provider.reportCall(with: uuid, updated: callUpdate(for: info, replacingAnnouncedName: true))
+                }
+            case .parked(let uuid):
+                Task { [weak self] in
+                    try? await Task.sleep(for: Self.replacementTimeout)
+                    self?.endUnreplacedCall(call, uuid: uuid)
+                }
+            case .unknown:
+                break
+            }
+        }
+
+        private func endUnreplacedCall(_ call: BaresipCallID, uuid: UUID) {
+            guard lock.withLock({ book.expireParked(call) }) != nil else { return }
+            provider.reportCall(with: uuid, endedAt: Date(), reason: .remoteEnded)
+        }
+
         private func handleIncoming(_ info: BaresipCallInfo) async {
+            if let old = info.replacesCallID {
+                switch lock.withLock({ book.link(info.id, replacing: old) }) {
+                case .adopted(let uuid):
+                    provider.reportCall(with: uuid, updated: callUpdate(for: info, replacingAnnouncedName: true))
+                    return
+                case .pending:
+                    return
+                case .unrelated:
+                    break
+                }
+            }
             let inviteUUID = await engine.announcedCallUUID(header: callUUIDHeader, callID: info.id)
             let resolution = lock.withLock {
                 book.resolveIncoming(info.id, remoteURI: info.remoteURI, announcedUUID: inviteUUID,
@@ -104,6 +155,7 @@
             switch error.endReason {
             case .answeredElsewhere: return .answeredElsewhere
             case .declinedElsewhere: return .declinedElsewhere
+            case .replaced: return .remoteEnded
             case nil: break
             }
             if error.sipStatus == busyStatusCode || error.sipStatus == declineStatusCode {

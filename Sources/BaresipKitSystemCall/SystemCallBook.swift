@@ -25,6 +25,18 @@ package struct SystemCallBook {
         }
     }
 
+    package enum Handover: Equatable, Sendable {
+        case handedOver(UUID, to: BaresipCallID)
+        case parked(UUID)
+        case unknown
+    }
+
+    package enum ReplacementLink: Equatable, Sendable {
+        case adopted(UUID)
+        case pending
+        case unrelated
+    }
+
     package struct StateChange: Equatable, Sendable {
         package let uuid: UUID
         package let isOutgoing: Bool
@@ -37,6 +49,8 @@ package struct SystemCallBook {
     private var outgoing: Set<UUID> = []
     private var answerVideo: [UUID: Bool] = [:]
     private var startDestinations: [UUID: String] = [:]
+    private var parked: [BaresipCallID: UUID] = [:]
+    private var successors: [BaresipCallID: BaresipCallID] = [:]
     private var pushCalls: PushCallLedger
 
     package init(matchesPushWithoutCaller: Bool) {
@@ -168,7 +182,42 @@ package struct SystemCallBook {
         return callByUUID[uuid]
     }
 
+    package func needsReplacementCheck(_ call: BaresipCallID) -> Bool {
+        uuidByCall[call] == nil && !successors.values.contains(call)
+    }
+
+    package mutating func link(_ call: BaresipCallID, replacing old: BaresipCallID) -> ReplacementLink {
+        if let uuid = parked.removeValue(forKey: old) {
+            bind(call, uuid)
+            return .adopted(uuid)
+        }
+        guard uuidByCall[old] != nil else { return .unrelated }
+        successors[old] = call
+        return .pending
+    }
+
+    package mutating func callReplaced(_ call: BaresipCallID) -> Handover {
+        pushCalls.stoppedRinging(call)
+        guard let uuid = uuidByCall.removeValue(forKey: call) else { return .unknown }
+        callByUUID[uuid] = nil
+        outgoing.remove(uuid)
+        pendingAnswers.remove(uuid)
+        answerVideo[uuid] = nil
+        if let successor = successors.removeValue(forKey: call) {
+            bind(successor, uuid)
+            return .handedOver(uuid, to: successor)
+        }
+        parked[call] = uuid
+        return .parked(uuid)
+    }
+
+    package mutating func expireParked(_ call: BaresipCallID) -> UUID? {
+        parked.removeValue(forKey: call)
+    }
+
     package mutating func unbind(_ call: BaresipCallID) -> UUID? {
+        successors[call] = nil
+        successors = successors.filter { $0.value != call }
         guard let uuid = uuidByCall.removeValue(forKey: call) else { return nil }
         callByUUID[uuid] = nil
         pendingAnswers.remove(uuid)
@@ -187,6 +236,8 @@ package struct SystemCallBook {
         answerVideo.removeAll()
         abandonedStarts.removeAll()
         startDestinations.removeAll()
+        parked.removeAll()
+        successors.removeAll()
         return calls
     }
 

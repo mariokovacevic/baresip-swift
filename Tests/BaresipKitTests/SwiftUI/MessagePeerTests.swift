@@ -51,6 +51,6 @@ final class MessagePeerTests: XCTestCase {
         BaresipCallInfo(id: id, account: BaresipAccountID(rawValue: 1), state: .incoming, isOutgoing: false,
                         hasVideo: false, audioDirection: .sendReceive, videoDirection: .inactive, sipCallID: "",
                         remoteURI: uri, remoteDisplayName: "", audioCodec: "", videoCodec: "", setupTime: .zero,
-                        duration: .zero, isMicrophoneMuted: false)
+                        duration: .zero, isMicrophoneMuted: false, replacesCallID: nil)
     }
 }

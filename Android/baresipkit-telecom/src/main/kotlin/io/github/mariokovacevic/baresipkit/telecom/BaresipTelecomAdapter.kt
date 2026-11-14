@@ -141,6 +141,8 @@ class BaresipTelecomAdapter(
     private val callByEngine = ConcurrentHashMap<BaresipCallID, UUID>()
     private val pendingAnswers = mutableSetOf<UUID>()
     private val answerVideo = mutableMapOf<UUID, Boolean>()
+    private val parked = mutableMapOf<BaresipCallID, UUID>()
+    private val successors = mutableMapOf<BaresipCallID, BaresipCallID>()
     private val muteObservers = CopyOnWriteArrayList<(BaresipCallID, Boolean) -> Unit>()
 
     init {
@@ -366,12 +368,73 @@ class BaresipTelecomAdapter(
     private suspend fun handle(event: BaresipEvent) {
         when (event) {
             is BaresipEvent.IncomingCall -> incoming(event.info)
-            is BaresipEvent.Call -> state(event.call, event.state, event.error)
+            is BaresipEvent.Call -> {
+                if (event.state == BaresipCallState.OUTGOING_INIT) linkTransferredCall(event.call)
+                val ended = event.state == BaresipCallState.ENDED || event.state == BaresipCallState.FAILED
+                if (ended && event.error?.endReason == BaresipCallEndReason.REPLACED) {
+                    handOver(event.call)
+                } else {
+                    state(event.call, event.state, event.error)
+                }
+            }
             else -> Unit
         }
     }
 
+    private suspend fun linkTransferredCall(call: BaresipCallID) {
+        val unknown = mutex.withLock { !callByEngine.containsKey(call) && call !in successors.values }
+        if (!unknown) return
+        val old = runCatching { engine.callInfo(call).replacesCallId }.getOrNull() ?: return
+        mutex.withLock {
+            if (callByEngine.containsKey(old)) successors[old] = call
+        }
+    }
+
+    private suspend fun handOver(old: BaresipCallID) {
+        val uuid =
+            mutex.withLock {
+                ledger.stoppedRinging(old)
+                val uuid = callByEngine.remove(old) ?: return
+                pendingAnswers -= uuid
+                answerVideo.remove(uuid)
+                val successor = successors.remove(old)
+                val call = calls[uuid]
+                if (successor != null && call != null) {
+                    bind(successor, call)
+                    return
+                }
+                parked[old] = uuid
+                uuid
+            }
+        scope.launch {
+            delay(REPLACEMENT_TIMEOUT)
+            val call = mutex.withLock { if (parked.remove(old) != null) calls.remove(uuid) else null } ?: return@launch
+            runCatching { call.ready.await().disconnect(DisconnectCause(DisconnectCause.REMOTE)) }
+            if (mutex.withLock { calls.isEmpty() }) engine.audioSessionDidDeactivate()
+        }
+    }
+
+    private suspend fun adoptReplacement(info: BaresipCallInfo): Boolean {
+        val old = info.replacesCallId ?: return false
+        return mutex.withLock {
+            val uuid = parked.remove(old)
+            val call = uuid?.let { calls[it] }
+            when {
+                call != null -> {
+                    bind(info.id, call)
+                    true
+                }
+                callByEngine.containsKey(old) -> {
+                    successors[old] = info.id
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
     private suspend fun incoming(info: BaresipCallInfo) {
+        if (adoptReplacement(info)) return
         val headerUuid =
             configuration.callUuidHeader?.let { header ->
                 runCatching { engine.incomingHeader(header, info.id) }.getOrNull()?.trim()?.let {
@@ -425,6 +488,7 @@ class BaresipTelecomAdapter(
         val call =
             mutex.withLock {
                 if (state != BaresipCallState.INCOMING && state != BaresipCallState.EARLY_MEDIA) ledger.stoppedRinging(id)
+                if (state == BaresipCallState.RELEASED) successors.entries.removeAll { it.value == id }
                 callByEngine[id]?.let { calls[it] }
             } ?: return
         when (state) {
@@ -495,12 +559,14 @@ class BaresipTelecomAdapter(
     internal companion object {
         const val BUSY = 486
         const val DECLINE = 600
+        val REPLACEMENT_TIMEOUT = 5.seconds
 
         fun disconnectCode(error: BaresipError?): Int {
             if (error == null) return DisconnectCause.REMOTE
             return when (error.endReason) {
                 BaresipCallEndReason.ANSWERED_ELSEWHERE -> DisconnectCause.ANSWERED_ELSEWHERE
                 BaresipCallEndReason.DECLINED_ELSEWHERE -> DisconnectCause.REJECTED
+                BaresipCallEndReason.REPLACED -> DisconnectCause.REMOTE
                 null ->
                     when (error.sipStatus) {
                         BUSY -> DisconnectCause.BUSY

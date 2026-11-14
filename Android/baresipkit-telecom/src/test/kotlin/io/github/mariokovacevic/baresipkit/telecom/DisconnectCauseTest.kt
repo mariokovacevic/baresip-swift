@@ -23,6 +23,12 @@ class DisconnectCauseTest {
     }
 
     @Test
+    fun aReplacedCallIsNoError() {
+        val replaced = BaresipError(BaresipError.Code.OK, endReason = BaresipCallEndReason.REPLACED)
+        assertEquals(DisconnectCause.REMOTE, BaresipTelecomAdapter.disconnectCode(replaced))
+    }
+
+    @Test
     fun busyAndDeclineAreNotErrors() {
         assertEquals(DisconnectCause.BUSY, BaresipTelecomAdapter.disconnectCode(sip(486)))
         assertEquals(DisconnectCause.REJECTED, BaresipTelecomAdapter.disconnectCode(sip(600)))

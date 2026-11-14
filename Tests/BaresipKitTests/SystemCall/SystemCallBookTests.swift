@@ -180,4 +180,79 @@ final class SystemCallBookTests: XCTestCase {
         XCTAssertNil(book.uuid(for: other))
         XCTAssertEqual(book.answerTarget(otherUUID), .unknown)
     }
+
+    func testAReplacedCallIsParkedUntilTheIncomingCallThatReplacesItTakesItsUUID() {
+        var book = SystemCallBook(matchesPushWithoutCaller: true)
+        let uuid = book.bindUnannounced(call, remoteURI: alice, announcedUUID: nil)
+        let replacing = BaresipCallID(rawValue: 8)
+
+        XCTAssertEqual(book.callReplaced(call), .parked(uuid))
+        XCTAssertNil(book.uuid(for: call))
+        XCTAssertNil(book.unbind(call))
+        XCTAssertEqual(book.link(replacing, replacing: call), .adopted(uuid))
+        XCTAssertEqual(book.uuid(for: replacing), uuid)
+        XCTAssertEqual(book.call(for: uuid), replacing)
+        XCTAssertNil(book.expireParked(call))
+    }
+
+    func testATransferredCallHandsItsUUIDToTheCallThatFollowsIt() {
+        var book = SystemCallBook(matchesPushWithoutCaller: true)
+        let uuid = UUID()
+        let follower = BaresipCallID(rawValue: 8)
+        book.willStart(uuid, destination: alice)
+        XCTAssertTrue(book.placed(call, uuid: uuid))
+
+        XCTAssertTrue(book.needsReplacementCheck(follower))
+        XCTAssertEqual(book.link(follower, replacing: call), .pending)
+        XCTAssertFalse(book.needsReplacementCheck(follower))
+        XCTAssertEqual(book.uuid(for: call), uuid)
+        XCTAssertEqual(book.callReplaced(call), .handedOver(uuid, to: follower))
+        XCTAssertEqual(book.uuid(for: follower), uuid)
+        XCTAssertEqual(book.stateChanged(follower, to: .connected),
+                       SystemCallBook.StateChange(uuid: uuid, isOutgoing: false))
+    }
+
+    func testAFailedTransferLeavesTheCallWhereItWas() {
+        var book = SystemCallBook(matchesPushWithoutCaller: true)
+        let uuid = book.bindUnannounced(call, remoteURI: alice, announcedUUID: nil)
+        let follower = BaresipCallID(rawValue: 8)
+        XCTAssertEqual(book.link(follower, replacing: call), .pending)
+
+        XCTAssertNil(book.unbind(follower))
+
+        XCTAssertTrue(book.needsReplacementCheck(follower))
+        XCTAssertEqual(book.uuid(for: call), uuid)
+        XCTAssertEqual(book.callReplaced(call), .parked(uuid))
+    }
+
+    func testCallsTheBookDoesNotKnowAreNeitherHandedOverNorLinked() {
+        var book = SystemCallBook(matchesPushWithoutCaller: true)
+
+        XCTAssertEqual(book.callReplaced(call), .unknown)
+        XCTAssertEqual(book.link(BaresipCallID(rawValue: 8), replacing: call), .unrelated)
+    }
+
+    func testAParkedCallThatNoCallReplacesExpiresOnce() {
+        var book = SystemCallBook(matchesPushWithoutCaller: true)
+        let uuid = book.bindUnannounced(call, remoteURI: alice, announcedUUID: nil)
+        _ = book.callReplaced(call)
+
+        XCTAssertEqual(book.expireParked(call), uuid)
+        XCTAssertNil(book.expireParked(call))
+        XCTAssertEqual(book.link(BaresipCallID(rawValue: 8), replacing: call), .unrelated)
+    }
+
+    func testResetForgetsParkedAndLinkedCalls() {
+        var book = SystemCallBook(matchesPushWithoutCaller: true)
+        _ = book.bindUnannounced(call, remoteURI: alice, announcedUUID: nil)
+        let other = BaresipCallID(rawValue: 8)
+        _ = book.bindUnannounced(other, remoteURI: alice, announcedUUID: nil)
+        XCTAssertEqual(book.link(BaresipCallID(rawValue: 9), replacing: other), .pending)
+        _ = book.callReplaced(call)
+
+        _ = book.reset()
+
+        XCTAssertNil(book.expireParked(call))
+        XCTAssertTrue(book.needsReplacementCheck(BaresipCallID(rawValue: 9)))
+    }
 }

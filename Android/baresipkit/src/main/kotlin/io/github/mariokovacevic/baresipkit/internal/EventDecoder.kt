@@ -30,7 +30,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 internal object EventDecoder {
-    const val CALL_INFO_LONGS = 10
+    const val CALL_INFO_LONGS = 11
     const val STATISTICS_LONGS = 30
     private const val FIRST_LONG = 4
     private const val FIRST_STRING = 2
@@ -169,6 +169,7 @@ internal object EventDecoder {
             setupTime = n[7].milliseconds,
             duration = n[8].seconds,
             isMicrophoneMuted = n[9] != 0L,
+            replacesCallId = n[10].takeIf { it != 0L }?.let(::BaresipCallID),
         )
 
     fun statistics(

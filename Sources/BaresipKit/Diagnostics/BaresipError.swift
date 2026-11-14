@@ -27,6 +27,9 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
     ///
     /// When several phones ring for one call and one answers, the server cancels the others.
     /// Report such a call as answered elsewhere instead of as missed.
+    ///
+    /// ``BaresipCallEndReason/replaced`` marks a call that another call took over, with
+    /// ``code`` ``Code/ok``.
     public let endReason: BaresipCallEndReason?
 
     /// Creates an error.
@@ -106,10 +109,14 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
     }
 }
 
-/// How another device ended an incoming call while it rang; see ``BaresipError/endReason``.
+/// Why a call ended other than by a hang-up or a failure; see ``BaresipError/endReason``.
 public enum BaresipCallEndReason: Sendable, Equatable {
     /// Another device answered the call (`Reason: SIP;cause=200`).
     case answeredElsewhere
     /// Another device declined the call (`Reason: SIP;cause=600` or `603`).
     case declinedElsewhere
+    /// Another call took the conversation over: the server replaced this call with a new INVITE
+    /// (`Replaces`), or the other side transferred it and the engine followed the transfer. The
+    /// new call's ``BaresipCallInfo/replacesCallID`` is this call. Do not show the call as ended.
+    case replaced
 }

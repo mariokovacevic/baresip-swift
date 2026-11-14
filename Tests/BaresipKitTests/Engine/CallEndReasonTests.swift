@@ -31,6 +31,24 @@ final class CallEndReasonTests: XCTestCase {
         XCTAssertEqual(error.endReason, .declinedElsewhere)
     }
 
+    func testACallAnotherCallTookOverIsReplacedNotFailed() {
+        guard case .call(_, .ended, let error?)? = ended(status: 0, reason: BSK_END_REPLACED) else {
+            return XCTFail("expected an ended call with its reason")
+        }
+        XCTAssertEqual(error.endReason, .replaced)
+        XCTAssertNil(error.sipStatus)
+        XCTAssertFalse(error.isFailure)
+    }
+
+    func testAnIncomingCallNamesTheCallItReplaces() {
+        var info = bsk_call_info()
+        info.id = 8
+        info.replaces = 7
+        XCTAssertEqual(BaresipCallInfo(info).replacesCallID, BaresipCallID(rawValue: 7))
+        info.replaces = 0
+        XCTAssertNil(BaresipCallInfo(info).replacesCallID)
+    }
+
     func testAnOrdinaryEndHasNoReason() {
         guard case .call(_, .ended, let error)? = ended(status: 0, reason: BSK_END_NORMAL) else {
             return XCTFail("expected an ended call")

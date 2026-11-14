@@ -66,7 +66,7 @@ data class CallRow(
                     when (call.error?.endReason) {
                         BaresipCallEndReason.ANSWERED_ELSEWHERE -> "answered"
                         BaresipCallEndReason.DECLINED_ELSEWHERE -> "declined"
-                        null -> null
+                        BaresipCallEndReason.REPLACED, null -> null
                     },
             )
     }

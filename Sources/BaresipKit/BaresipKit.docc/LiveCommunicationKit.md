@@ -49,6 +49,9 @@ CallKit, by a UUID header or else by the caller; see <doc:CallKit>.
   `BaresipLiveCommunicationError.unsupportedAction`.
 - A push for a call the system already shows is ended as joined elsewhere.
 
+A call the server replaces with an INVITE carrying `Replaces`, or one the other side transfers,
+keeps its conversation, as with CallKit; see <doc:CallKit>.
+
 ### Recents
 
 With `includesCallsInRecents`, calls appear in the Recents list of the Phone app, and a tap on

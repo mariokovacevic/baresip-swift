@@ -36,7 +36,7 @@ struct CallRecord: Identifiable, Codable, Equatable {
         switch row.endedElsewhere {
         case .answeredElsewhere: elsewhere = "answered"
         case .declinedElsewhere: elsewhere = "declined"
-        case nil: elsewhere = nil
+        case .replaced, nil: elsewhere = nil
         }
     }
 

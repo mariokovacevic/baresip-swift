@@ -29,6 +29,7 @@ extension BaresipCallEndReason {
         switch reason {
         case BSK_END_ANSWERED_ELSEWHERE: self = .answeredElsewhere
         case BSK_END_DECLINED_ELSEWHERE: self = .declinedElsewhere
+        case BSK_END_REPLACED: self = .replaced
         default: return nil
         }
     }
@@ -50,7 +51,8 @@ extension BaresipCallInfo {
                   videoCodec: string(fromCArray: info.video_codec),
                   setupTime: .milliseconds(Int(info.setup_ms)),
                   duration: .seconds(Int(info.duration_s)),
-                  isMicrophoneMuted: info.microphone_muted)
+                  isMicrophoneMuted: info.microphone_muted,
+                  replacesCallID: info.replaces == 0 ? nil : BaresipCallID(rawValue: info.replaces))
     }
 }
 

@@ -227,6 +227,7 @@ void bsk_jni_pack_call_info(JNIEnv *env, const bsk_call_info *info, jlong *n,
 	n[7] = info->setup_ms;
 	n[8] = info->duration_s;
 	n[9] = info->microphone_muted;
+	n[10] = (jlong)info->replaces;
 	jstring values[] = {
 		FIXED_STRING(env, info->sip_call_id),
 		FIXED_STRING(env, info->remote_uri),
@@ -327,7 +328,7 @@ static void deliver_event(bsk_engine *engine, const bsk_event *event,
 	case BSK_EVENT_CALL_INCOMING:
 		bsk_jni_pack_call_info(env, &event->u.call_incoming.info, x, s,
 				       BSK_JNI_EVENT_FIRST_STRING);
-		x[10] = event->u.call_incoming.early_video;
+		x[BSK_JNI_CALL_INFO_LONGS] = event->u.call_incoming.early_video;
 		break;
 	case BSK_EVENT_CALL_MEDIA:
 		x[0] = event->u.media.event;

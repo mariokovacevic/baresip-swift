@@ -19,6 +19,6 @@ final class NetworkEventTests: XCTestCase {
         let engine = try BaresipEngine(configuration: BaresipConfiguration())
         XCTAssertFalse(engine.isEngineThread)
         XCTAssertEqual(BaresipEngine.abiVersion.major, 0)
-        XCTAssertEqual(BaresipEngine.abiVersion.minor, 11)
+        XCTAssertEqual(BaresipEngine.abiVersion.minor, 12)
     }
 }

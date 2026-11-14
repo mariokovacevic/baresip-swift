@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #define BSK_ABI_VERSION_MAJOR 0
-#define BSK_ABI_VERSION_MINOR 11
+#define BSK_ABI_VERSION_MINOR 12
 
 typedef struct bsk_engine bsk_engine;
 
@@ -131,7 +131,8 @@ typedef enum bsk_call_state {
 typedef enum bsk_call_end_reason {
 	BSK_END_NORMAL = 0,
 	BSK_END_ANSWERED_ELSEWHERE = 1,
-	BSK_END_DECLINED_ELSEWHERE = 2
+	BSK_END_DECLINED_ELSEWHERE = 2,
+	BSK_END_REPLACED = 3
 } bsk_call_end_reason;
 
 typedef enum bsk_media_direction {
@@ -298,6 +299,11 @@ typedef struct bsk_call_info {
 	uint32_t setup_ms;
 	uint32_t duration_s;
 	bool microphone_muted;
+	/* The call this one takes over, or BSK_ID_NONE: an incoming call whose
+	 * INVITE replaced an established call (RFC 3891), or the outgoing call
+	 * that follows a transfer of that call (RFC 3515). The call it takes
+	 * over ends with BSK_END_REPLACED. */
+	bsk_call_id replaces;
 } bsk_call_info;
 
 typedef struct bsk_stream_statistics {
@@ -376,7 +382,9 @@ typedef struct bsk_event {
 			bsk_error error;
 			/* For BSK_CALL_ENDED of an incoming call that rang: whether
 			 * another device answered or declined it, as the Reason
-			 * header of the CANCEL says (RFC 3326). */
+			 * header of the CANCEL says (RFC 3326). BSK_END_REPLACED
+			 * when a call with this call's id in
+			 * bsk_call_info.replaces takes it over. */
 			bsk_call_end_reason end_reason;
 		} call_state;
 		struct {

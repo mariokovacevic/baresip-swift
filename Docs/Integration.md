@@ -139,7 +139,7 @@ Writes a 16-bit PCM stereo WAV: left is your microphone as sent, right is the ot
 
 ## Transfers
 
-`blindTransfer(callID:to:)` sends a REFER without consulting the target. For an attended transfer put the first call on hold, call the target, talk to it, then call `attendedTransfer(callID: firstCall, replacing: consultationCall)`: the first party receives a REFER with `Replaces` and calls the target, the target's call is replaced without ringing, and both of your calls end. When the other side transfers you, the SDK follows the REFER automatically (a new outgoing call appears as `.call(newID, .outgoingInit)` and the old call ends when the transfer succeeds); set `acceptTransfers: false` on the account to decline transfers with 603.
+`blindTransfer(callID:to:)` sends a REFER without consulting the target. For an attended transfer put the first call on hold, call the target, talk to it, then call `attendedTransfer(callID: firstCall, replacing: consultationCall)`: the first party receives a REFER with `Replaces` and calls the target, the target's call is replaced without ringing, and both of your calls end. When the other side transfers you, the SDK follows the REFER automatically (a new outgoing call appears as `.call(newID, .outgoingInit)` and the old call ends when the transfer succeeds); set `acceptTransfers: false` on the account to decline transfers with 603. The new call's `BaresipCallInfo.replacesCallID` names the old call, which ends with `BaresipCallEndReason.replaced`, and an INVITE with `Replaces` that takes over an established call is marked the same way; the CallKit, LiveCommunicationKit and Telecom adapters move the system call to the new call instead of ending it.
 
 ## PushKit
 

@@ -37,6 +37,13 @@ data class BaresipCallInfo(
     val duration: Duration,
     /** Whether the microphone of this call is muted. */
     val isMicrophoneMuted: Boolean,
+    /**
+     * The call this one takes over, or `null`: an incoming call whose INVITE replaced an established
+     * call (`Replaces`, RFC 3891), or the outgoing call that follows when the other side transfers a
+     * call (REFER, RFC 3515). The call it takes over ends with [BaresipCallEndReason.REPLACED], and
+     * the conversation goes on in this call.
+     */
+    val replacesCallId: BaresipCallID? = null,
 )
 
 /** RTP statistics for one stream of a call. */

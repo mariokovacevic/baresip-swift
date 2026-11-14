@@ -55,6 +55,8 @@ struct bsk_call_ctx {
 	bsk_call_state state;
 	bsk_call_state steady_state;
 	bsk_call_end_reason end_reason;
+	bsk_call_id replaces;
+	bsk_call_id successor;
 	bool outgoing;
 	bool video;
 	bool local_hold;
@@ -164,6 +166,7 @@ struct bsk_engine {
 	bool replace_pending;
 	bool replace_confirmed;
 	bool replace_video;
+	bsk_call_id replaced_id;
 	const struct call *replace_call;
 	unsigned emit_depth;
 	const struct tls *tls_configured;
