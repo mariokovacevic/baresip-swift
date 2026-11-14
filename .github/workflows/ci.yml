@@ -259,6 +259,8 @@ jobs:
           key: macos-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
       - name: Build XCFramework (default module set)
         run: MODULE_SET=default JOBS=4 Build/build-xcframework.sh
+      - name: Check the privacy manifest against the APIs the XCFramework uses
+        run: Scripts/check-privacy-apis.sh
       - name: Build Swift package for the simulator and a device, warnings as errors
         run: |
           for destination in 'generic/platform=iOS Simulator' 'generic/platform=iOS'; do
