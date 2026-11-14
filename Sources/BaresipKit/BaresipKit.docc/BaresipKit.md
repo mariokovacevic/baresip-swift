@@ -66,6 +66,8 @@ covers is in [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/
 ### Network
 
 - <doc:NetworkChanges>
+- <doc:TLSAndCertificates>
+- <doc:NATTraversal>
 - ``BaresipTLSConfiguration``
 - ``BaresipCertificates``
 - ``BaresipCertificateError``
