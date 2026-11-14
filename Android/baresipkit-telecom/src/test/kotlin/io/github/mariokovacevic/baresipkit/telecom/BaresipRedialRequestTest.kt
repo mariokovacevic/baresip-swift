@@ -23,7 +23,7 @@ class BaresipRedialRequestTest {
 
     @Test
     fun telUriGivesTheNumber() {
-        assertEquals(BaresipRedialRequest("+15555550199", false, callsNow = true), BaresipRedialRequest.parse(call, "tel:%2B387-65-123%20456", 0))
+        assertEquals(BaresipRedialRequest("+15555550199", false, callsNow = true), BaresipRedialRequest.parse(call, "tel:%2B1-555-555%200199", 0))
         assertEquals(BaresipRedialRequest("+15555550199", false), BaresipRedialRequest.parse(dial, "tel:+15555550199;phone-context=example.com", 0))
         assertEquals(BaresipRedialRequest("1010", false), BaresipRedialRequest.parse(dial, "tel:1010", 0))
     }
