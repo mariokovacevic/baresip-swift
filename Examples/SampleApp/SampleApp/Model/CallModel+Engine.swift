@@ -29,7 +29,7 @@ extension CallModel {
             apply(options, to: &config)
             let engine = try BaresipEngine(configuration: config)
             engine.setLogHandler(FileLog.shared.handler(
-                forwardingTo: BaresipOSLog.handler(subsystem: "com.example.BaresipKitSample")
+                forwardingTo: BaresipOSLog.handler(subsystem: "com.example.BaresipKitSample", publicMessages: true)
             ))
             self.engine = engine
             engineTLS = tls

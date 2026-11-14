@@ -4,15 +4,21 @@ import os
 public enum BaresipOSLog {
     /// Returns a handler that writes each entry to `os.Logger`, one category per domain.
     ///
-    /// Messages are logged with public privacy because the core has already redacted secrets.
+    /// The core removes passwords, digest responses and push tokens from its messages, but they
+    /// still contain SIP URIs, IP addresses, display names and headers. Messages are therefore
+    /// logged as private by default: the unified logging system shows them on a device that is
+    /// connected to a debugger, and `<private>` elsewhere. Pass `publicMessages: true` to log them
+    /// in full, for example in a debug build.
     ///
     /// ```swift
     /// engine.setLogHandler(BaresipOSLog.handler(subsystem: "com.example.app"))
     /// ```
     ///
-    /// - Parameter subsystem: The subsystem name shown in Console.
+    /// - Parameters:
+    ///   - subsystem: The subsystem name shown in Console.
+    ///   - publicMessages: Whether messages are logged with public privacy.
     /// - Returns: A handler for ``BaresipEngine/setLogHandler(_:)``.
-    public static func handler(subsystem: String = "BaresipKit") -> BaresipLogHandler {
+    public static func handler(subsystem: String = "BaresipKit", publicMessages: Bool = false) -> BaresipLogHandler {
         let core = Logger(subsystem: subsystem, category: "core")
         let sip = Logger(subsystem: subsystem, category: "sip")
         let media = Logger(subsystem: subsystem, category: "media")
@@ -22,11 +28,16 @@ public enum BaresipOSLog {
             case .sip: sip
             case .media: media
             }
-            switch entry.level {
-            case .debug: logger.debug("\(entry.message, privacy: .public)")
-            case .info: logger.info("\(entry.message, privacy: .public)")
-            case .warning: logger.warning("\(entry.message, privacy: .public)")
-            case .error: logger.error("\(entry.message, privacy: .public)")
+            let type: OSLogType = switch entry.level {
+            case .debug: .debug
+            case .info: .info
+            case .warning: .default
+            case .error: .error
+            }
+            if publicMessages {
+                logger.log(level: type, "\(entry.message, privacy: .public)")
+            } else {
+                logger.log(level: type, "\(entry.message, privacy: .private)")
             }
         }
     }

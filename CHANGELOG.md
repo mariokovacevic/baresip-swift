@@ -344,6 +344,10 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 
 ### Security
 
+- `BaresipOSLog.handler` logs engine messages with private privacy by default, so Console shows
+  `<private>` unless a debugger is attached. The core redacts passwords, digest responses and
+  push tokens, but messages still contain SIP URIs, IP addresses, display names and headers.
+  `publicMessages: true` logs them in full, as the sample app does.
 - OpenSSL is built without QUIC (`no-quic`), which BaresipKit never used. This removes the code of
   two of the four OpenSSL 3.5.9 vulnerabilities published on 10 November 2026 (CVE-2026-88822,
   CVE-2026-95691); the other two (CVE-2026-88823, CVE-2026-95692) are in AES-GCM-SIV, which
