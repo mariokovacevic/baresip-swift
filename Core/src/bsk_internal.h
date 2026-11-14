@@ -283,8 +283,10 @@ bool bsk_call_hold_music(const bsk_engine *engine,
 			 const struct bsk_call_ctx *c);
 
 int bsk_tls_install(bsk_engine *engine, struct tls *tls);
+typedef void(bsk_trust_cert_h)(const uint8_t *der, size_t len, void *arg);
 bool bsk_trust_system(const char *host, const uint8_t *const *derv,
-		      const size_t *lenv, size_t count);
+		      const size_t *lenv, size_t count, bsk_trust_cert_h *certh,
+		      void *arg);
 
 int bsk_video_init(bsk_engine *engine);
 void bsk_video_close(bsk_engine *engine);

@@ -44,6 +44,7 @@ int main(int argc, char **argv)
 	char *ca_pem = NULL;
 	size_t ca_len = 0;
 	const char *pins[1] = { getenv("BSK_TEST_PIN") };
+	const char *appended_pins[1] = { getenv("BSK_TEST_PIN_APPENDED") };
 	const char *bad_pins[1] = {
 		"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 	};
@@ -103,6 +104,11 @@ int main(int argc, char **argv)
 	if (0 == strcmp(mode, "tls-pin-bad") ||
 	    0 == strcmp(mode, "tls-system-pin-bad")) {
 		cfg.tls.pinned_spki_sha256_base64 = bad_pins;
+		cfg.tls.pinned_count = 1;
+	}
+	if (0 == strcmp(mode, "tls-system-pin-appended")) {
+		CHECK(appended_pins[0] != NULL);
+		cfg.tls.pinned_spki_sha256_base64 = appended_pins;
 		cfg.tls.pinned_count = 1;
 	}
 
@@ -169,7 +175,8 @@ int main(int argc, char **argv)
 	}
 
 	if (0 == strcmp(mode, "tls-pin-bad") || 0 == strcmp(mode, "tls-noca") ||
-	    0 == strcmp(mode, "tls-system-pin-bad")) {
+	    0 == strcmp(mode, "tls-system-pin-bad") ||
+	    0 == strcmp(mode, "tls-system-pin-appended")) {
 		CHECK(wait_until(&w, failed, 15000));
 		CHECK(w.last_error.sip_status == 0);
 		CHECK(w.last_error.status == BSK_ERR_TLS);

@@ -120,8 +120,25 @@ static bool set_expected_host(X509_STORE_CTX *ctx, const char *host)
 }
 
 
+static void visit_chain(X509_STORE_CTX *ctx, bsk_trust_cert_h *certh, void *arg)
+{
+	STACK_OF(X509) *verified = X509_STORE_CTX_get0_chain(ctx);
+	int i;
+
+	for (i = 0; verified && i < sk_X509_num(verified); i++) {
+		unsigned char *der = NULL;
+		int len = i2d_X509(sk_X509_value(verified, i), &der);
+
+		if (len > 0 && der)
+			certh(der, (size_t)len, arg);
+		OPENSSL_free(der);
+	}
+}
+
+
 bool bsk_trust_system(const char *host, const uint8_t *const *derv,
-		      const size_t *lenv, size_t count)
+		      const size_t *lenv, size_t count, bsk_trust_cert_h *certh,
+		      void *arg)
 {
 	X509_STORE *store = X509_STORE_new();
 	X509_STORE_CTX *ctx = X509_STORE_CTX_new();
@@ -150,6 +167,8 @@ bool bsk_trust_system(const char *host, const uint8_t *const *derv,
 		goto out;
 
 	ok = 1 == X509_verify_cert(ctx);
+	if (ok && certh)
+		visit_chain(ctx, certh, arg);
 
 out:
 	X509_STORE_CTX_free(ctx);
@@ -162,23 +181,27 @@ out:
 #endif
 
 
+static void pin_visit(const uint8_t *der, size_t len, void *arg)
+{
+	pin_check(arg, der, len);
+}
+
+
 static bool trust_handler(const char *host, const uint8_t *const *derv,
 			  const size_t *lenv, size_t count, void *arg)
 {
 	bsk_engine *e = arg;
-	size_t i;
 
-	if (!bsk_trust_system(host, derv, lenv, count)) {
+	pin_reset(e);
+	if (!bsk_trust_system(host, derv, lenv, count,
+			      e->pin_count ? pin_visit : NULL, e)) {
+		pin_reset(e);
 		tls_warn(e, "bsk: tls: the server certificate is not trusted");
 		return false;
 	}
 
 	if (!e->pin_count)
 		return true;
-
-	pin_reset(e);
-	for (i = 0; i < count; i++)
-		pin_check(e, derv[i], lenv[i]);
 
 	if (!e->pin_matched) {
 		tls_warn(e, "bsk: tls: no certificate matched a pinned key");

@@ -89,7 +89,10 @@ if [[ ! -f "$CERT_DIR/other.pem" ]]; then
     -subj "/CN=baresipkit-other" >/dev/null 2>&1
 fi
 cat "$CERT_DIR/other.pem" "$CERT_DIR/cert.pem" > "$CERT_DIR/bundle.pem"
+cat "$CERT_DIR/cert.pem" "$CERT_DIR/other.pem" > "$CERT_DIR/appended.pem"
 export BSK_TEST_PIN="$PIN"
+BSK_TEST_PIN_APPENDED="$(openssl x509 -in "$CERT_DIR/other.pem" -pubkey -noout | openssl pkey -pubin -outform der 2>/dev/null | openssl dgst -sha256 -binary | base64)"
+export BSK_TEST_PIN_APPENDED
 for mode in tls tls-bare tls-bundle tls-pin-ok tls-pin-bad tls-noca; do
   export BSK_TEST_CA_PEM="$CERT_DIR/cert.pem"
   if [[ "$mode" == tls-bundle ]]; then
@@ -105,10 +108,12 @@ for mode in tls tls-bare tls-bundle tls-pin-ok tls-pin-bad tls-noca; do
 done
 
 if [[ "$(uname -s)" != Darwin ]]; then
-  echo "== registration over TLS with the system trust store (no CA configured, pinning ok/bad)"
-  for mode in tls-system tls-system-pin-ok tls-system-pin-bad; do
+  echo "== registration over TLS with the system trust store (no CA configured, pinning ok/bad, a pinned certificate appended to the chain)"
+  for mode in tls-system tls-system-pin-ok tls-system-pin-bad tls-system-pin-appended; do
+    CHAIN="$CERT_DIR/cert.pem"
+    [[ "$mode" == tls-system-pin-appended ]] && CHAIN="$CERT_DIR/appended.pem"
     REGISTRAR_HOST="$HOSTIP" REGISTRAR_PORT=5081 REGISTRAR_IDLE_TIMEOUT=5 python3 "$ROOT/Tools/ContactParameterProof/tls_registrar.py" \
-      "$CERT_DIR/cert.pem" "$CERT_DIR/key.pem" "$BUILD/trace-$mode.txt" > "$BUILD/registrar-$mode.out" &
+      "$CHAIN" "$CERT_DIR/key.pem" "$BUILD/trace-$mode.txt" > "$BUILD/registrar-$mode.out" &
     REG_PID=$!
     sleep 0.7
     SSL_CERT_FILE="$CERT_DIR/cert.pem" "$BUILD/tests/bsk_test_registration" "$HOSTIP" 5081 "$mode"
@@ -158,6 +163,11 @@ if [[ "$(uname -s)" != Darwin ]]; then
   openssl x509 -in "$TRUST_DIR/leaf.pem" -outform der -out "$TRUST_DIR/leaf.der"
   openssl x509 -in "$TRUST_DIR/root.pem" -outform der -out "$TRUST_DIR/root.der"
   SSL_CERT_FILE="$TRUST_DIR/root.pem" "$BUILD/tests/bsk_test_trust" sip.example.com "$TRUST_DIR/leaf.der" "$TRUST_DIR/root.der"
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -nodes \
+    -keyout "$TRUST_DIR/pinned.key" -out "$TRUST_DIR/pinned.pem" -days 2 -subj "/CN=pinned.example.com" >/dev/null 2>&1
+  openssl x509 -in "$TRUST_DIR/pinned.pem" -outform der -out "$TRUST_DIR/pinned.der"
+  SSL_CERT_FILE="$TRUST_DIR/root.pem" "$BUILD/tests/bsk_test_trust" --unvisited sip.example.com \
+    "$TRUST_DIR/leaf.der" "$TRUST_DIR/root.der" "$TRUST_DIR/pinned.der"
 fi
 
 echo "== two-process call (hold/resume, DTMF, mute, stats)"

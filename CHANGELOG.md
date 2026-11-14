@@ -243,6 +243,13 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   it pushes the commit and the tag in one atomic push, and can be run again after a failure.
 - OpenSSL is built with `no-autoload-config` and without the build path in the library.
 
+### Security
+
+- SPKI pins are checked against the certificate chain the system trust store validated, not
+  against every certificate the server sent. Before, a server with any chain the system trusts
+  for the host could append the pinned certificate and pass the pin check. Pins with a private
+  CA (`caPEM`) were already checked against the verified chain.
+
 ### Removed
 
 - Media events the core never emitted: `BSK_MEDIA_AUDIO_STOPPED`, `BSK_MEDIA_VIDEO_STARTED`,
