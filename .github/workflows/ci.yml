@@ -275,6 +275,15 @@ jobs:
             SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 \
             | tee macos-test.log | grep -E "Test Suite|Executed|error:|Test Case .*failed|TEST (SUCCEEDED|FAILED)|Undefined symbols|referenced from|ld: " || true
           grep -q "TEST SUCCEEDED" macos-test.log
+      - name: Dump the public Swift API
+        run: Scripts/swift-api.sh dump
+      - name: Upload the Swift API dumps
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: swift-api
+          path: Build/out/swift-api/dumps
+          if-no-files-found: ignore
       - name: Build documentation, warnings as errors
         run: |
           for scheme in BaresipKit BaresipKitAudio BaresipKitVideo BaresipKitCallKit BaresipKitLiveCommunication BaresipKitPushKit BaresipKitSwiftUI; do
