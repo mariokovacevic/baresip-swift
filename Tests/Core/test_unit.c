@@ -141,7 +141,6 @@ static void test_capabilities(void)
 	static const char *implemented[] = {
 		"ice.restart",
 		"tls.pinning",
-		"video.h264.videotoolbox",
 		"nat.turn-tcp",
 		"nat.turn-tls",
 		"message.sip",
@@ -162,6 +161,12 @@ static void test_capabilities(void)
 	for (i = 0; i < sizeof(implemented) / sizeof(implemented[0]); i++)
 		CHECK(has_capability(caps, implemented[i]));
 	CHECK(!has_capability(caps, "ice.restart:unsupported"));
+#if defined(__APPLE__)
+	CHECK(has_capability(caps, "video.h264.videotoolbox"));
+#else
+	CHECK(!has_capability(caps, "video.h264.videotoolbox"));
+#endif
+	CHECK(!has_capability(caps, "video.h264.mediacodec"));
 }
 
 

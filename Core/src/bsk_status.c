@@ -142,6 +142,15 @@ int bsk_first_error(int err, int next)
 }
 
 
+#if defined(__APPLE__)
+#define BSK_CAPS_H264 "video.h264.videotoolbox "
+#elif defined(__ANDROID__)
+#define BSK_CAPS_H264 "video.h264.mediacodec "
+#else
+#define BSK_CAPS_H264 ""
+#endif
+
+
 size_t bsk_capabilities(char *buf, size_t buf_len)
 {
 	static const char caps[] =
@@ -157,8 +166,8 @@ size_t bsk_capabilities(char *buf, size_t buf_len)
 		"nat.rtcp-mux nat.pinhole "
 		"ice.restart ice.trickle:unsupported "
 		"media.srtp media.dtls-srtp "
-		"codec.opus codec.g722 codec.g711 "
-		"video.h264.videotoolbox video.vp8:optional "
+		"codec.opus codec.g722 codec.g711 " BSK_CAPS_H264
+		"video.vp8:optional "
 		"video.adaptive-bitrate video.picture-update.sip-info "
 		"audio.hold-music tls.pinning";
 	size_t len = sizeof(caps) - 1;
