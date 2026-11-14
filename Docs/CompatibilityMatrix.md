@@ -1,6 +1,6 @@
 # BaresipKit feature compatibility matrix
 
-Written against libre v4.9.0 (`e11a4c5`) and baresip v4.9.0 (`c06e367`); file and line references are relative to those checkouts. The build now pins v4.13.0 of both, with the same patches. Status vocabulary, as requested:
+Written against libre v4.9.0 (`e11a4c5`) and baresip v4.9.0 (`c06e367`); file and line references are relative to those checkouts and may have moved in v4.13.0, which the build now pins; the function names still apply. Status vocabulary:
 
 - **as-is** — supported by libre/baresip core without extra code
 - **module** — supported by an existing baresip module that only has to be compiled in

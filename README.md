@@ -71,7 +71,7 @@ H.264 patent licensing is the app publisher's; see [THIRD_PARTY_NOTICES.md](THIR
 
 - **Registration** over UDP, TCP and TLS, with private CAs, mutual TLS and SPKI pinning.
 - **Audio** with Opus, G.722 and G.711; **video** with H.264 through the platform's codec
-  (VideoToolbox on iOS, MediaCodec on Android) and VP8.
+  (VideoToolbox on iOS, MediaCodec on Android), and VP8 on Android.
 - **System call integration**: CallKit or LiveCommunicationKit on iOS, Telecom on Android. The
   adapters handle the hard parts: reporting a pushed call at once, matching it to the INVITE
   that follows, and waiting for the engine's result before completing a system action.
@@ -110,7 +110,7 @@ also been tried on a physical device.
 | Registration over UDP, TCP and TLS | Supported | Supported | Tested against Asterisk and a TLS test registrar in CI |
 | TLS with a private CA, mutual TLS and SPKI pinning | Supported | Supported | |
 | Audio calls: Opus, G.722, G.711 | Supported | Supported | |
-| Video calls with H.264 | Supported | Supported | VideoToolbox with zero-copy decoded frames on iOS, MediaCodec on Android; VP8 in the `full` module set on both |
+| Video calls with H.264 | Supported | Supported | VideoToolbox with zero-copy decoded frames on iOS, MediaCodec on Android. VP8 is in the Android libraries; the iOS release ships the `default` module set without it, and a core built with `MODULE_SET=full` adds it |
 | Hold, resume, mute, DTMF (RFC 4733 and SIP INFO) | Supported | Supported | DTMF with a confirmation reply for door stations |
 | Several calls at once, switching the active call | Supported | Supported | `maxCalls` in the configuration |
 | Blind and attended transfer (REFER, Replaces) | Supported | Supported | |
@@ -122,7 +122,7 @@ also been tried on a physical device.
 | Choosing the audio output | Supported | Supported | Earpiece, loudspeaker, wired and Bluetooth headsets; car audio on iOS |
 | SRTP (SDES) and DTLS-SRTP | Supported | Supported | |
 | ICE with STUN and TURN over UDP, TCP and TLS, ICE restart | Supported | Supported | |
-| RTCP multiplexing (RFC 5761) and a NAT pinhole for receive-only streams | Supported | Supported | For media relays such as rtpengine |
+| RTCP multiplexing (RFC 5761) and a NAT pinhole for receive-only streams | Supported | Supported | For media relays such as rtpengine. CI tests interoperability against Asterisk and coturn only; see [the interop matrix](Docs/Interop.md) |
 | Adaptive video bitrate from RTCP loss | Supported | Supported | |
 | Going offline in the background, network change handling | Supported | Supported | `BaresipAppLifecycle`, `BaresipNetworkMonitor` on both |
 | Call recording to stereo WAV | Supported | Supported | |
