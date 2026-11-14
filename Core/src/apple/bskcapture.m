@@ -23,7 +23,6 @@ struct vidsrc_st {
 @property(nonatomic, strong) AVCaptureVideoDataOutput *output;
 @property(nonatomic, strong) dispatch_queue_t queue;
 @property(nonatomic, assign) struct vidsrc_st *st;
-@property(nonatomic, assign) BOOL front;
 - (instancetype)initWithState:(struct vidsrc_st *)st;
 - (BOOL)startWithDevice:(const char *)name;
 - (void)stop;
@@ -156,7 +155,7 @@ static NSString *preset_for_size(AVCaptureSession *session,
 #endif
 	if (conn.isVideoMirroringSupported) {
 		conn.automaticallyAdjustsVideoMirroring = NO;
-		conn.videoMirrored = self.front;
+		conn.videoMirrored = NO;
 	}
 }
 
@@ -182,7 +181,6 @@ static NSString *preset_for_size(AVCaptureSession *session,
 		[self.session addOutput:self.output];
 	[self.session commitConfiguration];
 
-	self.front = (dev.position == AVCaptureDevicePositionFront);
 	[self applyFrameRate:dev];
 	[self applyOrientation];
 	[self.session startRunning];
@@ -216,7 +214,6 @@ static NSString *preset_for_size(AVCaptureSession *session,
 	}
 	[self.session commitConfiguration];
 
-	self.front = (dev.position == AVCaptureDevicePositionFront);
 	[self applyFrameRate:dev];
 	[self applyOrientation];
 	return YES;

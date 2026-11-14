@@ -301,6 +301,11 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   `actionTimedOut` after a minute. A reset of the provider or conversation manager fails pending
   requests with the new `BaresipCallKitError.providerReset` or
   `BaresipLiveCommunicationError.managerReset` instead of `CancellationError`.
+- iOS video: the front camera was mirrored at capture, so the other side saw a mirrored picture
+  and the self view, mirrored again by `mirrored: true`, was not mirrored. The camera is no
+  longer mirrored at capture. On iOS 16, `BaresipVideoView` flushes a failed display layer, so
+  video recovers after the app returns from the background, and shows only the newest frame
+  when the main thread falls behind, instead of starting a task for every frame.
 - Android: a pushed call answered as audio-only from the system UI before its INVITE arrived no
   longer sends the camera.
 - Android: an exception while the Telecom adapter handles one event, for example a call Telecom

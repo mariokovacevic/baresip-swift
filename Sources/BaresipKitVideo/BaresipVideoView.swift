@@ -99,9 +99,9 @@
                     target.enqueue(sample.value)
                 }
             } else {
-                let layer = SendableBox(displayLayer)
+                let frames = MainThreadFrames(layer: displayLayer)
                 enqueue = { sample in
-                    Task { @MainActor in layer.value.enqueue(sample.value) }
+                    frames.submit(sample.value)
                 }
             }
             relay.setHandlers(onFrame: { frame in
@@ -167,6 +167,51 @@
         }
     }
 
+    private final class MainThreadFrames: @unchecked Sendable {
+        // SAFETY: `pending` and `scheduled` are read and written only while holding `lock`;
+        // `layer` is used only on the main thread.
+        private let lock = NSLock()
+        private let layer: AVSampleBufferDisplayLayer
+        private let failures = FailureLog()
+        private var pending: CMSampleBuffer?
+        private var scheduled = false
+
+        init(layer: AVSampleBufferDisplayLayer) {
+            self.layer = layer
+        }
+
+        func submit(_ sample: CMSampleBuffer) {
+            let schedules = lock.withLock { () -> Bool in
+                pending = sample
+                defer { scheduled = true }
+                return !scheduled
+            }
+            guard schedules else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self.show()
+                }
+            }
+        }
+
+        @MainActor
+        private func show() {
+            let sample = lock.withLock { () -> CMSampleBuffer? in
+                defer {
+                    pending = nil
+                    scheduled = false
+                }
+                return pending
+            }
+            guard let sample else { return }
+            if layer.status == .failed || layer.requiresFlushToResumeDecoding {
+                failures.report(layer.error)
+                layer.flush()
+            }
+            layer.enqueue(sample)
+        }
+    }
+
     private final class LatestFrame: @unchecked Sendable {
         // SAFETY: `stored` is read and written only while holding `lock`.
         private let lock = NSLock()
@@ -180,8 +225,7 @@
 
     private struct SendableBox<T>: @unchecked Sendable {
         // SAFETY: wraps the layer's AVSampleBufferVideoRenderer, which takes frames from any
-        // thread; the layer itself, used only on the main actor before iOS 17; or a
-        // CMSampleBuffer, which is not changed after it is created.
+        // thread, or a CMSampleBuffer, which is not changed after it is created.
         let value: T
         init(_ value: T) {
             self.value = value

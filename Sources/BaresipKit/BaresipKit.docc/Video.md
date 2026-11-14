@@ -54,6 +54,12 @@ try await engine.setCamera(.back, callID: call)
 try await engine.setVideoEnabled(false, callID: call)
 ```
 
+The camera is captured in portrait orientation and sent as it is captured, never mirrored, so
+the other side sees what the camera sees. Mirroring the front camera for the person in front of
+it is up to the view that shows the local picture, with `mirrored: true` as above, or
+`BaresipCameraPosition.isMirroredInPreview`. Rotating the device does not rotate the sent
+picture, and `BaresipVideoFrame.rotationDegrees` is always `0` for now.
+
 ### Snapshots
 
 `BaresipKitVideo` draws a frame into an upright `CGImage`, for example to keep a door station's
