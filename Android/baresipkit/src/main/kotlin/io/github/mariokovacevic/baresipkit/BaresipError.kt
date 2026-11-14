@@ -16,26 +16,26 @@ package io.github.mariokovacevic.baresipkit
  *
  * The constructor of this type is not covered by Semantic Versioning; read its properties.
  */
-class BaresipError(
+public class BaresipError(
     /** The category of the failure. */
-    val code: Code,
+    public val code: Code,
     /** The underlying POSIX `errno`, or `0` when there is none. */
-    val systemErrno: Int = 0,
+    public val systemErrno: Int = 0,
     /** The SIP response code when the failure came from a SIP transaction. */
-    val sipStatus: Int? = null,
+    public val sipStatus: Int? = null,
     /** The SIP reason phrase, or an empty string. */
-    val sipReason: String = "",
+    public val sipReason: String = "",
     /** A human-readable explanation, or an empty string. */
-    val detail: String = "",
+    public val detail: String = "",
     /**
      * For an incoming call that ended while it rang, whether another device answered or
      * declined it, as the `Reason` header of the server's CANCEL said (RFC 3326); `null`
      * otherwise. [sipStatus] and [sipReason] then hold the header's cause and text.
      */
-    val endReason: BaresipCallEndReason? = null,
+    public val endReason: BaresipCallEndReason? = null,
 ) : Exception() {
     /** `true` unless [code] is [Code.OK]. */
-    val isFailure: Boolean
+    public val isFailure: Boolean
         get() = code != Code.OK
 
     override val message: String
@@ -67,7 +67,7 @@ class BaresipError(
      * New entries can be added in a minor release; give a `when` over it an `else` branch. See
      * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
      */
-    enum class Code {
+    public enum class Code {
         /** The operation succeeded. */
         OK,
 

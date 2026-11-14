@@ -27,11 +27,11 @@ import kotlin.time.Duration.Companion.seconds
  * The defaults suit a typical Android VoIP app; most apps only change [userAgent] and [tls].
  * Settings added in a later release get a default that keeps the earlier behaviour.
  */
-class BaresipConfiguration private constructor(
+public class BaresipConfiguration private constructor(
     builder: Builder,
 ) {
     /** The `User-Agent` header value. */
-    val userAgent: String = builder.userAgent
+    public val userAgent: String = builder.userAgent
 
     /**
      * The instance identifier sent as `+sip.instance` (RFC 5626). The registrar uses it to tell
@@ -42,49 +42,49 @@ class BaresipConfiguration private constructor(
      * and passes the stored value on every launch. A new value on each launch leaves a stale binding
      * on the registrar for every earlier launch until it expires.
      */
-    val instanceUuid: UUID = builder.instanceUuid
+    public val instanceUuid: UUID = builder.instanceUuid
 
     /** The network interface to bind to, or `null` for all interfaces. */
-    val networkInterface: String? = builder.networkInterface
+    public val networkInterface: String? = builder.networkInterface
 
     /** The baresip modules to load. */
-    val modules: List<String> = builder.modules
+    public val modules: List<String> = builder.modules
 
     /** Extra lines appended to the generated baresip configuration. */
-    val extraConfiguration: String? = builder.extraConfiguration
+    public val extraConfiguration: String? = builder.extraConfiguration
 
     /** Whether IPv6 addresses are used. */
-    val ipv6: Boolean = builder.ipv6
+    public val ipv6: Boolean = builder.ipv6
 
     /** The local UDP port range for RTP. */
-    val rtpPortRange: IntRange = builder.rtpPortRange
+    public val rtpPortRange: IntRange = builder.rtpPortRange
 
     /** The maximum number of simultaneous calls. */
-    val maxCalls: Int = builder.maxCalls
+    public val maxCalls: Int = builder.maxCalls
 
     /** Audio settings. */
-    val audio: BaresipAudioConfiguration = builder.audio
+    public val audio: BaresipAudioConfiguration = builder.audio
 
     /** Video settings. */
-    val video: BaresipVideoConfiguration = builder.video
+    public val video: BaresipVideoConfiguration = builder.video
 
     /** TLS settings. */
-    val tls: BaresipTlsConfiguration = builder.tls
+    public val tls: BaresipTlsConfiguration = builder.tls
 
     /** The lowest log level passed to the log handler. */
-    val logLevel: BaresipLogLevel = builder.logLevel
+    public val logLevel: BaresipLogLevel = builder.logLevel
 
     /** Whether full SIP messages are logged, with credentials redacted. */
-    val logSipTrace: Boolean = builder.logSipTrace
+    public val logSipTrace: Boolean = builder.logSipTrace
 
     /** Whether ICE uses relayed candidates only. */
-    val iceRelayOnly: Boolean = builder.iceRelayOnly
+    public val iceRelayOnly: Boolean = builder.iceRelayOnly
 
     /** Whether the video bitrate follows RTCP loss reports. */
-    val videoAdaptiveBitrate: Boolean = builder.videoAdaptiveBitrate
+    public val videoAdaptiveBitrate: Boolean = builder.videoAdaptiveBitrate
 
     /** The lowest video bitrate, in bits per second, that adaptation goes down to. */
-    val videoMinimumBitrate: Int = builder.videoMinimumBitrate
+    public val videoMinimumBitrate: Int = builder.videoMinimumBitrate
 
     /**
      * The SIP session timer (RFC 4028) that calls offer and accept, or `null` for none.
@@ -94,13 +94,13 @@ class BaresipConfiguration private constructor(
      * re-INVITE when the other side does not allow UPDATE; the other side hangs up when the
      * session is not renewed in time.
      */
-    val sessionTimer: Duration? = builder.sessionTimer
+    public val sessionTimer: Duration? = builder.sessionTimer
 
     /** The shortest session timer accepted, at most [sessionTimer]. */
-    val minimumSessionTimer: Duration = builder.minimumSessionTimer
+    public val minimumSessionTimer: Duration = builder.minimumSessionTimer
 
     /** Returns a copy of these settings with the changes made in [block]. */
-    fun copy(block: Builder.() -> Unit): BaresipConfiguration = Builder(this).apply(block).build()
+    public fun copy(block: Builder.() -> Unit): BaresipConfiguration = Builder(this).apply(block).build()
 
     override fun equals(other: Any?): Boolean = other is BaresipConfiguration && values() == other.values()
 
@@ -153,63 +153,63 @@ class BaresipConfiguration private constructor(
 
     /** Collects the settings of a [BaresipConfiguration]; see the [BaresipConfiguration] function. */
     @BaresipConfigurationDsl
-    class Builder(
+    public class Builder(
         /** The persisted instance identifier of this installation; see [BaresipConfiguration.instanceUuid]. */
-        var instanceUuid: UUID,
+        public var instanceUuid: UUID,
     ) {
         /** The `User-Agent` header value. */
-        var userAgent: String = "BaresipKit"
+        public var userAgent: String = "BaresipKit"
 
         /** The network interface to bind to, or `null` for all interfaces. */
-        var networkInterface: String? = null
+        public var networkInterface: String? = null
 
         /** The baresip modules to load, [DEFAULT_MODULES] by default. */
-        var modules: List<String> = DEFAULT_MODULES
+        public var modules: List<String> = DEFAULT_MODULES
 
         /** Extra lines appended to the generated baresip configuration. */
-        var extraConfiguration: String? = null
+        public var extraConfiguration: String? = null
 
         /** Whether IPv6 addresses are used. On by default. */
-        var ipv6: Boolean = true
+        public var ipv6: Boolean = true
 
         /** The local UDP port range for RTP, 10000 to 20000 by default. */
-        var rtpPortRange: IntRange = 10000..20000
+        public var rtpPortRange: IntRange = 10000..20000
 
         /** The maximum number of simultaneous calls, 4 by default. */
-        var maxCalls: Int = 4
+        public var maxCalls: Int = 4
 
         /** Audio settings. */
-        var audio: BaresipAudioConfiguration = BaresipAudioConfiguration()
+        public var audio: BaresipAudioConfiguration = BaresipAudioConfiguration()
 
         /** Video settings. */
-        var video: BaresipVideoConfiguration = BaresipVideoConfiguration()
+        public var video: BaresipVideoConfiguration = BaresipVideoConfiguration()
 
         /** TLS settings. */
-        var tls: BaresipTlsConfiguration = BaresipTlsConfiguration()
+        public var tls: BaresipTlsConfiguration = BaresipTlsConfiguration()
 
         /** The lowest log level passed to the log handler, [BaresipLogLevel.INFO] by default. */
-        var logLevel: BaresipLogLevel = BaresipLogLevel.INFO
+        public var logLevel: BaresipLogLevel = BaresipLogLevel.INFO
 
         /** Whether full SIP messages are logged, with credentials redacted. Off by default. */
-        var logSipTrace: Boolean = false
+        public var logSipTrace: Boolean = false
 
         /** Whether ICE uses relayed candidates only. Off by default. */
-        var iceRelayOnly: Boolean = false
+        public var iceRelayOnly: Boolean = false
 
         /** Whether the video bitrate follows RTCP loss reports. On by default. */
-        var videoAdaptiveBitrate: Boolean = true
+        public var videoAdaptiveBitrate: Boolean = true
 
         /** The lowest video bitrate, in bits per second, that adaptation goes down to. */
-        var videoMinimumBitrate: Int = 150_000
+        public var videoMinimumBitrate: Int = 150_000
 
         /** The SIP session timer that calls offer and accept, or `null` for none; see [BaresipConfiguration.sessionTimer]. */
-        var sessionTimer: Duration? = 1800.seconds
+        public var sessionTimer: Duration? = 1800.seconds
 
         /** The shortest session timer accepted, at most [sessionTimer]. */
-        var minimumSessionTimer: Duration = 90.seconds
+        public var minimumSessionTimer: Duration = 90.seconds
 
         /** Starts from the settings of [configuration]. */
-        constructor(configuration: BaresipConfiguration) : this(configuration.instanceUuid) {
+        public constructor(configuration: BaresipConfiguration) : this(configuration.instanceUuid) {
             userAgent = configuration.userAgent
             networkInterface = configuration.networkInterface
             modules = configuration.modules
@@ -230,30 +230,30 @@ class BaresipConfiguration private constructor(
         }
 
         /** Changes the [audio] settings. */
-        fun audio(block: BaresipAudioConfiguration.Builder.() -> Unit) {
+        public fun audio(block: BaresipAudioConfiguration.Builder.() -> Unit) {
             audio = audio.copy(block)
         }
 
         /** Changes the [video] settings. */
-        fun video(block: BaresipVideoConfiguration.Builder.() -> Unit) {
+        public fun video(block: BaresipVideoConfiguration.Builder.() -> Unit) {
             video = video.copy(block)
         }
 
         /** Changes the [tls] settings. */
-        fun tls(block: BaresipTlsConfiguration.Builder.() -> Unit) {
+        public fun tls(block: BaresipTlsConfiguration.Builder.() -> Unit) {
             tls = tls.copy(block)
         }
 
         /** Creates the settings. */
-        fun build(): BaresipConfiguration = BaresipConfiguration(this)
+        public fun build(): BaresipConfiguration = BaresipConfiguration(this)
     }
 
-    companion object {
+    public companion object {
         /**
          * The modules loaded by default: G.711, Opus, L16, ICE, TURN, STUN, SRTP, DTLS-SRTP,
          * RTCP summaries, AAudio and the test video source. H.264 and the camera are built in.
          */
-        val DEFAULT_MODULES: List<String> =
+        public val DEFAULT_MODULES: List<String> =
             listOf(
                 "g711",
                 "opus",
@@ -278,7 +278,7 @@ class BaresipConfiguration private constructor(
  * @param instanceUuid The instance identifier the app persisted for this installation; see
  *   [BaresipConfiguration.instanceUuid].
  */
-fun BaresipConfiguration(
+public fun BaresipConfiguration(
     instanceUuid: UUID,
     block: BaresipConfiguration.Builder.() -> Unit = {},
 ): BaresipConfiguration = BaresipConfiguration.Builder(instanceUuid).apply(block).build()
@@ -289,38 +289,38 @@ fun BaresipConfiguration(
  * Create them with the [BaresipAudioConfiguration] function or with
  * [BaresipConfiguration.Builder.audio].
  */
-class BaresipAudioConfiguration private constructor(
+public class BaresipAudioConfiguration private constructor(
     builder: Builder,
 ) {
     /** The baresip audio source module, `aaudio` on Android. */
-    val sourceModule: String = builder.sourceModule
+    public val sourceModule: String = builder.sourceModule
 
     /** The input device, or `null` for the default. */
-    val sourceDevice: String? = builder.sourceDevice
+    public val sourceDevice: String? = builder.sourceDevice
 
     /** The baresip audio player module, `aaudio` on Android. */
-    val playerModule: String = builder.playerModule
+    public val playerModule: String = builder.playerModule
 
     /** The output device, or `null` for the default. */
-    val playerDevice: String? = builder.playerDevice
+    public val playerDevice: String? = builder.playerDevice
 
     /** The capture and playback sample rate, or `null` to follow the codec. */
-    val sampleRate: Int? = builder.sampleRate
+    public val sampleRate: Int? = builder.sampleRate
 
     /** The number of channels, or `null` to follow the codec. */
-    val channels: Int? = builder.channels
+    public val channels: Int? = builder.channels
 
     /** The RTP packet time offered to the peer. */
-    val packetTime: Duration = builder.packetTime
+    public val packetTime: Duration = builder.packetTime
 
     /** The jitter buffer range in milliseconds. */
-    val jitterBufferRange: IntRange = builder.jitterBufferRange
+    public val jitterBufferRange: IntRange = builder.jitterBufferRange
 
     /** Whether the jitter buffer adapts within [jitterBufferRange]. */
-    val adaptiveJitterBuffer: Boolean = builder.adaptiveJitterBuffer
+    public val adaptiveJitterBuffer: Boolean = builder.adaptiveJitterBuffer
 
     /** Audio codecs in order of preference, as `name/rate/channels`. */
-    val codecs: List<String> = builder.codecs
+    public val codecs: List<String> = builder.codecs
 
     /**
      * Music on hold: a WAV file (16-bit PCM, mono or stereo, 8 to 48 kHz) that a call put on hold
@@ -330,10 +330,10 @@ class BaresipAudioConfiguration private constructor(
      * The engine reads the file when it is created and fails with [BaresipError] when the file
      * is missing or in another format.
      */
-    val holdMusicFile: File? = builder.holdMusicFile
+    public val holdMusicFile: File? = builder.holdMusicFile
 
     /** Returns a copy of these settings with the changes made in [block]. */
-    fun copy(block: Builder.() -> Unit): BaresipAudioConfiguration = Builder(this).apply(block).build()
+    public fun copy(block: Builder.() -> Unit): BaresipAudioConfiguration = Builder(this).apply(block).build()
 
     override fun equals(other: Any?): Boolean = other is BaresipAudioConfiguration && values() == other.values()
 
@@ -372,42 +372,42 @@ class BaresipAudioConfiguration private constructor(
 
     /** Collects the settings of a [BaresipAudioConfiguration]; see the [BaresipAudioConfiguration] function. */
     @BaresipConfigurationDsl
-    class Builder() {
+    public class Builder() {
         /** The baresip audio source module, `aaudio` by default. */
-        var sourceModule: String = "aaudio"
+        public var sourceModule: String = "aaudio"
 
         /** The input device, or `null` for the default. */
-        var sourceDevice: String? = null
+        public var sourceDevice: String? = null
 
         /** The baresip audio player module, `aaudio` by default. */
-        var playerModule: String = "aaudio"
+        public var playerModule: String = "aaudio"
 
         /** The output device, or `null` for the default. */
-        var playerDevice: String? = null
+        public var playerDevice: String? = null
 
         /** The capture and playback sample rate, or `null` to follow the codec. */
-        var sampleRate: Int? = null
+        public var sampleRate: Int? = null
 
         /** The number of channels, or `null` to follow the codec. */
-        var channels: Int? = null
+        public var channels: Int? = null
 
         /** The RTP packet time offered to the peer, 20 ms by default. */
-        var packetTime: Duration = 20.milliseconds
+        public var packetTime: Duration = 20.milliseconds
 
         /** The jitter buffer range in milliseconds, 40 to 200 by default. */
-        var jitterBufferRange: IntRange = 40..200
+        public var jitterBufferRange: IntRange = 40..200
 
         /** Whether the jitter buffer adapts within [jitterBufferRange]. On by default. */
-        var adaptiveJitterBuffer: Boolean = true
+        public var adaptiveJitterBuffer: Boolean = true
 
         /** Audio codecs in order of preference, as `name/rate/channels`; [DEFAULT_CODECS] by default. */
-        var codecs: List<String> = DEFAULT_CODECS
+        public var codecs: List<String> = DEFAULT_CODECS
 
         /** Music on hold, or `null` to send nothing while on hold; see [BaresipAudioConfiguration.holdMusicFile]. */
-        var holdMusicFile: File? = null
+        public var holdMusicFile: File? = null
 
         /** Starts from the settings of [configuration]. */
-        constructor(configuration: BaresipAudioConfiguration) : this() {
+        public constructor(configuration: BaresipAudioConfiguration) : this() {
             sourceModule = configuration.sourceModule
             sourceDevice = configuration.sourceDevice
             playerModule = configuration.playerModule
@@ -422,20 +422,20 @@ class BaresipAudioConfiguration private constructor(
         }
 
         /** Creates the settings. */
-        fun build(): BaresipAudioConfiguration = BaresipAudioConfiguration(this)
+        public fun build(): BaresipAudioConfiguration = BaresipAudioConfiguration(this)
     }
 
-    companion object {
+    public companion object {
         /**
          * The codecs offered when an account configures none: Opus, G.722, then G.711 µ-law and
          * A-law. G.722 is written with its audio rate, `G722/16000/1`.
          */
-        val DEFAULT_CODECS: List<String> = listOf("opus/48000/2", "G722/16000/1", "PCMU/8000/1", "PCMA/8000/1")
+        public val DEFAULT_CODECS: List<String> = listOf("opus/48000/2", "G722/16000/1", "PCMU/8000/1", "PCMA/8000/1")
     }
 }
 
 /** Creates audio settings: the defaults, changed by [block]. */
-fun BaresipAudioConfiguration(block: BaresipAudioConfiguration.Builder.() -> Unit = {}): BaresipAudioConfiguration =
+public fun BaresipAudioConfiguration(block: BaresipAudioConfiguration.Builder.() -> Unit = {}): BaresipAudioConfiguration =
     BaresipAudioConfiguration.Builder().apply(block).build()
 
 /**
@@ -444,32 +444,32 @@ fun BaresipAudioConfiguration(block: BaresipAudioConfiguration.Builder.() -> Uni
  * Create them with the [BaresipVideoConfiguration] function or with
  * [BaresipConfiguration.Builder.video].
  */
-class BaresipVideoConfiguration private constructor(
+public class BaresipVideoConfiguration private constructor(
     builder: Builder,
 ) {
     /** The baresip video source module; `bskcamera` is the camera source, fed by `BaresipCamera` from baresipkit-video. */
-    val sourceModule: String = builder.sourceModule
+    public val sourceModule: String = builder.sourceModule
 
     /** The camera, or `null` for the default front camera. */
-    val sourceDevice: String? = builder.sourceDevice
+    public val sourceDevice: String? = builder.sourceDevice
 
     /** The capture width in pixels. */
-    val width: Int = builder.width
+    public val width: Int = builder.width
 
     /** The capture height in pixels. */
-    val height: Int = builder.height
+    public val height: Int = builder.height
 
     /** The capture frame rate. */
-    val framesPerSecond: Int = builder.framesPerSecond
+    public val framesPerSecond: Int = builder.framesPerSecond
 
     /** The maximum encoder bitrate in bits per second. */
-    val bitrate: Int = builder.bitrate
+    public val bitrate: Int = builder.bitrate
 
     /** Video codecs in order of preference. H.264 is coded by MediaCodec. */
-    val codecs: List<String> = builder.codecs
+    public val codecs: List<String> = builder.codecs
 
     /** Returns a copy of these settings with the changes made in [block]. */
-    fun copy(block: Builder.() -> Unit): BaresipVideoConfiguration = Builder(this).apply(block).build()
+    public fun copy(block: Builder.() -> Unit): BaresipVideoConfiguration = Builder(this).apply(block).build()
 
     override fun equals(other: Any?): Boolean = other is BaresipVideoConfiguration && values() == other.values()
 
@@ -491,30 +491,30 @@ class BaresipVideoConfiguration private constructor(
 
     /** Collects the settings of a [BaresipVideoConfiguration]; see the [BaresipVideoConfiguration] function. */
     @BaresipConfigurationDsl
-    class Builder() {
+    public class Builder() {
         /** The baresip video source module, `bskcamera` by default. */
-        var sourceModule: String = "bskcamera"
+        public var sourceModule: String = "bskcamera"
 
         /** The camera, or `null` for the default front camera. */
-        var sourceDevice: String? = null
+        public var sourceDevice: String? = null
 
         /** The capture width in pixels, 640 by default. */
-        var width: Int = 640
+        public var width: Int = 640
 
         /** The capture height in pixels, 480 by default. */
-        var height: Int = 480
+        public var height: Int = 480
 
         /** The capture frame rate, 30 by default. */
-        var framesPerSecond: Int = 30
+        public var framesPerSecond: Int = 30
 
         /** The maximum encoder bitrate in bits per second, 800 000 by default. */
-        var bitrate: Int = 800_000
+        public var bitrate: Int = 800_000
 
         /** Video codecs in order of preference, H.264 by default. */
-        var codecs: List<String> = listOf("H264")
+        public var codecs: List<String> = listOf("H264")
 
         /** Starts from the settings of [configuration]. */
-        constructor(configuration: BaresipVideoConfiguration) : this() {
+        public constructor(configuration: BaresipVideoConfiguration) : this() {
             sourceModule = configuration.sourceModule
             sourceDevice = configuration.sourceDevice
             width = configuration.width
@@ -525,12 +525,12 @@ class BaresipVideoConfiguration private constructor(
         }
 
         /** Creates the settings. */
-        fun build(): BaresipVideoConfiguration = BaresipVideoConfiguration(this)
+        public fun build(): BaresipVideoConfiguration = BaresipVideoConfiguration(this)
     }
 }
 
 /** Creates video settings: the defaults, changed by [block]. */
-fun BaresipVideoConfiguration(block: BaresipVideoConfiguration.Builder.() -> Unit = {}): BaresipVideoConfiguration =
+public fun BaresipVideoConfiguration(block: BaresipVideoConfiguration.Builder.() -> Unit = {}): BaresipVideoConfiguration =
     BaresipVideoConfiguration.Builder().apply(block).build()
 
 /**
@@ -544,26 +544,26 @@ fun BaresipVideoConfiguration(block: BaresipVideoConfiguration.Builder.() -> Uni
  * Create the settings with the [BaresipTlsConfiguration] function or with
  * [BaresipConfiguration.Builder.tls]. [toString] does not show the client certificate and key.
  */
-class BaresipTlsConfiguration private constructor(
+public class BaresipTlsConfiguration private constructor(
     builder: Builder,
 ) {
     /** Extra trusted CA certificates in PEM format. */
-    val caCertificatesPem: ByteArray? = builder.caCertificatesPem
+    public val caCertificatesPem: ByteArray? = builder.caCertificatesPem
 
     /** A client certificate followed by its private key, in PEM format, for mutual TLS. */
-    val clientCertificatePem: ByteArray? = builder.clientCertificatePem
+    public val clientCertificatePem: ByteArray? = builder.clientCertificatePem
 
     /** Base64-encoded SHA-256 hashes of accepted server SubjectPublicKeyInfo structures. */
-    val pinnedSpkiSha256: List<String> = builder.pinnedSpkiSha256
+    public val pinnedSpkiSha256: List<String> = builder.pinnedSpkiSha256
 
     /** An OpenSSL cipher list, or `null` for the core's default. */
-    val cipherList: String? = builder.cipherList
+    public val cipherList: String? = builder.cipherList
 
     /** The lowest accepted TLS version. */
-    val minimumVersion: TlsVersion = builder.minimumVersion
+    public val minimumVersion: TlsVersion = builder.minimumVersion
 
     /** A TLS protocol version. */
-    enum class TlsVersion(
+    public enum class TlsVersion(
         internal val wire: Int,
     ) {
         /** TLS 1.2. */
@@ -574,7 +574,7 @@ class BaresipTlsConfiguration private constructor(
     }
 
     /** Returns a copy of these settings with the changes made in [block]. */
-    fun copy(block: Builder.() -> Unit): BaresipTlsConfiguration = Builder(this).apply(block).build()
+    public fun copy(block: Builder.() -> Unit): BaresipTlsConfiguration = Builder(this).apply(block).build()
 
     override fun equals(other: Any?): Boolean =
         other is BaresipTlsConfiguration &&
@@ -605,24 +605,24 @@ class BaresipTlsConfiguration private constructor(
 
     /** Collects the settings of a [BaresipTlsConfiguration]; see the [BaresipTlsConfiguration] function. */
     @BaresipConfigurationDsl
-    class Builder() {
+    public class Builder() {
         /** Extra trusted CA certificates in PEM format, or `null` for the core's trust store only. */
-        var caCertificatesPem: ByteArray? = null
+        public var caCertificatesPem: ByteArray? = null
 
         /** A client certificate followed by its private key, in PEM format, for mutual TLS. */
-        var clientCertificatePem: ByteArray? = null
+        public var clientCertificatePem: ByteArray? = null
 
         /** Base64-encoded SHA-256 hashes of accepted server SubjectPublicKeyInfo structures; empty for no pinning. */
-        var pinnedSpkiSha256: List<String> = emptyList()
+        public var pinnedSpkiSha256: List<String> = emptyList()
 
         /** An OpenSSL cipher list, or `null` for the core's default. */
-        var cipherList: String? = null
+        public var cipherList: String? = null
 
         /** The lowest accepted TLS version, [TlsVersion.TLS_1_2] by default. */
-        var minimumVersion: TlsVersion = TlsVersion.TLS_1_2
+        public var minimumVersion: TlsVersion = TlsVersion.TLS_1_2
 
         /** Starts from the settings of [configuration]. */
-        constructor(configuration: BaresipTlsConfiguration) : this() {
+        public constructor(configuration: BaresipTlsConfiguration) : this() {
             caCertificatesPem = configuration.caCertificatesPem
             clientCertificatePem = configuration.clientCertificatePem
             pinnedSpkiSha256 = configuration.pinnedSpkiSha256
@@ -631,10 +631,10 @@ class BaresipTlsConfiguration private constructor(
         }
 
         /** Creates the settings. */
-        fun build(): BaresipTlsConfiguration = BaresipTlsConfiguration(this)
+        public fun build(): BaresipTlsConfiguration = BaresipTlsConfiguration(this)
     }
 }
 
 /** Creates TLS settings: the defaults, changed by [block]. */
-fun BaresipTlsConfiguration(block: BaresipTlsConfiguration.Builder.() -> Unit = {}): BaresipTlsConfiguration =
+public fun BaresipTlsConfiguration(block: BaresipTlsConfiguration.Builder.() -> Unit = {}): BaresipTlsConfiguration =
     BaresipTlsConfiguration.Builder().apply(block).build()

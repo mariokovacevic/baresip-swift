@@ -7,12 +7,12 @@ import java.security.cert.X509Certificate
 import java.util.Base64
 
 /** An error from [BaresipCertificates]. */
-class BaresipCertificateException(
+public class BaresipCertificateException(
     /** What went wrong. */
-    val reason: Reason,
+    public val reason: Reason,
 ) : Exception(reason.description) {
     /** What went wrong with a certificate file. */
-    enum class Reason(
+    public enum class Reason(
         internal val description: String,
     ) {
         /** The file could not be read. */
@@ -37,7 +37,7 @@ class BaresipCertificateException(
  * results are exactly the PEM that [BaresipTlsConfiguration.caCertificatesPem] and
  * [BaresipTlsConfiguration.clientCertificatePem] accept.
  */
-object BaresipCertificates {
+public object BaresipCertificates {
     internal class Block(
         val label: String,
         val der: ByteArray,
@@ -109,7 +109,7 @@ object BaresipCertificates {
      *
      * @throws BaresipCertificateException when no certificate is found or one does not parse.
      */
-    fun caBundle(data: ByteArray): ByteArray {
+    public fun caBundle(data: ByteArray): ByteArray {
         val certificates = blocks(data).filter { it.label == "CERTIFICATE" }
         val ders =
             if (certificates.isEmpty()) {
@@ -131,7 +131,7 @@ object BaresipCertificates {
      * @throws BaresipCertificateException when no certificate or key is found, the key is
      *   encrypted, or a certificate does not parse.
      */
-    fun clientIdentity(data: ByteArray): ByteArray {
+    public fun clientIdentity(data: ByteArray): ByteArray {
         val all = blocks(data)
         val certificates = all.filter { it.label == "CERTIFICATE" }
         if (certificates.isEmpty()) throw BaresipCertificateException(BaresipCertificateException.Reason.NO_CERTIFICATE)
@@ -151,7 +151,7 @@ object BaresipCertificates {
      * for editing. Used by the sample app; not covered by Semantic Versioning.
      */
     @BaresipInternalApi
-    fun split(identity: ByteArray?): Pair<String, String> {
+    public fun split(identity: ByteArray?): Pair<String, String> {
         if (identity == null) return "" to ""
         val all = blocks(identity)
         val certificates = all.filter { it.label == "CERTIFICATE" }.joinToString("") { encode(it.der, it.label) }
@@ -160,7 +160,7 @@ object BaresipCertificates {
     }
 
     /** Human-readable subject summaries of the certificates in [pem], for display. */
-    fun summaries(pem: ByteArray?): List<String> {
+    public fun summaries(pem: ByteArray?): List<String> {
         if (pem == null) return emptyList()
         return blocks(pem).filter { it.label == "CERTIFICATE" }.mapNotNull { parse(it.der) }.map { certificate ->
             val name = certificate.subjectX500Principal.name

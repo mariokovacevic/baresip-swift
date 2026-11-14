@@ -43,17 +43,17 @@ import kotlin.time.Duration.Companion.seconds
  * notification. With a self-managed call the app shows the incoming call itself, usually as a
  * `CallStyle` notification with a full-screen intent.
  */
-class BaresipTelecomCall internal constructor(
+public class BaresipTelecomCall internal constructor(
     /** The Telecom identifier of the call. */
-    val uuid: UUID,
+    public val uuid: UUID,
     /** The caller or callee as shown to the system. */
-    val remoteUri: String,
+    public val remoteUri: String,
     /** The name to show, if known. */
-    val displayName: String?,
+    public val displayName: String?,
     /** Whether the call is a video call. */
-    val hasVideo: Boolean,
+    public val hasVideo: Boolean,
     /** Whether this device placed the call. */
-    val isOutgoing: Boolean,
+    public val isOutgoing: Boolean,
 ) {
     internal val engineCall = MutableStateFlow<BaresipCallID?>(null)
     internal val endpoint = MutableStateFlow<CallEndpointCompat?>(null)
@@ -62,19 +62,19 @@ class BaresipTelecomCall internal constructor(
     internal val ready = CompletableDeferred<CallControlScope>()
 
     /** The engine call, once the INVITE arrived or the engine placed the call. */
-    val call: StateFlow<BaresipCallID?> get() = engineCall.asStateFlow()
+    public val call: StateFlow<BaresipCallID?> get() = engineCall.asStateFlow()
 
     /** The audio output Telecom routes the call to. */
-    val currentEndpoint: StateFlow<CallEndpointCompat?> get() = endpoint.asStateFlow()
+    public val currentEndpoint: StateFlow<CallEndpointCompat?> get() = endpoint.asStateFlow()
 
     /** The audio outputs the call can use. */
-    val availableEndpoints: StateFlow<List<CallEndpointCompat>> get() = endpoints.asStateFlow()
+    public val availableEndpoints: StateFlow<List<CallEndpointCompat>> get() = endpoints.asStateFlow()
 
     /** Whether the system muted the call's microphone. */
-    val isMuted: StateFlow<Boolean> get() = muted.asStateFlow()
+    public val isMuted: StateFlow<Boolean> get() = muted.asStateFlow()
 
     /** Asks Telecom to route the call's audio to [endpoint], one of [availableEndpoints]. */
-    suspend fun requestEndpoint(endpoint: CallEndpointCompat) {
+    public suspend fun requestEndpoint(endpoint: CallEndpointCompat) {
         ready.await().requestEndpointChange(endpoint)
     }
 }
@@ -98,12 +98,12 @@ class BaresipTelecomCall internal constructor(
  * val id = telecom.placeCall("sip:bob@example.com", video = false)
  * ```
  */
-class BaresipTelecomAdapter(
+public class BaresipTelecomAdapter(
     context: Context,
     /** The engine whose calls are shown to Telecom. */
-    val engine: BaresipEngine,
+    public val engine: BaresipEngine,
     /** The adapter's settings. */
-    val configuration: BaresipTelecomConfiguration = BaresipTelecomConfiguration(),
+    public val configuration: BaresipTelecomConfiguration = BaresipTelecomConfiguration(),
     private val onIncomingCall: (BaresipTelecomCall) -> Unit = {},
 ) : BaresipCallController {
     private val callsManager = CallsManager(context.applicationContext)
@@ -133,12 +133,12 @@ class BaresipTelecomAdapter(
      * Stops following the engine. Calls Telecom still shows end with the engine's calls. The adapter
      * also stops following an engine that is closed.
      */
-    fun close() {
+    public fun close() {
         scope.cancel()
     }
 
     /** The Telecom call of an engine call, if Telecom knows it. */
-    fun telecomCall(call: BaresipCallID): BaresipTelecomCall? = callByEngine[call]?.let { calls[it] }
+    public fun telecomCall(call: BaresipCallID): BaresipTelecomCall? = callByEngine[call]?.let { calls[it] }
 
     override fun controls(call: BaresipCallID): Boolean = callByEngine.containsKey(call)
 
@@ -161,7 +161,7 @@ class BaresipTelecomAdapter(
      * @param displayName The caller's name to show.
      * @return The call added to Telecom, or `null` for a repeated push.
      */
-    suspend fun reportIncomingCallFromPush(
+    public suspend fun reportIncomingCallFromPush(
         uuid: UUID?,
         remoteUri: String?,
         displayName: String?,

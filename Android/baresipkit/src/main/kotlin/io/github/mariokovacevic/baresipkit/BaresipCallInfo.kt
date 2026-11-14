@@ -7,7 +7,7 @@ import kotlin.time.Duration
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipCallInfo(
+public data class BaresipCallInfo(
     /** The call. */
     val id: BaresipCallID,
     /** The account the call belongs to. */
@@ -55,7 +55,7 @@ data class BaresipCallInfo(
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipStreamStatistics(
+public data class BaresipStreamStatistics(
     /** RTP packets sent. */
     val transmittedPackets: Long,
     /** RTP packets received. */
@@ -87,7 +87,7 @@ data class BaresipStreamStatistics(
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipCallStatistics(
+public data class BaresipCallStatistics(
     /** The call. */
     val id: BaresipCallID,
     /** The audio stream. */

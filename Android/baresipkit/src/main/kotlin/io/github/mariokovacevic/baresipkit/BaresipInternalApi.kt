@@ -19,4 +19,4 @@ package io.github.mariokovacevic.baresipkit
     AnnotationTarget.CONSTRUCTOR,
     AnnotationTarget.TYPEALIAS,
 )
-annotation class BaresipInternalApi
+public annotation class BaresipInternalApi

@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
  *
  * @param onRouteChange Called on the main thread with the new route after each change.
  */
-class BaresipAudioController(
+public class BaresipAudioController(
     context: Context,
     private val engine: BaresipEngine,
     private val onRouteChange: ((BaresipAudioRoute) -> Unit)? = null,
@@ -93,7 +93,7 @@ class BaresipAudioController(
      * Sets whether calls start on the loudspeaker, for example for a door intercom. The setting
      * applies with the next [activate].
      */
-    fun configureForVoip(defaultToSpeaker: Boolean = false) {
+    public fun configureForVoip(defaultToSpeaker: Boolean = false) {
         this.defaultToSpeaker = defaultToSpeaker
     }
 
@@ -103,7 +103,7 @@ class BaresipAudioController(
      *
      * @return `false` when the system refused audio focus, for example during a cellular call.
      */
-    suspend fun activate(): Boolean {
+    public suspend fun activate(): Boolean {
         val request =
             AudioFocusRequest
                 .Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -126,7 +126,7 @@ class BaresipAudioController(
     }
 
     /** Tells the engine, leaves communication mode and gives up audio focus. */
-    suspend fun deactivate() {
+    public suspend fun deactivate() {
         activation = Activation.INACTIVE
         engine.audioSessionDidDeactivate()
         clearCommunicationDevice()
@@ -136,19 +136,19 @@ class BaresipAudioController(
     }
 
     /** Forwards the activation of a Telecom connection's audio, for example `onCallAudioStateChanged`, to the engine. */
-    suspend fun didActivateFromTelecom() {
+    public suspend fun didActivateFromTelecom() {
         activation = Activation.TELECOM
         engine.audioSessionDidActivate()
     }
 
     /** Forwards the end of a Telecom connection's audio to the engine. */
-    suspend fun didDeactivateFromTelecom() {
+    public suspend fun didDeactivateFromTelecom() {
         activation = Activation.INACTIVE
         engine.audioSessionDidDeactivate()
     }
 
     /** Stops observing devices and gives up audio focus. */
-    fun release() {
+    public fun release() {
         audioManager.unregisterAudioDeviceCallback(deviceCallback)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             audioManager.removeOnCommunicationDeviceChangedListener(
@@ -160,27 +160,27 @@ class BaresipAudioController(
     }
 
     /** Routes audio to the loudspeaker or back to the default route. */
-    fun setSpeakerEnabled(enabled: Boolean) {
+    public fun setSpeakerEnabled(enabled: Boolean) {
         if (enabled) selectOutput(BaresipAudioOutput.SPEAKER) else clearCommunicationDevice()
     }
 
     /** The current output route. */
-    val currentRoute: BaresipAudioRoute
+    public val currentRoute: BaresipAudioRoute
         get() = currentDevice()?.let { audioRouteOf(it.type) } ?: BaresipAudioRoute.Other(0)
 
     /**
      * The outputs the user can pick for call audio right now: the earpiece (unless headphones are
      * plugged in, which replace it), the loudspeaker, and each headset or car kit.
      */
-    val availableOutputs: List<BaresipAudioOutput>
+    public val availableOutputs: List<BaresipAudioOutput>
         get() = AudioOutputs.available(communicationDevices().map(::snapshot))
 
     /** The output call audio is playing on, as listed by [availableOutputs]. */
-    val currentOutput: BaresipAudioOutput?
+    public val currentOutput: BaresipAudioOutput?
         get() = AudioOutputs.current(currentDevice()?.let(::snapshot), availableOutputs)
 
     /** Plays call audio on the given output, one of [availableOutputs]. */
-    fun selectOutput(output: BaresipAudioOutput) {
+    public fun selectOutput(output: BaresipAudioOutput) {
         val devices = communicationDevices()
         val device =
             when (output.id) {

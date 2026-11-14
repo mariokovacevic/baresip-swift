@@ -3,12 +3,12 @@ package io.github.mariokovacevic.baresipkit
 import android.util.Log
 
 /** Sends engine log output to Logcat. */
-object BaresipLogcat {
+public object BaresipLogcat {
     /**
      * A log handler for [BaresipEngine.setLogHandler] that writes each line to Logcat with the
      * tag `[tag]` plus the domain, for example `BaresipKit.sip`.
      */
-    fun handler(tag: String = "BaresipKit"): BaresipLogHandler =
+    public fun handler(tag: String = "BaresipKit"): BaresipLogHandler =
         BaresipLogHandler { entry ->
             val name = "$tag.${entry.domain.name.lowercase()}"
             when (entry.level) {

@@ -27,6 +27,7 @@ android {
 
 kotlin {
     coreLibrariesVersion = "2.1.21"
+    explicitApi()
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
         apiVersion.set(KotlinVersion.KOTLIN_2_1)

@@ -5,7 +5,7 @@ import java.nio.ByteBuffer
 import kotlin.time.Duration
 
 /** The pixel layout of a [BaresipVideoFrame]. */
-enum class BaresipPixelFormat {
+public enum class BaresipPixelFormat {
     /** A luma plane and one interleaved chroma plane (U then V). */
     NV12,
 
@@ -29,21 +29,21 @@ enum class BaresipPixelFormat {
  *
  * The constructor of this type is not covered by Semantic Versioning; read its properties.
  */
-class BaresipVideoFrame(
+public class BaresipVideoFrame(
     /** The pixel layout. */
-    val format: BaresipPixelFormat,
+    public val format: BaresipPixelFormat,
     /** The width in pixels. */
-    val width: Int,
+    public val width: Int,
     /** The height in pixels. */
-    val height: Int,
+    public val height: Int,
     /** The planes: luma first; `null` for planes the format does not have. */
-    val planes: List<ByteBuffer?>,
+    public val planes: List<ByteBuffer?>,
     /** The bytes per row of each plane. */
-    val strides: List<Int>,
+    public val strides: List<Int>,
     /** The presentation time stamp. */
-    val timestamp: Duration,
+    public val timestamp: Duration,
     /** The clockwise rotation to apply when displaying the frame: 0, 90, 180 or 270. */
-    val rotationDegrees: Int,
+    public val rotationDegrees: Int,
 )
 
 /**
@@ -51,19 +51,19 @@ class BaresipVideoFrame(
  * renderer with [BaresipEngine.setVideoRenderer] or [BaresipEngine.startVideoPreview]. Both
  * methods are called on a media thread and must return quickly.
  */
-interface BaresipVideoRenderer {
+public interface BaresipVideoRenderer {
     /** Called for every frame. */
-    fun render(frame: BaresipVideoFrame)
+    public fun render(frame: BaresipVideoFrame)
 
     /** Called when the frame size changes. */
-    fun didChangeSize(
+    public fun didChangeSize(
         width: Int,
         height: Int,
     )
 }
 
 /** A camera of the device. */
-enum class BaresipCameraPosition {
+public enum class BaresipCameraPosition {
     /** The camera on the screen side, the default for calls. */
     FRONT,
 
@@ -72,15 +72,15 @@ enum class BaresipCameraPosition {
     ;
 
     /** The device name to pass to [BaresipEngine.setCamera]. */
-    val deviceName: String
+    public val deviceName: String
         get() = name.lowercase()
 
     /** The other camera. */
-    val toggled: BaresipCameraPosition
+    public val toggled: BaresipCameraPosition
         get() = if (this == FRONT) BACK else FRONT
 
     /** Whether a picture from this camera is usually shown mirrored to the person in front of it. */
-    val isMirroredInPreview: Boolean
+    public val isMirroredInPreview: Boolean
         get() = this == FRONT
 }
 
@@ -92,7 +92,7 @@ enum class BaresipCameraPosition {
  * by Semantic Versioning.
  */
 @BaresipInternalApi
-class BaresipCameraSource internal constructor(
+public class BaresipCameraSource internal constructor(
     internal val handle: Long,
 ) {
     /**
@@ -102,7 +102,7 @@ class BaresipCameraSource internal constructor(
      *
      * @return `false` when the source has stopped.
      */
-    fun push(
+    public fun push(
         width: Int,
         height: Int,
         y: ByteBuffer,
@@ -142,7 +142,7 @@ class BaresipCameraSource internal constructor(
  * covered by Semantic Versioning.
  */
 @BaresipInternalApi
-interface BaresipCameraHost {
+public interface BaresipCameraHost {
     /**
      * Starts the camera named [device] (`front`, `back` or a camera id) for [source] at about
      * [width] by [height] pixels and [fps] frames per second. Return quickly and open the camera
@@ -150,7 +150,7 @@ interface BaresipCameraHost {
      *
      * @return `false` when there is no such camera or it cannot be used.
      */
-    fun start(
+    public fun start(
         source: BaresipCameraSource,
         device: String,
         width: Int,
@@ -159,20 +159,20 @@ interface BaresipCameraHost {
     ): Boolean
 
     /** Stops the camera of [source]. No frame of it is accepted afterwards. */
-    fun stop(source: BaresipCameraSource)
+    public fun stop(source: BaresipCameraSource)
 
     /** Switches [source] to the camera named [device]. */
-    fun switchDevice(
+    public fun switchDevice(
         source: BaresipCameraSource,
         device: String,
     ): Boolean
 
-    companion object {
+    public companion object {
         @Volatile internal var installed: BaresipCameraHost? = null
 
         /** Makes [host] the camera of every engine in the process, or removes it with `null`. */
         @BaresipInternalApi
-        fun install(host: BaresipCameraHost?) {
+        public fun install(host: BaresipCameraHost?) {
             installed = host
             Native.cameraInstallHost(host != null)
         }

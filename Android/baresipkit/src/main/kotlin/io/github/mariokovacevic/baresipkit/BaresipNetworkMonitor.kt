@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipNetworkPath(
+public data class BaresipNetworkPath(
     /** The transports and addresses of the default network, for example `"wifi 192.0.2.7"`. */
     val interfaceSummary: String,
     /** Whether the network is usable. */
@@ -36,7 +36,7 @@ data class BaresipNetworkPath(
  * monitor.start()
  * ```
  */
-class BaresipNetworkMonitor(
+public class BaresipNetworkMonitor(
     context: Context,
     private val engine: BaresipEngine,
     private val reregister: Boolean = true,
@@ -50,12 +50,12 @@ class BaresipNetworkMonitor(
     private var scope: CoroutineScope? = null
 
     /** Sets a handler called with every network update, usable or not, for logging. */
-    fun setChangeHandler(handler: ((BaresipNetworkPath) -> Unit)?) {
+    public fun setChangeHandler(handler: ((BaresipNetworkPath) -> Unit)?) {
         synchronized(lock) { changeHandler = handler }
     }
 
     /** Starts watching the default network. Does nothing if already started. */
-    fun start() {
+    public fun start() {
         synchronized(lock) {
             if (callback != null) return
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -79,7 +79,7 @@ class BaresipNetworkMonitor(
     }
 
     /** Stops watching the network. */
-    fun stop() {
+    public fun stop() {
         synchronized(lock) {
             callback?.let { runCatching { connectivity.unregisterNetworkCallback(it) } }
             callback = null

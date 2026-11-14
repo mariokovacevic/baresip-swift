@@ -36,7 +36,7 @@ import java.net.URLDecoder
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipRedialRequest(
+public data class BaresipRedialRequest(
     /** The SIP URI or number to call. */
     val destination: String,
     /** Whether a video call was asked for. */
@@ -45,7 +45,7 @@ data class BaresipRedialRequest(
     val callsNow: Boolean = false,
 ) {
     /** Reading requests from intents. */
-    companion object {
+    public companion object {
         private const val ACTION_CALL_PRIVILEGED = "android.intent.action.CALL_PRIVILEGED"
         private val calling = setOf(Intent.ACTION_CALL, ACTION_CALL_PRIVILEGED)
         private val actions = calling + setOf(Intent.ACTION_DIAL, Intent.ACTION_VIEW)
@@ -57,7 +57,7 @@ data class BaresipRedialRequest(
          * @param intent The intent the app was started or resumed with.
          * @return `null` when the intent asks for no call or names nobody to call.
          */
-        fun from(intent: Intent?): BaresipRedialRequest? {
+        public fun from(intent: Intent?): BaresipRedialRequest? {
             intent ?: return null
             if (intent.action !in actions) return null
             val state = intent.getIntExtra(TelecomManager.EXTRA_START_CALL_WITH_VIDEO_STATE, VideoProfile.STATE_AUDIO_ONLY)

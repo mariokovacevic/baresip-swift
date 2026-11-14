@@ -3,25 +3,25 @@ package io.github.mariokovacevic.baresipkit.audio
 import android.media.AudioDeviceInfo
 
 /** Where call audio is played. */
-sealed interface BaresipAudioRoute {
+public sealed interface BaresipAudioRoute {
     /** The receiver at the top of the phone. */
-    data object Earpiece : BaresipAudioRoute
+    public data object Earpiece : BaresipAudioRoute
 
     /** The built-in loudspeaker. */
-    data object Speaker : BaresipAudioRoute
+    public data object Speaker : BaresipAudioRoute
 
     /** A Bluetooth headset or car kit. */
-    data object Bluetooth : BaresipAudioRoute
+    public data object Bluetooth : BaresipAudioRoute
 
     /** Wired or USB headphones. */
-    data object WiredHeadset : BaresipAudioRoute
+    public data object WiredHeadset : BaresipAudioRoute
 
     /**
      * Another output, with its `AudioDeviceInfo` type.
      *
      * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
      */
-    data class Other(
+    public data class Other(
         val type: Int,
     ) : BaresipAudioRoute
 }
@@ -45,7 +45,7 @@ internal fun audioRouteOf(type: Int): BaresipAudioRoute =
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipAudioOutput(
+public data class BaresipAudioOutput(
     /** A stable identifier: the device id, or a fixed value for the earpiece and loudspeaker. */
     val id: String,
     /** A name to show, such as "Speaker" or the Bluetooth device's name. */
@@ -53,12 +53,12 @@ data class BaresipAudioOutput(
     /** The kind of output. */
     val route: BaresipAudioRoute,
 ) {
-    companion object {
+    public companion object {
         /** The receiver at the top of the phone. */
-        val EARPIECE = BaresipAudioOutput("bsk.earpiece", "Phone", BaresipAudioRoute.Earpiece)
+        public val EARPIECE: BaresipAudioOutput = BaresipAudioOutput("bsk.earpiece", "Phone", BaresipAudioRoute.Earpiece)
 
         /** The built-in loudspeaker. */
-        val SPEAKER = BaresipAudioOutput("bsk.speaker", "Speaker", BaresipAudioRoute.Speaker)
+        public val SPEAKER: BaresipAudioOutput = BaresipAudioOutput("bsk.speaker", "Speaker", BaresipAudioRoute.Speaker)
     }
 }
 

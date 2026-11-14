@@ -25,59 +25,59 @@ import kotlin.time.Duration.Companion.seconds
  * Settings added in a later release get a default that keeps the earlier behaviour. [toString]
  * shows the password as `***`.
  */
-class BaresipAccountConfiguration private constructor(
+public class BaresipAccountConfiguration private constructor(
     builder: Builder,
 ) {
     /** The address of record, for example `sip:alice@example.com`. */
-    val aor: String = builder.aor
+    public val aor: String = builder.aor
 
     /** The display name in the `From` header. */
-    val displayName: String? = builder.displayName
+    public val displayName: String? = builder.displayName
 
     /** The registrar URI, or `null` to use the domain of [aor]. */
-    val registrar: String? = builder.registrar
+    public val registrar: String? = builder.registrar
 
     /** An outbound proxy URI. */
-    val outboundProxy: String? = builder.outboundProxy
+    public val outboundProxy: String? = builder.outboundProxy
 
     /** The SIP transport. */
-    val transport: BaresipTransport = builder.transport
+    public val transport: BaresipTransport = builder.transport
 
     /** The authentication user name, or `null` to use the user part of [aor]. */
-    val authUser: String? = builder.authUser
+    public val authUser: String? = builder.authUser
 
     /** The authentication password. It is passed to the core and never logged. */
-    val authPassword: String? = builder.authPassword
+    public val authPassword: String? = builder.authPassword
 
     /** The requested registration lifetime. */
-    val registerExpires: Duration = builder.registerExpires
+    public val registerExpires: Duration = builder.registerExpires
 
     /** Whether SIP Outbound (RFC 5626) is used. */
-    val sipOutbound: Boolean = builder.sipOutbound
+    public val sipOutbound: Boolean = builder.sipOutbound
 
     /** Media encryption for calls of this account. */
-    val mediaEncryption: BaresipMediaEncryption = builder.mediaEncryption
+    public val mediaEncryption: BaresipMediaEncryption = builder.mediaEncryption
 
     /** NAT traversal settings. */
-    val nat: BaresipNatConfiguration = builder.nat
+    public val nat: BaresipNatConfiguration = builder.nat
 
     /** How DTMF is sent. */
-    val dtmfMode: BaresipDtmfMode = builder.dtmfMode
+    public val dtmfMode: BaresipDtmfMode = builder.dtmfMode
 
     /** Extra `Contact` header parameters, for example for push routing. */
-    val contactParameters: List<BaresipContactParameter> = builder.contactParameters
+    public val contactParameters: List<BaresipContactParameter> = builder.contactParameters
 
     /** Audio codecs for this account, or empty for the engine's list. */
-    val audioCodecs: List<String> = builder.audioCodecs
+    public val audioCodecs: List<String> = builder.audioCodecs
 
     /** Video codecs for this account, or empty for the engine's list. */
-    val videoCodecs: List<String> = builder.videoCodecs
+    public val videoCodecs: List<String> = builder.videoCodecs
 
     /** Whether incoming calls start a receive-only early media preview automatically. */
-    val answerEarlyMedia: Boolean = builder.answerEarlyMedia
+    public val answerEarlyMedia: Boolean = builder.answerEarlyMedia
 
     /** Whether incoming REFER requests are followed. When `false` they are declined. */
-    val acceptTransfers: Boolean = builder.acceptTransfers
+    public val acceptTransfers: Boolean = builder.acceptTransfers
 
     /**
      * Whether requests for a new video picture are also sent as SIP INFO (RFC 5168).
@@ -85,10 +85,10 @@ class BaresipAccountConfiguration private constructor(
      * Some endpoints, such as door stations, react only to a SIP INFO `picture_fast_update`
      * request. Incoming requests of that kind are always answered. Off by default.
      */
-    val pictureUpdateOverSipInfo: Boolean = builder.pictureUpdateOverSipInfo
+    public val pictureUpdateOverSipInfo: Boolean = builder.pictureUpdateOverSipInfo
 
     /** Headers of incoming INVITEs to keep, such as `X-Device-ID`, read with [BaresipEngine.incomingHeader]. */
-    val incomingHeaders: List<String> = builder.incomingHeaders
+    public val incomingHeaders: List<String> = builder.incomingHeaders
 
     /**
      * Checks the settings without contacting a server. [BaresipEngine.addAccount] calls this
@@ -99,7 +99,7 @@ class BaresipAccountConfiguration private constructor(
      *   contains characters that cannot be sent, the authentication user is empty, more than one
      *   TURN server is given, or a contact parameter is not a valid SIP token.
      */
-    fun validate() {
+    public fun validate() {
         val scheme =
             listOf("sips:", "sip:").firstOrNull { aor.startsWith(it) }
                 ?: throw BaresipError.invalid("aor must start with sip: or sips:")
@@ -125,7 +125,7 @@ class BaresipAccountConfiguration private constructor(
     }
 
     /** Returns a copy of these settings with the changes made in [block]. */
-    fun copy(block: Builder.() -> Unit): BaresipAccountConfiguration = Builder(this).apply(block).build()
+    public fun copy(block: Builder.() -> Unit): BaresipAccountConfiguration = Builder(this).apply(block).build()
 
     override fun equals(other: Any?): Boolean = other is BaresipAccountConfiguration && values() == other.values()
 
@@ -185,66 +185,66 @@ class BaresipAccountConfiguration private constructor(
 
     /** Collects the settings of a [BaresipAccountConfiguration]; see the [BaresipAccountConfiguration] function. */
     @BaresipConfigurationDsl
-    class Builder(
+    public class Builder(
         /** The address of record, for example `sip:alice@example.com`. */
-        var aor: String,
+        public var aor: String,
     ) {
         /** The display name in the `From` header, or `null` for none. */
-        var displayName: String? = null
+        public var displayName: String? = null
 
         /** The registrar URI, or `null` to use the domain of [aor]. */
-        var registrar: String? = null
+        public var registrar: String? = null
 
         /** An outbound proxy URI, or `null` for none. */
-        var outboundProxy: String? = null
+        public var outboundProxy: String? = null
 
         /** The SIP transport, [BaresipTransport.TLS] by default. */
-        var transport: BaresipTransport = BaresipTransport.TLS
+        public var transport: BaresipTransport = BaresipTransport.TLS
 
         /** The authentication user name, or `null` to use the user part of [aor]. */
-        var authUser: String? = null
+        public var authUser: String? = null
 
         /** The authentication password. It is passed to the core and never logged. */
-        var authPassword: String? = null
+        public var authPassword: String? = null
 
         /** The requested registration lifetime, 600 seconds by default. */
-        var registerExpires: Duration = 600.seconds
+        public var registerExpires: Duration = 600.seconds
 
         /** Whether SIP Outbound (RFC 5626) is used. Off by default. */
-        var sipOutbound: Boolean = false
+        public var sipOutbound: Boolean = false
 
         /** Media encryption for calls of this account, [BaresipMediaEncryption.SRTP_OPTIONAL] by default. */
-        var mediaEncryption: BaresipMediaEncryption = BaresipMediaEncryption.SRTP_OPTIONAL
+        public var mediaEncryption: BaresipMediaEncryption = BaresipMediaEncryption.SRTP_OPTIONAL
 
         /** NAT traversal settings. */
-        var nat: BaresipNatConfiguration = BaresipNatConfiguration()
+        public var nat: BaresipNatConfiguration = BaresipNatConfiguration()
 
         /** How DTMF is sent, [BaresipDtmfMode.AUTO] by default. */
-        var dtmfMode: BaresipDtmfMode = BaresipDtmfMode.AUTO
+        public var dtmfMode: BaresipDtmfMode = BaresipDtmfMode.AUTO
 
         /** Extra `Contact` header parameters, for example for push routing. */
-        var contactParameters: List<BaresipContactParameter> = emptyList()
+        public var contactParameters: List<BaresipContactParameter> = emptyList()
 
         /** Audio codecs for this account, or empty for the engine's list. */
-        var audioCodecs: List<String> = emptyList()
+        public var audioCodecs: List<String> = emptyList()
 
         /** Video codecs for this account, or empty for the engine's list. */
-        var videoCodecs: List<String> = emptyList()
+        public var videoCodecs: List<String> = emptyList()
 
         /** Whether incoming calls start a receive-only early media preview automatically. Off by default. */
-        var answerEarlyMedia: Boolean = false
+        public var answerEarlyMedia: Boolean = false
 
         /** Whether incoming REFER requests are followed. When `false` they are declined. On by default. */
-        var acceptTransfers: Boolean = true
+        public var acceptTransfers: Boolean = true
 
         /** Whether requests for a new video picture are also sent as SIP INFO (RFC 5168). Off by default. */
-        var pictureUpdateOverSipInfo: Boolean = false
+        public var pictureUpdateOverSipInfo: Boolean = false
 
         /** Headers of incoming INVITEs to keep, such as `X-Device-ID`, read with [BaresipEngine.incomingHeader]. */
-        var incomingHeaders: List<String> = emptyList()
+        public var incomingHeaders: List<String> = emptyList()
 
         /** Starts from the settings of [configuration]. */
-        constructor(configuration: BaresipAccountConfiguration) : this(configuration.aor) {
+        public constructor(configuration: BaresipAccountConfiguration) : this(configuration.aor) {
             displayName = configuration.displayName
             registrar = configuration.registrar
             outboundProxy = configuration.outboundProxy
@@ -266,12 +266,12 @@ class BaresipAccountConfiguration private constructor(
         }
 
         /** Changes the [nat] settings. */
-        fun nat(block: BaresipNatConfiguration.Builder.() -> Unit) {
+        public fun nat(block: BaresipNatConfiguration.Builder.() -> Unit) {
             nat = nat.copy(block)
         }
 
         /** Creates the settings. */
-        fun build(): BaresipAccountConfiguration = BaresipAccountConfiguration(this)
+        public fun build(): BaresipAccountConfiguration = BaresipAccountConfiguration(this)
     }
 }
 
@@ -280,7 +280,7 @@ class BaresipAccountConfiguration private constructor(
  *
  * @param aor The address of record, for example `sip:alice@example.com`.
  */
-fun BaresipAccountConfiguration(
+public fun BaresipAccountConfiguration(
     aor: String,
     block: BaresipAccountConfiguration.Builder.() -> Unit = {},
 ): BaresipAccountConfiguration = BaresipAccountConfiguration.Builder(aor).apply(block).build()
@@ -292,7 +292,7 @@ fun BaresipAccountConfiguration(
  * `pn-param`) or for registrar-specific parameters. Names and values must be SIP tokens.
  * [toString] shows the value of a push token parameter, `pn-prid` or `pn-tok`, as `***`.
  */
-data class BaresipContactParameter(
+public data class BaresipContactParameter(
     /** The parameter name. */
     val name: String,
     /** The parameter value, or `null` for a flag parameter without a value. */
@@ -310,33 +310,33 @@ data class BaresipContactParameter(
  * Create them with the [BaresipNatConfiguration] function or with
  * [BaresipAccountConfiguration.Builder.nat].
  */
-class BaresipNatConfiguration private constructor(
+public class BaresipNatConfiguration private constructor(
     builder: Builder,
 ) {
     /** The traversal method. */
-    val mode: BaresipNatTraversal = builder.mode
+    public val mode: BaresipNatTraversal = builder.mode
 
     /** The STUN server, for example `stun:stun.example.com:3478`. */
-    val stunUri: String? = builder.stunUri
+    public val stunUri: String? = builder.stunUri
 
     /** The TURN relay used by ICE. At most one server is supported. */
-    val turnServers: List<BaresipTurnServer> = builder.turnServers
+    public val turnServers: List<BaresipTurnServer> = builder.turnServers
 
     /** How long an established call may receive no RTP before it is ended. */
-    val rtpTimeout: Duration = builder.rtpTimeout
+    public val rtpTimeout: Duration = builder.rtpTimeout
 
     /** Whether RTCP shares the RTP port (RFC 5761). On by default. */
-    val rtcpMultiplexing: Boolean = builder.rtcpMultiplexing
+    public val rtcpMultiplexing: Boolean = builder.rtcpMultiplexing
 
     /**
      * Whether a stream that only receives sends empty RTP packets until the peer's media
      * arrives, for media relays and NATs that forward media only after they have seen a packet
      * from this side. Off by default.
      */
-    val pinhole: Boolean = builder.pinhole
+    public val pinhole: Boolean = builder.pinhole
 
     /** Returns a copy of these settings with the changes made in [block]. */
-    fun copy(block: Builder.() -> Unit): BaresipNatConfiguration = Builder(this).apply(block).build()
+    public fun copy(block: Builder.() -> Unit): BaresipNatConfiguration = Builder(this).apply(block).build()
 
     override fun equals(other: Any?): Boolean = other is BaresipNatConfiguration && values() == other.values()
 
@@ -357,27 +357,27 @@ class BaresipNatConfiguration private constructor(
 
     /** Collects the settings of a [BaresipNatConfiguration]; see the [BaresipNatConfiguration] function. */
     @BaresipConfigurationDsl
-    class Builder() {
+    public class Builder() {
         /** The traversal method, [BaresipNatTraversal.NONE] by default. */
-        var mode: BaresipNatTraversal = BaresipNatTraversal.NONE
+        public var mode: BaresipNatTraversal = BaresipNatTraversal.NONE
 
         /** The STUN server, for example `stun:stun.example.com:3478`, or `null` for none. */
-        var stunUri: String? = null
+        public var stunUri: String? = null
 
         /** The TURN relay used by ICE. At most one server is supported. */
-        var turnServers: List<BaresipTurnServer> = emptyList()
+        public var turnServers: List<BaresipTurnServer> = emptyList()
 
         /** How long an established call may receive no RTP before it is ended, 30 seconds by default. */
-        var rtpTimeout: Duration = 30.seconds
+        public var rtpTimeout: Duration = 30.seconds
 
         /** Whether RTCP shares the RTP port (RFC 5761). On by default. */
-        var rtcpMultiplexing: Boolean = true
+        public var rtcpMultiplexing: Boolean = true
 
         /** Whether a stream that only receives sends empty RTP packets until the peer's media arrives. Off by default. */
-        var pinhole: Boolean = false
+        public var pinhole: Boolean = false
 
         /** Starts from the settings of [configuration]. */
-        constructor(configuration: BaresipNatConfiguration) : this() {
+        public constructor(configuration: BaresipNatConfiguration) : this() {
             mode = configuration.mode
             stunUri = configuration.stunUri
             turnServers = configuration.turnServers
@@ -387,12 +387,12 @@ class BaresipNatConfiguration private constructor(
         }
 
         /** Creates the settings. */
-        fun build(): BaresipNatConfiguration = BaresipNatConfiguration(this)
+        public fun build(): BaresipNatConfiguration = BaresipNatConfiguration(this)
     }
 }
 
 /** Creates NAT traversal settings: the defaults, changed by [block]. */
-fun BaresipNatConfiguration(block: BaresipNatConfiguration.Builder.() -> Unit = {}): BaresipNatConfiguration = BaresipNatConfiguration.Builder().apply(block).build()
+public fun BaresipNatConfiguration(block: BaresipNatConfiguration.Builder.() -> Unit = {}): BaresipNatConfiguration = BaresipNatConfiguration.Builder().apply(block).build()
 
 /**
  * A TURN relay used by ICE. The URI selects the transport: `turn:host:3478` (UDP),
@@ -400,20 +400,20 @@ fun BaresipNatConfiguration(block: BaresipNatConfiguration.Builder.() -> Unit = 
  *
  * Create one with the [BaresipTurnServer] function. [toString] shows the password as `***`.
  */
-class BaresipTurnServer private constructor(
+public class BaresipTurnServer private constructor(
     builder: Builder,
 ) {
     /** The TURN URI. */
-    val uri: String = builder.uri
+    public val uri: String = builder.uri
 
     /** The TURN username, if the server needs one. */
-    val username: String? = builder.username
+    public val username: String? = builder.username
 
     /** The TURN password, if the server needs one. */
-    val password: String? = builder.password
+    public val password: String? = builder.password
 
     /** Returns a copy of this server with the changes made in [block]. */
-    fun copy(block: Builder.() -> Unit): BaresipTurnServer = Builder(this).apply(block).build()
+    public fun copy(block: Builder.() -> Unit): BaresipTurnServer = Builder(this).apply(block).build()
 
     override fun equals(other: Any?): Boolean = other is BaresipTurnServer && uri == other.uri && username == other.username && password == other.password
 
@@ -423,24 +423,24 @@ class BaresipTurnServer private constructor(
 
     /** Collects the settings of a [BaresipTurnServer]; see the [BaresipTurnServer] function. */
     @BaresipConfigurationDsl
-    class Builder(
+    public class Builder(
         /** The TURN URI. */
-        var uri: String,
+        public var uri: String,
     ) {
         /** The TURN username, or `null` when the server needs none. */
-        var username: String? = null
+        public var username: String? = null
 
         /** The TURN password, or `null` when the server needs none. */
-        var password: String? = null
+        public var password: String? = null
 
         /** Starts from the settings of [server]. */
-        constructor(server: BaresipTurnServer) : this(server.uri) {
+        public constructor(server: BaresipTurnServer) : this(server.uri) {
             username = server.username
             password = server.password
         }
 
         /** Creates the server. */
-        fun build(): BaresipTurnServer = BaresipTurnServer(this)
+        public fun build(): BaresipTurnServer = BaresipTurnServer(this)
     }
 }
 
@@ -449,7 +449,7 @@ class BaresipTurnServer private constructor(
  *
  * @param uri The TURN URI, for example `turns:turn.example.com:5349`.
  */
-fun BaresipTurnServer(
+public fun BaresipTurnServer(
     uri: String,
     block: BaresipTurnServer.Builder.() -> Unit = {},
 ): BaresipTurnServer = BaresipTurnServer.Builder(uri).apply(block).build()

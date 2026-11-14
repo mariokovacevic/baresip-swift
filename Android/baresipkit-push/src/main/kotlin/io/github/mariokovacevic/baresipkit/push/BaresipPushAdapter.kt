@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
  *
  * @param onIncomingCall Reports a pushed call to the system, for example to Telecom.
  */
-class BaresipPushAdapter(
+public class BaresipPushAdapter(
     private val engine: BaresipEngine,
     appId: String,
     account: BaresipAccountID? = null,
@@ -43,7 +43,7 @@ class BaresipPushAdapter(
     private val onIncomingCall: suspend (BaresipPushCall) -> Unit,
 ) {
     /** What the adapter was doing when an error occurred. */
-    enum class Step {
+    public enum class Step {
         /** Sending the `Contact` parameters to the engine. */
         CONTACT_PARAMETERS,
 
@@ -64,28 +64,28 @@ class BaresipPushAdapter(
     @Volatile private var errorHandler: ((Step, Throwable) -> Unit)? = null
 
     /** The current tokens. */
-    val currentTokens: BaresipPushTokens
+    public val currentTokens: BaresipPushTokens
         get() = synchronized(lock) { tokens }
 
     /** Sets a handler for errors of work the adapter does on its own; without one they are dropped. */
-    fun setErrorHandler(handler: ((Step, Throwable) -> Unit)?) {
+    public fun setErrorHandler(handler: ((Step, Throwable) -> Unit)?) {
         errorHandler = handler
     }
 
     /** Sets the account that receives the push parameters and updates its registration. */
-    fun bind(account: BaresipAccountID) {
+    public fun bind(account: BaresipAccountID) {
         synchronized(lock) { this.account = account }
         sendContactParameters()
     }
 
     /** Stores a new Firebase token, from `onNewToken`, and updates the account's registration. */
-    fun updateToken(token: String?) = updateTokens { it.copy(token = token) }
+    public fun updateToken(token: String?): Unit = updateTokens { it.copy(token = token) }
 
     /** Changes the `app-id` sent to the server and updates the account's registration. */
-    fun updateAppId(appId: String) = updateTokens { it.copy(appId = appId) }
+    public fun updateAppId(appId: String): Unit = updateTokens { it.copy(appId = appId) }
 
     /** Replaces the `Contact` parameters sent together with the push ones. */
-    fun updateAdditionalContactParameters(parameters: List<BaresipContactParameter>) {
+    public fun updateAdditionalContactParameters(parameters: List<BaresipContactParameter>) {
         val changed =
             synchronized(lock) {
                 if (additional == parameters) return
@@ -101,7 +101,7 @@ class BaresipPushAdapter(
      *
      * @return `false` when the message announces no call.
      */
-    suspend fun handle(data: Map<String, String>): Boolean {
+    public suspend fun handle(data: Map<String, String>): Boolean {
         val call = BaresipPushCall.from(data) ?: return false
         try {
             onIncomingCall(call)

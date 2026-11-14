@@ -22,21 +22,21 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /** The other side's answer to DTMF sent with [BaresipPhoneCall.sendDtmf] and a reply digit. */
-sealed interface BaresipDtmfReply {
+public sealed interface BaresipDtmfReply {
     /** The expected digit arrived. */
-    data object Confirmed : BaresipDtmfReply
+    public data object Confirmed : BaresipDtmfReply
 
     /**
      * Another digit arrived first.
      *
      * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
      */
-    data class Other(
+    public data class Other(
         val digit: Char,
     ) : BaresipDtmfReply
 
     /** No digit arrived in time. */
-    data object NoReply : BaresipDtmfReply
+    public data object NoReply : BaresipDtmfReply
 }
 
 /**
@@ -46,74 +46,74 @@ sealed interface BaresipDtmfReply {
  * phone's call controller when it controls the call, such as Telecom, and to the engine
  * otherwise.
  */
-class BaresipPhoneCall internal constructor(
+public class BaresipPhoneCall internal constructor(
     /** The call's identifier. */
-    val id: BaresipCallID,
+    public val id: BaresipCallID,
     state: BaresipCallState,
     /** The engine of the call. */
-    val engine: BaresipEngine,
+    public val engine: BaresipEngine,
 ) {
     /** When the phone first saw the call. */
-    val startedAt: TimeMark = TimeSource.Monotonic.markNow()
+    public val startedAt: TimeMark = TimeSource.Monotonic.markNow()
 
     /** The call's state. */
-    var state: BaresipCallState by mutableStateOf(state)
+    public var state: BaresipCallState by mutableStateOf(state)
         private set
 
     /** The last error of the call: why it failed, or why the other side rejected a change. */
-    var error: BaresipError? by mutableStateOf(null)
+    public var error: BaresipError? by mutableStateOf(null)
         private set
 
     /** The other side's SIP URI. */
-    var remoteUri: String by mutableStateOf("")
+    public var remoteUri: String by mutableStateOf("")
         private set
 
     /** The other side's display name, or an empty string. */
-    var remoteDisplayName: String by mutableStateOf("")
+    public var remoteDisplayName: String by mutableStateOf("")
         private set
 
     /** Whether this side placed the call. Valid when [isDirectionKnown] is `true`. */
-    var isOutgoing: Boolean by mutableStateOf(false)
+    public var isOutgoing: Boolean by mutableStateOf(false)
         private set
 
     /** Whether the call's direction is known yet. */
-    var isDirectionKnown: Boolean by mutableStateOf(false)
+    public var isDirectionKnown: Boolean by mutableStateOf(false)
         private set
 
     /** Whether the call has a video stream. */
-    var hasVideo: Boolean by mutableStateOf(false)
+    public var hasVideo: Boolean by mutableStateOf(false)
         private set
 
     /** Whether the microphone is muted. */
-    var isMuted: Boolean by mutableStateOf(false)
+    public var isMuted: Boolean by mutableStateOf(false)
         private set
 
     /** The negotiated audio direction. */
-    var audioDirection: BaresipMediaDirection by mutableStateOf(BaresipMediaDirection.INACTIVE)
+    public var audioDirection: BaresipMediaDirection by mutableStateOf(BaresipMediaDirection.INACTIVE)
         private set
 
     /** The negotiated video direction. */
-    var videoDirection: BaresipMediaDirection by mutableStateOf(BaresipMediaDirection.INACTIVE)
+    public var videoDirection: BaresipMediaDirection by mutableStateOf(BaresipMediaDirection.INACTIVE)
         private set
 
     /** The audio codec in use, or an empty string. */
-    var audioCodec: String by mutableStateOf("")
+    public var audioCodec: String by mutableStateOf("")
         private set
 
     /** The video codec in use, or an empty string. */
-    var videoCodec: String by mutableStateOf("")
+    public var videoCodec: String by mutableStateOf("")
         private set
 
     /** When the call was first connected, or `null` before that. */
-    var connectedAt: TimeMark? by mutableStateOf(null)
+    public var connectedAt: TimeMark? by mutableStateOf(null)
         private set
 
     /** Whether the camera is sent. */
-    var isSendingVideo: Boolean by mutableStateOf(false)
+    public var isSendingVideo: Boolean by mutableStateOf(false)
         private set
 
     /** The camera the call sends, as last set with [setCamera]. */
-    var camera: BaresipCameraPosition by mutableStateOf(
+    public var camera: BaresipCameraPosition by mutableStateOf(
         if (engine.configuration.video.sourceDevice == BaresipCameraPosition.BACK.deviceName) {
             BaresipCameraPosition.BACK
         } else {
@@ -123,11 +123,11 @@ class BaresipPhoneCall internal constructor(
         private set
 
     /** Whether an early media preview of the ringing call runs; see [startPreview]. */
-    var isPreviewing: Boolean by mutableStateOf(false)
+    public var isPreviewing: Boolean by mutableStateOf(false)
         private set
 
     /** The DTMF digits received from the other side, in order. */
-    var receivedDtmf: String by mutableStateOf("")
+    public var receivedDtmf: String by mutableStateOf("")
         private set
 
     internal var phone: BaresipPhone? = null
@@ -140,37 +140,37 @@ class BaresipPhoneCall internal constructor(
     }
 
     /** Whether the call rings on this side and is not answered yet. */
-    val isRinging: Boolean
+    public val isRinging: Boolean
         get() = isDirectionKnown && !isOutgoing && (state == BaresipCallState.INCOMING || state == BaresipCallState.EARLY_MEDIA)
 
     /** Whether the call is on hold on this side, including while it is put on hold or resumed. */
-    val isOnHold: Boolean
+    public val isOnHold: Boolean
         get() = state == BaresipCallState.PAUSING || state == BaresipCallState.PAUSED || state == BaresipCallState.RESUMING
 
     /** Whether the other side put the call on hold. */
-    val isHeldByRemote: Boolean
+    public val isHeldByRemote: Boolean
         get() = state == BaresipCallState.PAUSED_BY_REMOTE
 
     /** Whether audio and video are flowing. */
-    val isConnected: Boolean
+    public val isConnected: Boolean
         get() = state == BaresipCallState.CONNECTED || state == BaresipCallState.STREAMS_RUNNING || state == BaresipCallState.UPDATING
 
     /** Whether the other side's video reaches this side, early media included. */
-    val isReceivingVideo: Boolean
+    public val isReceivingVideo: Boolean
         get() = videoDirection == BaresipMediaDirection.RECEIVE_ONLY || videoDirection == BaresipMediaDirection.SEND_RECEIVE
 
     /** The display name, or the user part of the SIP URI when there is none. */
-    val displayName: String
+    public val displayName: String
         get() = remoteDisplayName.ifEmpty { userPart(remoteUri) }
 
     /** Whether a SIP address names the other side of this call, such as the sender of a SIP MESSAGE. */
-    fun isPeer(address: String): Boolean = samePeer(address, remoteUri)
+    public fun isPeer(address: String): Boolean = samePeer(address, remoteUri)
 
     /**
      * Answers an incoming call, through the phone's call controller when it controls the call.
      * A call controller answers with audio; with `audio = false` the engine answers directly.
      */
-    suspend fun answer(
+    public suspend fun answer(
         video: Boolean = false,
         audio: Boolean = true,
     ) {
@@ -182,7 +182,7 @@ class BaresipPhoneCall internal constructor(
     }
 
     /** Starts an early media preview: the caller is seen and heard, but does not see or hear this side. */
-    suspend fun startPreview(
+    public suspend fun startPreview(
         video: Boolean = true,
         audio: Boolean = true,
     ) {
@@ -192,13 +192,13 @@ class BaresipPhoneCall internal constructor(
     }
 
     /** Declines an incoming call: through the call controller when it controls the call, with 486 Busy Here otherwise. */
-    suspend fun reject() {
+    public suspend fun reject() {
         val controller = controller
         if (controller != null) controller.end(id) else engine.reject(id)
     }
 
     /** Ends the call. */
-    suspend fun hangUp() {
+    public suspend fun hangUp() {
         val controller = controller
         if (controller != null) controller.end(id) else engine.hangUp(id)
     }
@@ -207,7 +207,7 @@ class BaresipPhoneCall internal constructor(
      * Mutes or unmutes the microphone. Through a call controller, [isMuted] changes when the
      * controller reports that the microphone was muted.
      */
-    suspend fun setMuted(muted: Boolean) {
+    public suspend fun setMuted(muted: Boolean) {
         val controller = controller
         if (controller != null) {
             controller.setMuted(muted, id)
@@ -218,7 +218,7 @@ class BaresipPhoneCall internal constructor(
     }
 
     /** Puts the call on hold or resumes it. */
-    suspend fun setOnHold(onHold: Boolean) {
+    public suspend fun setOnHold(onHold: Boolean) {
         val controller = controller
         when {
             controller != null -> controller.setOnHold(onHold, id)
@@ -228,7 +228,7 @@ class BaresipPhoneCall internal constructor(
     }
 
     /** Starts or stops sending the camera. The other side's video keeps playing either way. */
-    suspend fun setVideoEnabled(enabled: Boolean) {
+    public suspend fun setVideoEnabled(enabled: Boolean) {
         val previous = isSendingVideo
         isSendingVideo = enabled
         try {
@@ -241,16 +241,16 @@ class BaresipPhoneCall internal constructor(
     }
 
     /** Sends the front or back camera. */
-    suspend fun setCamera(position: BaresipCameraPosition) {
+    public suspend fun setCamera(position: BaresipCameraPosition) {
         engine.setCamera(id, position)
         camera = position
     }
 
     /** Switches between the front and back camera. */
-    suspend fun switchCamera() = setCamera(camera.toggled)
+    public suspend fun switchCamera(): Unit = setCamera(camera.toggled)
 
     /** Sends DTMF digits. */
-    suspend fun sendDtmf(digits: String) = engine.sendDtmf(id, digits)
+    public suspend fun sendDtmf(digits: String): Unit = engine.sendDtmf(id, digits)
 
     /**
      * Sends DTMF digits and waits for the other side to answer with a digit, as door stations do
@@ -259,7 +259,7 @@ class BaresipPhoneCall internal constructor(
      * @param reply The digit that confirms the request.
      * @param timeout How long to wait for a reply after the digits were sent.
      */
-    suspend fun sendDtmf(
+    public suspend fun sendDtmf(
         digits: String,
         reply: Char,
         timeout: Duration = 5.seconds,

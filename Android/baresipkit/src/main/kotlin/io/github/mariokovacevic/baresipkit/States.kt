@@ -1,7 +1,7 @@
 package io.github.mariokovacevic.baresipkit
 
 /** The lifecycle state of an engine. */
-enum class BaresipEngineState {
+public enum class BaresipEngineState {
     /** Created, not started. */
     IDLE,
 
@@ -30,7 +30,7 @@ enum class BaresipEngineState {
 }
 
 /** The registration state of an account. */
-enum class BaresipRegistrationState {
+public enum class BaresipRegistrationState {
     /** Not registered. */
     NONE,
 
@@ -61,7 +61,7 @@ enum class BaresipRegistrationState {
  * New entries can be added in a minor release; give a `when` over it an `else` branch. See
  * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
  */
-enum class BaresipCallState {
+public enum class BaresipCallState {
     /** An incoming call is ringing. */
     INCOMING,
 
@@ -106,7 +106,7 @@ enum class BaresipCallState {
     ;
 
     /** `true` for [ENDED], [FAILED] and [RELEASED]. */
-    val isTerminal: Boolean
+    public val isTerminal: Boolean
         get() = this == ENDED || this == FAILED || this == RELEASED
 
     internal companion object {
@@ -115,7 +115,7 @@ enum class BaresipCallState {
 }
 
 /** The SIP transport of an account. */
-enum class BaresipTransport {
+public enum class BaresipTransport {
     /** SIP over UDP. */
     UDP,
 
@@ -130,7 +130,7 @@ enum class BaresipTransport {
 }
 
 /** Media encryption for the calls of an account. */
-enum class BaresipMediaEncryption {
+public enum class BaresipMediaEncryption {
     /** Unencrypted RTP. */
     NONE,
 
@@ -145,7 +145,7 @@ enum class BaresipMediaEncryption {
 }
 
 /** The NAT traversal method of an account. */
-enum class BaresipNatTraversal {
+public enum class BaresipNatTraversal {
     /** No NAT traversal. */
     NONE,
 
@@ -157,7 +157,7 @@ enum class BaresipNatTraversal {
 }
 
 /** How DTMF digits are sent. */
-enum class BaresipDtmfMode {
+public enum class BaresipDtmfMode {
     /** RTP events when the peer offers them, SIP INFO otherwise. */
     AUTO,
 
@@ -169,7 +169,7 @@ enum class BaresipDtmfMode {
 }
 
 /** The direction of a media stream, from this device's side. */
-enum class BaresipMediaDirection {
+public enum class BaresipMediaDirection {
     /** Nothing flows. */
     INACTIVE,
 
@@ -189,7 +189,7 @@ enum class BaresipMediaDirection {
 }
 
 /** The ICE state of a call. */
-enum class BaresipIceState {
+public enum class BaresipIceState {
     /** ICE is not used. */
     NONE,
 
@@ -212,7 +212,7 @@ enum class BaresipIceState {
 }
 
 /** The type of an ICE candidate. */
-enum class BaresipCandidateType {
+public enum class BaresipCandidateType {
     /** A local interface address. */
     HOST,
 
@@ -237,7 +237,7 @@ enum class BaresipCandidateType {
  * New entries can be added in a minor release; give a `when` over it an `else` branch. See
  * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
  */
-enum class BaresipCallEndReason {
+public enum class BaresipCallEndReason {
     /** Another device answered the call (`Reason: SIP;cause=200`). */
     ANSWERED_ELSEWHERE,
 

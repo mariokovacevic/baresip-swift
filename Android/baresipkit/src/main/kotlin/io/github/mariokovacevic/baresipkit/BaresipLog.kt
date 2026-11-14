@@ -1,7 +1,7 @@
 package io.github.mariokovacevic.baresipkit
 
 /** The severity of a log line. */
-enum class BaresipLogLevel {
+public enum class BaresipLogLevel {
     /** Detail for debugging. */
     DEBUG,
 
@@ -21,7 +21,7 @@ enum class BaresipLogLevel {
 }
 
 /** The part of the engine a log line comes from. */
-enum class BaresipLogDomain {
+public enum class BaresipLogDomain {
     /** The engine itself. */
     CORE,
 
@@ -42,7 +42,7 @@ enum class BaresipLogDomain {
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipLogEntry(
+public data class BaresipLogEntry(
     /** The severity. */
     val level: BaresipLogLevel,
     /** Where the line comes from. */
@@ -52,7 +52,7 @@ data class BaresipLogEntry(
 )
 
 /** Receives log lines on the engine's thread; it must return quickly. */
-fun interface BaresipLogHandler {
+public fun interface BaresipLogHandler {
     /** Handles one log line. */
-    fun log(entry: BaresipLogEntry)
+    public fun log(entry: BaresipLogEntry)
 }

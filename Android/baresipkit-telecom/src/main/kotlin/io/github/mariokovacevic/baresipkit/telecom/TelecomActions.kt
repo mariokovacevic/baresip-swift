@@ -11,13 +11,13 @@ import kotlin.time.Duration
  * The counterpart of `BaresipCallKitError` on iOS: [reason] says whether Telecom refused the
  * action or did not answer in time.
  */
-class BaresipTelecomException(
+public class BaresipTelecomException(
     /** Why the action failed. */
-    val reason: Reason,
+    public val reason: Reason,
     /** The action, for example `answer` or `setInactive`. */
-    val action: String,
+    public val action: String,
     /** The error code from `CallControlResult.Error`, or `null` when there is none. */
-    val errorCode: Int? = null,
+    public val errorCode: Int? = null,
 ) : Exception(
         when (reason) {
             Reason.ACTION_TIMED_OUT -> "Telecom did not finish $action in time"
@@ -25,7 +25,7 @@ class BaresipTelecomException(
         },
     ) {
     /** Why an action failed. */
-    enum class Reason {
+    public enum class Reason {
         /** Telecom did not finish the action within [BaresipTelecomConfiguration.actionTimeout]. */
         ACTION_TIMED_OUT,
 

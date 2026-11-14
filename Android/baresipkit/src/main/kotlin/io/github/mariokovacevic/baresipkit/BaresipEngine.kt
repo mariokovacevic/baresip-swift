@@ -45,9 +45,9 @@ import kotlin.time.Duration.Companion.seconds
  * @param configuration Engine-wide settings.
  * @throws BaresipError when the core rejects the configuration.
  */
-class BaresipEngine(
+public class BaresipEngine(
     /** The configuration the engine was created with. */
-    val configuration: BaresipConfiguration,
+    public val configuration: BaresipConfiguration,
 ) : AutoCloseable {
     private val executor: ExecutorService =
         Executors.newSingleThreadExecutor { runnable ->
@@ -94,7 +94,7 @@ class BaresipEngine(
      * without ending its collection keeps every later event in memory; cancel a collection that is no
      * longer needed.
      */
-    val events: Flow<BaresipEvent> =
+    public val events: Flow<BaresipEvent> =
         eventFlow
             .onSubscription { if (eventsEnded) emit(EndOfEvents) }
             .transformWhile { item ->
@@ -103,12 +103,12 @@ class BaresipEngine(
             }
 
     /** Sets the handler that receives engine log output, or removes it with `null`. */
-    fun setLogHandler(handler: BaresipLogHandler?) {
+    public fun setLogHandler(handler: BaresipLogHandler?) {
         logHandler = handler
     }
 
     /** The current lifecycle state. */
-    val state: BaresipEngineState
+    public val state: BaresipEngineState
         get() = if (closed.get()) BaresipEngineState.STOPPED else BaresipEngineState.of(Native.engineState(handle))
 
     internal val isEngineThread: Boolean
@@ -121,13 +121,13 @@ class BaresipEngine(
      * @throws BaresipError when the engine is not idle, another engine is running
      *   ([BaresipError.Code.BUSY]) or the core cannot start.
      */
-    suspend fun start() = onEngine { Native.engineStart(handle) }
+    public suspend fun start(): Unit = onEngine { Native.engineStart(handle) }
 
     /**
      * Stops the engine. Calls are hung up and accounts unregister, within [timeout]. The engine's
      * accounts are removed; add them again after the next [start].
      */
-    suspend fun stop(timeout: Duration = 3.seconds) {
+    public suspend fun stop(timeout: Duration = 3.seconds) {
         runCatching { onEngine { Native.engineStop(handle, timeout.wholeMilliseconds()) } }
     }
 
@@ -138,13 +138,13 @@ class BaresipEngine(
      * the INVITE can arrive on a fresh connection. A stopped engine is started, without
      * accounts: add and register them afterwards.
      */
-    suspend fun prepareForPushWakeUp() = onEngine { Native.enginePrepareForPushWakeup(handle) }
+    public suspend fun prepareForPushWakeUp(): Unit = onEngine { Native.enginePrepareForPushWakeup(handle) }
 
     /** Suspends the engine when the app moves to the background without an active call. */
-    suspend fun suspend() = onEngine { Native.engineSuspend(handle) }
+    public suspend fun suspend(): Unit = onEngine { Native.engineSuspend(handle) }
 
     /** Resumes an engine suspended with [suspend]. */
-    suspend fun resumeFromBackground() = onEngine { Native.engineResume(handle) }
+    public suspend fun resumeFromBackground(): Unit = onEngine { Native.engineResume(handle) }
 
     /**
      * Tells the engine that the network changed, for example from a `ConnectivityManager`
@@ -153,7 +153,7 @@ class BaresipEngine(
      * @param reregister Whether accounts register again on the new address.
      * @param updateCalls Whether active calls move to the new address, restarting ICE when used.
      */
-    suspend fun networkDidChange(
+    public suspend fun networkDidChange(
         reregister: Boolean = true,
         updateCalls: Boolean = true,
     ) {
@@ -161,22 +161,22 @@ class BaresipEngine(
     }
 
     /** Tells the engine that audio focus was gained and the audio device may start. */
-    suspend fun audioSessionDidActivate() {
+    public suspend fun audioSessionDidActivate() {
         runCatching { onEngine { Native.engineAudioSessionActivated(handle) } }
     }
 
     /** Tells the engine that audio focus was lost for good. */
-    suspend fun audioSessionDidDeactivate() {
+    public suspend fun audioSessionDidDeactivate() {
         runCatching { onEngine { Native.engineAudioSessionDeactivated(handle) } }
     }
 
     /** Tells the engine that the audio route changed, so audio streams are restarted. */
-    suspend fun audioRouteDidChange() {
+    public suspend fun audioRouteDidChange() {
         runCatching { onEngine { Native.engineAudioRouteChanged(handle) } }
     }
 
     /** Tells the engine that an audio interruption, such as a cellular call, began or ended. */
-    suspend fun audioInterruption(began: Boolean) {
+    public suspend fun audioInterruption(began: Boolean) {
         runCatching { onEngine { Native.engineAudioInterruption(handle, began) } }
     }
 
@@ -186,41 +186,41 @@ class BaresipEngine(
      *
      * @throws BaresipError when the settings are invalid or the engine is not running.
      */
-    suspend fun addAccount(account: BaresipAccountConfiguration): BaresipAccountID {
+    public suspend fun addAccount(account: BaresipAccountConfiguration): BaresipAccountID {
         account.validate()
         val native = NativeAccountConfig(account)
         return BaresipAccountID(onEngine { Native.accountAdd(handle, native) })
     }
 
     /** Unregisters and removes an account. Its calls are hung up. */
-    suspend fun removeAccount(id: BaresipAccountID) = onEngine { Native.accountRemove(handle, id.rawValue) }
+    public suspend fun removeAccount(id: BaresipAccountID): Unit = onEngine { Native.accountRemove(handle, id.rawValue) }
 
     /** Makes an account the default for calls and messages without an explicit account. */
-    suspend fun setDefaultAccount(id: BaresipAccountID) = onEngine { Native.accountSetDefault(handle, id.rawValue) }
+    public suspend fun setDefaultAccount(id: BaresipAccountID): Unit = onEngine { Native.accountSetDefault(handle, id.rawValue) }
 
     /** Starts registration. Progress arrives as [BaresipEvent.Registration]. */
-    suspend fun register(account: BaresipAccountID) = onEngine { Native.accountRegister(handle, account.rawValue) }
+    public suspend fun register(account: BaresipAccountID): Unit = onEngine { Native.accountRegister(handle, account.rawValue) }
 
     /** Removes the registration. */
-    suspend fun unregister(account: BaresipAccountID) = onEngine { Native.accountUnregister(handle, account.rawValue) }
+    public suspend fun unregister(account: BaresipAccountID): Unit = onEngine { Native.accountUnregister(handle, account.rawValue) }
 
     /**
      * Replaces an account's credentials. The next REGISTER uses them.
      *
      * @param authUser The authentication user name, or `null` for the user part of the address.
      */
-    suspend fun updateCredentials(
+    public suspend fun updateCredentials(
         account: BaresipAccountID,
         authUser: String?,
         password: String,
-    ) = onEngine { Native.accountSetCredentials(handle, account.rawValue, authUser.cStringOrNull(), password.cString()) }
+    ): Unit = onEngine { Native.accountSetCredentials(handle, account.rawValue, authUser.cStringOrNull(), password.cString()) }
 
     /**
      * Replaces an account's `Contact` parameters, for example when the push token changes.
      *
      * @param reregisterNow Whether to send a REGISTER with the new parameters right away.
      */
-    suspend fun updateContactParameters(
+    public suspend fun updateContactParameters(
         account: BaresipAccountID,
         parameters: List<BaresipContactParameter>,
         reregisterNow: Boolean = true,
@@ -235,7 +235,7 @@ class BaresipEngine(
      * The accounts the engine has, each with its current registration state. The result is empty
      * while the engine is not running.
      */
-    suspend fun accounts(): Map<BaresipAccountID, BaresipRegistrationState> =
+    public suspend fun accounts(): Map<BaresipAccountID, BaresipRegistrationState> =
         runCatching {
             onEngine {
                 val pairs = Native.accountList(handle)
@@ -246,7 +246,7 @@ class BaresipEngine(
         }.getOrDefault(emptyMap())
 
     /** The current registration state of an account, or [BaresipRegistrationState.NONE] for an unknown account. */
-    fun registrationState(account: BaresipAccountID): BaresipRegistrationState =
+    public fun registrationState(account: BaresipAccountID): BaresipRegistrationState =
         if (closed.get()) {
             BaresipRegistrationState.NONE
         } else {
@@ -267,7 +267,7 @@ class BaresipEngine(
      *   directions, for example to watch a door station's camera.
      * @return The new call's identifier. State changes arrive as [BaresipEvent.Call].
      */
-    suspend fun makeCall(
+    public suspend fun makeCall(
         account: BaresipAccountID? = null,
         destination: String,
         video: Boolean = false,
@@ -280,22 +280,22 @@ class BaresipEngine(
      *
      * @param audio Whether audio flows. With `false` the call is answered silently.
      */
-    suspend fun answer(
+    public suspend fun answer(
         call: BaresipCallID,
         video: Boolean = false,
         audio: Boolean = true,
-    ) = onEngine { Native.callAnswer(handle, call.rawValue, audio, video) }
+    ): Unit = onEngine { Native.callAnswer(handle, call.rawValue, audio, video) }
 
     /**
      * Starts a receive-only early media preview of an incoming call with 183 Session Progress.
      * You hear the caller, and with [earlyVideo] see them; the caller neither hears nor sees you
      * until [answer].
      */
-    suspend fun sendProgress(
+    public suspend fun sendProgress(
         call: BaresipCallID,
         earlyVideo: Boolean = false,
         earlyAudio: Boolean = true,
-    ) = onEngine { Native.callProgress(handle, call.rawValue, earlyAudio, earlyVideo) }
+    ): Unit = onEngine { Native.callProgress(handle, call.rawValue, earlyAudio, earlyVideo) }
 
     /**
      * Rejects an incoming call that is still ringing. End an answered call with [hangUp].
@@ -303,26 +303,26 @@ class BaresipEngine(
      * @param statusCode The SIP response code, 486 Busy Here by default.
      * @param reason The reason phrase, or `null` for the standard phrase.
      */
-    suspend fun reject(
+    public suspend fun reject(
         call: BaresipCallID,
         statusCode: Int = 486,
         reason: String? = null,
-    ) = onEngine { Native.callReject(handle, call.rawValue, statusCode.coerceIn(0, MAXIMUM_SIP_STATUS), reason.cStringOrNull()) }
+    ): Unit = onEngine { Native.callReject(handle, call.rawValue, statusCode.coerceIn(0, MAXIMUM_SIP_STATUS), reason.cStringOrNull()) }
 
     /** Hangs up a call in any state. */
-    suspend fun hangUp(call: BaresipCallID) = onEngine { Native.callHangup(handle, call.rawValue) }
+    public suspend fun hangUp(call: BaresipCallID): Unit = onEngine { Native.callHangup(handle, call.rawValue) }
 
     /**
      * Puts a call on hold. When the other side rejects the hold, the call returns to its previous
      * state with an error in the event.
      */
-    suspend fun hold(call: BaresipCallID) = onEngine { Native.callHold(handle, call.rawValue, true) }
+    public suspend fun hold(call: BaresipCallID): Unit = onEngine { Native.callHold(handle, call.rawValue, true) }
 
     /** Resumes a call from hold. */
-    suspend fun resume(call: BaresipCallID) = onEngine { Native.callHold(handle, call.rawValue, false) }
+    public suspend fun resume(call: BaresipCallID): Unit = onEngine { Native.callHold(handle, call.rawValue, false) }
 
     /** Makes a call the active one: other established calls are put on hold, and this call is resumed. */
-    suspend fun setActiveCall(call: BaresipCallID) = onEngine { Native.callSetActive(handle, call.rawValue) }
+    public suspend fun setActiveCall(call: BaresipCallID): Unit = onEngine { Native.callSetActive(handle, call.rawValue) }
 
     /**
      * Sends DTMF digits from `0`–`9`, `*`, `#` and `A`–`D`.
@@ -330,32 +330,32 @@ class BaresipEngine(
      * @param duration How long each digit is sent.
      * @param gap The pause between digits.
      */
-    suspend fun sendDtmf(
+    public suspend fun sendDtmf(
         call: BaresipCallID,
         digits: String,
         duration: Duration = 160.milliseconds,
         gap: Duration = 80.milliseconds,
-    ) = onEngine {
+    ): Unit = onEngine {
         Native.callSendDtmf(handle, call.rawValue, digits.cString(), duration.wholeMilliseconds(), gap.wholeMilliseconds())
     }
 
     /** Transfers a call to another party without consulting them first (blind transfer). */
-    suspend fun blindTransfer(
+    public suspend fun blindTransfer(
         call: BaresipCallID,
         targetUri: String,
-    ) = onEngine { Native.callTransfer(handle, call.rawValue, targetUri.cString()) }
+    ): Unit = onEngine { Native.callTransfer(handle, call.rawValue, targetUri.cString()) }
 
     /**
      * Connects the remote party of [call] to the party of [consultationCall] and leaves both calls
      * (attended transfer, REFER with Replaces).
      */
-    suspend fun attendedTransfer(
+    public suspend fun attendedTransfer(
         call: BaresipCallID,
         consultationCall: BaresipCallID,
-    ) = onEngine { Native.callTransferAttended(handle, call.rawValue, consultationCall.rawValue) }
+    ): Unit = onEngine { Native.callTransferAttended(handle, call.rawValue, consultationCall.rawValue) }
 
     /** A snapshot of a call. */
-    suspend fun callInfo(call: BaresipCallID): BaresipCallInfo =
+    public suspend fun callInfo(call: BaresipCallID): BaresipCallInfo =
         onEngine {
             val numbers = LongArray(EventDecoder.CALL_INFO_LONGS)
             val strings = Native.callInfo(handle, call.rawValue, numbers)
@@ -368,16 +368,16 @@ class BaresipEngine(
      *
      * @return The header value, or `null` when the INVITE had no such header.
      */
-    suspend fun incomingHeader(
+    public suspend fun incomingHeader(
         call: BaresipCallID,
         name: String,
     ): String? = onEngine { Native.callHeader(handle, call.rawValue, name.cString()) }
 
     /** The identifiers of all calls that are not released, oldest first. */
-    suspend fun activeCalls(): List<BaresipCallID> = runCatching { onEngine { Native.callList(handle).map(::BaresipCallID) } }.getOrDefault(emptyList())
+    public suspend fun activeCalls(): List<BaresipCallID> = runCatching { onEngine { Native.callList(handle).map(::BaresipCallID) } }.getOrDefault(emptyList())
 
     /** Current media statistics for a call. */
-    suspend fun callStatistics(call: BaresipCallID): BaresipCallStatistics =
+    public suspend fun callStatistics(call: BaresipCallID): BaresipCallStatistics =
         onEngine {
             val numbers = LongArray(EventDecoder.STATISTICS_LONGS)
             val strings = Native.callStatistics(handle, call.rawValue, numbers)
@@ -385,62 +385,62 @@ class BaresipEngine(
         }
 
     /** Mutes or unmutes the microphone for a call. */
-    suspend fun setMicrophoneMuted(
+    public suspend fun setMicrophoneMuted(
         call: BaresipCallID,
         muted: Boolean,
-    ) = onEngine { Native.callSetMicrophoneMuted(handle, call.rawValue, muted) }
+    ): Unit = onEngine { Native.callSetMicrophoneMuted(handle, call.rawValue, muted) }
 
     /** Changes the audio direction of a call with a re-INVITE. */
-    suspend fun setAudioDirection(
+    public suspend fun setAudioDirection(
         call: BaresipCallID,
         direction: BaresipMediaDirection,
-    ) = onEngine { Native.callSetAudioDirection(handle, call.rawValue, direction.ordinal) }
+    ): Unit = onEngine { Native.callSetAudioDirection(handle, call.rawValue, direction.ordinal) }
 
     /** Changes the video direction of a call with a re-INVITE. */
-    suspend fun setVideoDirection(
+    public suspend fun setVideoDirection(
         call: BaresipCallID,
         direction: BaresipMediaDirection,
-    ) = onEngine { Native.callSetVideoDirection(handle, call.rawValue, direction.ordinal) }
+    ): Unit = onEngine { Native.callSetVideoDirection(handle, call.rawValue, direction.ordinal) }
 
     /**
      * Turns sending your camera on or off for a call. Only sending changes: with `false` the
      * direction becomes receive-only, so you keep seeing the other side.
      */
-    suspend fun setVideoEnabled(
+    public suspend fun setVideoEnabled(
         call: BaresipCallID,
         enabled: Boolean,
-    ) = setVideoDirection(call, if (enabled) BaresipMediaDirection.SEND_RECEIVE else BaresipMediaDirection.RECEIVE_ONLY)
+    ): Unit = setVideoDirection(call, if (enabled) BaresipMediaDirection.SEND_RECEIVE else BaresipMediaDirection.RECEIVE_ONLY)
 
     /** Switches the camera used for a call to a device from [videoDevices]. */
-    suspend fun setCamera(
+    public suspend fun setCamera(
         call: BaresipCallID,
         device: String,
-    ) = onEngine { Native.callSetCamera(handle, call.rawValue, device.cString()) }
+    ): Unit = onEngine { Native.callSetCamera(handle, call.rawValue, device.cString()) }
 
     /** Asks the encoder to send a keyframe. */
-    suspend fun requestKeyframe(call: BaresipCallID) = onEngine { Native.callRequestKeyframe(handle, call.rawValue) }
+    public suspend fun requestKeyframe(call: BaresipCallID): Unit = onEngine { Native.callRequestKeyframe(handle, call.rawValue) }
 
     /** Caps the video bitrate of a call below the engine's configured bitrate, or removes the cap with `null`. */
-    suspend fun setVideoMaxBitrate(
+    public suspend fun setVideoMaxBitrate(
         call: BaresipCallID,
         bitsPerSecond: Int?,
-    ) = onEngine { Native.callSetVideoMaxBitrate(handle, call.rawValue, (bitsPerSecond ?: 0).coerceAtLeast(0)) }
+    ): Unit = onEngine { Native.callSetVideoMaxBitrate(handle, call.rawValue, (bitsPerSecond ?: 0).coerceAtLeast(0)) }
 
     /** Restarts ICE for a call, for example after the network changed. */
-    suspend fun restartIce(call: BaresipCallID) = onEngine { Native.callRestartIce(handle, call.rawValue) }
+    public suspend fun restartIce(call: BaresipCallID): Unit = onEngine { Native.callRestartIce(handle, call.rawValue) }
 
     /**
      * Starts recording a call to a 16-bit stereo WAV file: the left channel is the microphone and
      * the right channel the remote party. An existing file is replaced. Check local law before
      * recording calls.
      */
-    suspend fun startRecording(
+    public suspend fun startRecording(
         call: BaresipCallID,
         file: File,
-    ) = onEngine { Native.callRecordStart(handle, call.rawValue, file.path.cString()) }
+    ): Unit = onEngine { Native.callRecordStart(handle, call.rawValue, file.path.cString()) }
 
     /** Stops recording and completes the file. */
-    suspend fun stopRecording(call: BaresipCallID) = onEngine { Native.callRecordStop(handle, call.rawValue) }
+    public suspend fun stopRecording(call: BaresipCallID): Unit = onEngine { Native.callRecordStop(handle, call.rawValue) }
 
     /**
      * Sends a text message as a SIP MESSAGE (RFC 3428). The result arrives later as
@@ -448,14 +448,14 @@ class BaresipEngine(
      *
      * @param account The account to send from, or `null` for the default account.
      */
-    suspend fun sendMessage(
+    public suspend fun sendMessage(
         peerUri: String,
         text: String,
         account: BaresipAccountID? = null,
     ): BaresipMessageID = BaresipMessageID(onEngine { Native.messageSend(handle, account?.rawValue ?: 0, peerUri.cString(), text.cString()) })
 
     /** The names of the cameras the video source offers. */
-    suspend fun videoDevices(): List<String> =
+    public suspend fun videoDevices(): List<String> =
         runCatching { onEngine { Native.videoDevices(handle).split('\n').filter { it.isNotEmpty() } } }
             .getOrDefault(emptyList())
 
@@ -465,11 +465,11 @@ class BaresipEngine(
      *
      * @param local `true` for the camera image sent to the peer, `false` for the remote video.
      */
-    suspend fun setVideoRenderer(
+    public suspend fun setVideoRenderer(
         call: BaresipCallID,
         renderer: BaresipVideoRenderer?,
         local: Boolean = false,
-    ) = replaceSink(VideoSinkKey(call, local), renderer?.let(::VideoSinkBox)) { box ->
+    ): Unit = replaceSink(VideoSinkKey(call, local), renderer?.let(::VideoSinkBox)) { box ->
         Native.callSetVideoSink(handle, call.rawValue, local, box?.pointer ?: 0)
     }
 
@@ -478,24 +478,24 @@ class BaresipEngine(
      *
      * @param device A device name from [videoDevices], or `null` for the default camera.
      */
-    suspend fun startVideoPreview(
+    public suspend fun startVideoPreview(
         device: String? = null,
         renderer: BaresipVideoRenderer,
-    ) = replaceSink(VideoSinkKey(null, true), VideoSinkBox(renderer)) { box ->
+    ): Unit = replaceSink(VideoSinkKey(null, true), VideoSinkBox(renderer)) { box ->
         Native.videoPreviewStart(handle, device.cStringOrNull(), box?.pointer ?: 0)
     }
 
     /** Stops the camera preview. */
-    suspend fun stopVideoPreview() {
+    public suspend fun stopVideoPreview() {
         onEngine { Native.videoPreviewStop(handle) }
         synchronized(videoSinks) { videoSinks.remove(VideoSinkKey(null, true)) }?.release()
     }
 
     /** Switches the camera used for a call to the front or back camera. */
-    suspend fun setCamera(
+    public suspend fun setCamera(
         call: BaresipCallID,
         position: BaresipCameraPosition,
-    ) = setCamera(call, position.deviceName)
+    ): Unit = setCamera(call, position.deviceName)
 
     private suspend fun replaceSink(
         key: VideoSinkKey,
@@ -561,7 +561,7 @@ class BaresipEngine(
 
     private object EndOfEvents
 
-    companion object {
+    public companion object {
         private const val THREAD_NAME = "baresipkit.engine"
         private const val CLOSE_TIMEOUT_SECONDS = 10L
         private const val MAXIMUM_SIP_STATUS = 699
@@ -573,7 +573,7 @@ class BaresipEngine(
             get() = Native.capabilities().split(' ').filter { it.isNotEmpty() }
 
         /** The version string of the linked core. */
-        val coreVersion: String
+        public val coreVersion: String
             get() = Native.version()
 
         /**
@@ -583,7 +583,7 @@ class BaresipEngine(
          * @throws BaresipError with [BaresipError.Code.INVALID_ARGUMENT] when a name or value is
          *   not a valid SIP token.
          */
-        fun encodeContactParameters(parameters: List<BaresipContactParameter>): String = Native.encodeContactParameters(parameters.names(), parameters.values())
+        public fun encodeContactParameters(parameters: List<BaresipContactParameter>): String = Native.encodeContactParameters(parameters.names(), parameters.values())
     }
 
     internal data class AbiVersion(

@@ -22,14 +22,14 @@ import javax.microedition.khronos.opengles.GL10
  * Frames are copied off the media thread and drawn with OpenGL ES 2, converting YUV to RGB in a
  * shader.
  */
-class BaresipVideoView
+public class BaresipVideoView
     @JvmOverloads
     constructor(
         context: Context,
         attributes: AttributeSet? = null,
     ) : GLSurfaceView(context, attributes) {
         /** How a frame fills the view. */
-        enum class ScaleMode {
+        public enum class ScaleMode {
             /** The whole frame is visible, with bars where the aspect ratios differ. */
             FIT,
 
@@ -38,10 +38,10 @@ class BaresipVideoView
         }
 
         /** How a frame fills the view. [ScaleMode.FILL] by default. */
-        @Volatile var scaleMode: ScaleMode = ScaleMode.FILL
+        @Volatile public var scaleMode: ScaleMode = ScaleMode.FILL
 
         /** Whether the picture is mirrored, as for the front camera's preview. */
-        @Volatile var isMirrored: Boolean = false
+        @Volatile public var isMirrored: Boolean = false
 
         private val lock = Any()
         private var pending: StagedFrame? = null
@@ -55,7 +55,7 @@ class BaresipVideoView
         }
 
         /** The renderer that hands frames to this view. */
-        val renderer: BaresipVideoRenderer =
+        public val renderer: BaresipVideoRenderer =
             object : BaresipVideoRenderer {
                 override fun render(frame: BaresipVideoFrame) {
                     synchronized(lock) {
@@ -71,7 +71,7 @@ class BaresipVideoView
             }
 
         /** Clears the picture, for example when a call ends. */
-        fun flush() {
+        public fun flush() {
             synchronized(lock) {
                 pending = null
                 latest = null
@@ -80,7 +80,7 @@ class BaresipVideoView
         }
 
         /** The last frame shown, as a bitmap, or `null` before the first frame. */
-        fun snapshot(): Bitmap? = synchronized(lock) { latest ?: pending }?.bitmap()
+        public fun snapshot(): Bitmap? = synchronized(lock) { latest ?: pending }?.bitmap()
 
         private inner class Drawer : Renderer {
             private var program = 0

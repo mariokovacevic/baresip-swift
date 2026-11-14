@@ -36,7 +36,7 @@ import kotlin.time.Duration.Companion.nanoseconds
  * the display's current rotation before they are encoded.
  */
 @OptIn(BaresipInternalApi::class)
-class BaresipCamera private constructor(
+public class BaresipCamera private constructor(
     context: Context,
 ) {
     private val context = context.applicationContext
@@ -217,7 +217,7 @@ class BaresipCamera private constructor(
     }
 
     /** The cameras by device name: `front`, `back`, then the other camera ids. */
-    fun deviceNames(): List<String> =
+    public fun deviceNames(): List<String> =
         manager.cameraIdList
             .map { id ->
                 when (manager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING)) {
@@ -248,11 +248,11 @@ class BaresipCamera private constructor(
             else -> 0
         }
 
-    companion object {
+    public companion object {
         @Volatile private var shared: BaresipCamera? = null
 
         /** Makes the device cameras the source of the engine's `bskcamera` video source. */
-        fun install(context: Context): BaresipCamera =
+        public fun install(context: Context): BaresipCamera =
             synchronized(this) {
                 shared ?: BaresipCamera(context).also {
                     shared = it

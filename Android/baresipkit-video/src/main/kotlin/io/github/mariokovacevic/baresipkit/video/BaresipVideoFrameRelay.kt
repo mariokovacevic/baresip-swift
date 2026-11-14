@@ -11,14 +11,14 @@ import io.github.mariokovacevic.baresipkit.BaresipVideoRenderer
  * engine.setVideoRenderer(call, relay)
  * ```
  */
-class BaresipVideoFrameRelay(
+public class BaresipVideoFrameRelay(
     onFrame: ((BaresipVideoFrame) -> Unit)? = null,
     onSize: ((Int, Int) -> Unit)? = null,
 ) : BaresipVideoRenderer {
     @Volatile private var handlers = onFrame to onSize
 
     /** Replaces both handlers. */
-    fun setHandlers(
+    public fun setHandlers(
         onFrame: ((BaresipVideoFrame) -> Unit)?,
         onSize: ((Int, Int) -> Unit)?,
     ) {

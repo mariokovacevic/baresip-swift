@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** Which video of a call [BaresipCallVideo] shows. */
-enum class BaresipVideoSource {
+public enum class BaresipVideoSource {
     /** The other side's video. */
     REMOTE,
 
@@ -45,7 +45,7 @@ enum class BaresipVideoSource {
  * @param onView Called once with the view, for example to keep it for snapshots.
  */
 @Composable
-fun BaresipCallVideo(
+public fun BaresipCallVideo(
     engine: BaresipEngine,
     call: BaresipCallID,
     modifier: Modifier = Modifier,
@@ -86,7 +86,7 @@ fun BaresipCallVideo(
  * @param device The camera, `front` or `back`.
  */
 @Composable
-fun BaresipCameraPreview(
+public fun BaresipCameraPreview(
     engine: BaresipEngine,
     modifier: Modifier = Modifier,
     device: String? = null,
@@ -117,13 +117,13 @@ fun BaresipCameraPreview(
  * while the front camera is used.
  */
 @Composable
-fun BaresipCallVideo(
+public fun BaresipCallVideo(
     call: BaresipPhoneCall,
     modifier: Modifier = Modifier,
     source: BaresipVideoSource = BaresipVideoSource.REMOTE,
     scaleMode: BaresipVideoView.ScaleMode? = null,
     onView: (BaresipVideoView) -> Unit = {},
-) = BaresipCallVideo(
+): Unit = BaresipCallVideo(
     engine = call.engine,
     call = call.id,
     modifier = modifier,
@@ -140,7 +140,7 @@ fun BaresipCallVideo(
  * camera, and switches between the front and back camera when tapped.
  */
 @Composable
-fun BaresipSelfView(
+public fun BaresipSelfView(
     call: BaresipPhoneCall,
     modifier: Modifier = Modifier,
     size: DpSize = DpSize(100.dp, 140.dp),

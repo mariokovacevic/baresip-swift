@@ -8,4 +8,4 @@ package io.github.mariokovacevic.baresipkit
  */
 @DslMarker
 @Target(AnnotationTarget.CLASS)
-annotation class BaresipConfigurationDsl
+public annotation class BaresipConfigurationDsl

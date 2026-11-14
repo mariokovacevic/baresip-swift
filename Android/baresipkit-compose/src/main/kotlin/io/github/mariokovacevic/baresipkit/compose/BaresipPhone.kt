@@ -37,9 +37,9 @@ import kotlinx.coroutines.launch
  *   `null` to use the engine directly.
  * @param scope Where the phone reads call details after changes.
  */
-class BaresipPhone(
+public class BaresipPhone(
     /** The engine whose events the phone applies. */
-    val engine: BaresipEngine,
+    public val engine: BaresipEngine,
     callController: BaresipCallController? = null,
     internal val scope: CoroutineScope,
 ) {
@@ -49,11 +49,11 @@ class BaresipPhone(
     private val observedControllers = mutableSetOf<BaresipCallController>()
 
     /** The registration state of every account of the engine. */
-    val registrations: Map<BaresipAccountID, BaresipRegistrationState>
+    public val registrations: Map<BaresipAccountID, BaresipRegistrationState>
         get() = registrationState
 
     /** The calls that are not released yet, in the order they appeared. */
-    val calls: List<BaresipPhoneCall>
+    public val calls: List<BaresipPhoneCall>
         get() = callList
 
     /**
@@ -61,7 +61,7 @@ class BaresipPhone(
      * screen, or the one made active with [makeActive]. When the active call ends, the next call
      * becomes active, a held one first.
      */
-    var activeCall: BaresipPhoneCall? by mutableStateOf(null)
+    public var activeCall: BaresipPhoneCall? by mutableStateOf(null)
         private set
 
     /**
@@ -69,21 +69,21 @@ class BaresipPhone(
      * controls. The calls' actions use the engine directly when it is `null` or does not control
      * a call.
      */
-    var callController: BaresipCallController? = callController
+    public var callController: BaresipCallController? = callController
         set(value) {
             field = value
             observeMuting(value)
         }
 
     /** Whether a held call is resumed when the active call ends. On by default. */
-    var resumesHeldCallWhenActiveCallEnds: Boolean = true
+    public var resumesHeldCallWhenActiveCallEnds: Boolean = true
 
     init {
         observeMuting(callController)
     }
 
     /** The first call that is ringing and not answered yet. */
-    val incomingCall: BaresipPhoneCall?
+    public val incomingCall: BaresipPhoneCall?
         get() = callList.firstOrNull { it.isRinging }
 
     /**
@@ -91,13 +91,13 @@ class BaresipPhone(
      * engine is closed. Each run first brings [calls] in line with the engine, so running it again
      * after a cancellation is safe.
      */
-    suspend fun run() {
+    public suspend fun run() {
         synchronize()
         engine.events.collect { apply(it) }
     }
 
     /** The call with an identifier, if it is not released yet. */
-    fun call(id: BaresipCallID): BaresipPhoneCall? = callList.firstOrNull { it.id == id }
+    public fun call(id: BaresipCallID): BaresipPhoneCall? = callList.firstOrNull { it.id == id }
 
     /**
      * Places a call and adds it to [calls]. The call goes through [callController] when one is set,
@@ -107,7 +107,7 @@ class BaresipPhone(
      * @param video Whether to send the camera; the other side's video is received either way.
      * @param audio Whether to open the microphone and play the other side's audio.
      */
-    suspend fun makeCall(
+    public suspend fun makeCall(
         destination: String,
         account: BaresipAccountID? = null,
         video: Boolean = false,
@@ -132,7 +132,7 @@ class BaresipPhone(
     }
 
     /** Makes a call the active one: the engine puts other established calls on hold and resumes this one. */
-    suspend fun makeActive(call: BaresipPhoneCall) {
+    public suspend fun makeActive(call: BaresipPhoneCall) {
         if (callList.size > 1) engine.setActiveCall(call.id)
         activeCall = call
         call.refresh()
@@ -143,7 +143,7 @@ class BaresipPhone(
      * from that side on the call's screen. The [activeCall] comes first; calls that ring or have
      * ended do not count.
      */
-    fun call(withPeer: String): BaresipPhoneCall? {
+    public fun call(withPeer: String): BaresipPhoneCall? {
         val established = callList.filter { it.isConnected || it.isOnHold || it.isHeldByRemote }
         activeCall?.let { active -> if (established.any { it === active } && active.isPeer(withPeer)) return active }
         return established.firstOrNull { it.isPeer(withPeer) }

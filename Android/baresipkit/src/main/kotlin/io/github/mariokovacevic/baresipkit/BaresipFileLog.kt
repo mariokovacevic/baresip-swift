@@ -18,8 +18,8 @@ import java.util.concurrent.Executors
  * @param maxFileSize The size, in bytes, beyond which a day's file is truncated and restarted.
  * @param daysToKeep The number of most recent daily files kept; older ones are removed.
  */
-class BaresipFileLog(
-    val directory: File,
+public class BaresipFileLog(
+    public val directory: File,
     private val maxFileSize: Long = 50L * 1024 * 1024,
     private val daysToKeep: Int = 7,
 ) {
@@ -41,7 +41,7 @@ class BaresipFileLog(
     }
 
     /** Appends a line, with the time and a short [tag] shown next to it. */
-    fun write(
+    public fun write(
         message: String,
         tag: String = "app",
     ) {
@@ -57,14 +57,14 @@ class BaresipFileLog(
      * Returns a log handler for [BaresipEngine.setLogHandler] that writes to the file and passes
      * each entry on to [next], for example [BaresipLogcat.handler].
      */
-    fun handler(next: BaresipLogHandler? = null): BaresipLogHandler =
+    public fun handler(next: BaresipLogHandler? = null): BaresipLogHandler =
         BaresipLogHandler { entry ->
             write(entry.message.trim('\n', '\r'), "${entry.domain.name.lowercase()} ${entry.level.name.lowercase()}")
             next?.log(entry)
         }
 
     /** The log files, newest first. Waits for lines still being written. */
-    fun files(): List<File> =
+    public fun files(): List<File> =
         executor
             .submit<List<File>> {
                 runCatching { stream?.fd?.sync() }

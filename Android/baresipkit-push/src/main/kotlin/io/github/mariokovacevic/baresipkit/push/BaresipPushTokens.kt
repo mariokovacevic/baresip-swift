@@ -11,7 +11,7 @@ import io.github.mariokovacevic.baresipkit.BaresipContactParameter
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipPushTokens(
+public data class BaresipPushTokens(
     /** The app's package name, sent as `app-id`. */
     val appId: String,
     /** The Firebase Cloud Messaging registration token. */
@@ -52,7 +52,7 @@ data class BaresipPushTokens(
  *
  * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
-data class BaresipPushCall(
+public data class BaresipPushCall(
     /** The caller's SIP URI, if the push names one. */
     val remoteUri: String?,
     /** The caller's name to show. */
@@ -62,12 +62,12 @@ data class BaresipPushCall(
     /** The call's UUID, the one the INVITE also carries, if the push names one. */
     val uuid: java.util.UUID?,
 ) {
-    companion object {
+    public companion object {
         /**
          * Reads a call from the data of a push message, as `RemoteMessage.data` delivers it.
          * Returns `null` for a message that announces no call.
          */
-        fun from(data: Map<String, String>): BaresipPushCall? {
+        public fun from(data: Map<String, String>): BaresipPushCall? {
             if (data.isEmpty() || data["type"]?.let { it != "call" } == true) return null
             if (!data.containsKey("from") && !data.containsKey("uuid")) return null
             return BaresipPushCall(

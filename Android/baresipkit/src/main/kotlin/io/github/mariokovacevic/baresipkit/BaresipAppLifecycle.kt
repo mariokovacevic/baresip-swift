@@ -33,12 +33,12 @@ import kotlin.time.TimeSource
  * lifecycle.start()
  * ```
  */
-class BaresipAppLifecycle(
+public class BaresipAppLifecycle(
     /** The engine whose lifecycle is followed. */
-    val engine: BaresipEngine,
+    public val engine: BaresipEngine,
 ) {
     /** What happens in the background while no call runs. */
-    enum class BackgroundBehavior {
+    public enum class BackgroundBehavior {
         /** Nothing: the engine stays as it is. */
         STAY_ONLINE,
 
@@ -50,7 +50,7 @@ class BaresipAppLifecycle(
     }
 
     /** What the lifecycle did to the engine. */
-    enum class Change {
+    public enum class Change {
         /** The engine was suspended in the background. */
         SUSPENDED,
 
@@ -62,13 +62,13 @@ class BaresipAppLifecycle(
     }
 
     /** What happens in the background while no call runs. [BackgroundBehavior.SUSPEND] by default. */
-    @Volatile var backgroundBehavior: BackgroundBehavior = BackgroundBehavior.SUSPEND
+    @Volatile public var backgroundBehavior: BackgroundBehavior = BackgroundBehavior.SUSPEND
 
     /** How long going offline waits for the accounts to unregister. */
-    @Volatile var unregisterTimeout: Duration = 2.seconds
+    @Volatile public var unregisterTimeout: Duration = 2.seconds
 
     /** Whether the lifecycle suspended the engine or took it offline and has not brought it back yet. */
-    @Volatile var isAway: Boolean = false
+    @Volatile public var isAway: Boolean = false
         private set
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -82,7 +82,7 @@ class BaresipAppLifecycle(
     @Volatile private var changeHandler: ((Change) -> Unit)? = null
 
     /** Sets a handler called after the lifecycle changed the engine, for example to log it. */
-    fun setChangeHandler(handler: ((Change) -> Unit)?) {
+    public fun setChangeHandler(handler: ((Change) -> Unit)?) {
         changeHandler = handler
     }
 
@@ -90,7 +90,7 @@ class BaresipAppLifecycle(
      * Starts following the app's process lifecycle and the engine's calls. Call it on the main
      * thread. Following the calls ends when the engine is closed.
      */
-    fun start() {
+    public fun start() {
         if (observer != null) return
         val watcher =
             object : DefaultLifecycleObserver {
@@ -104,7 +104,7 @@ class BaresipAppLifecycle(
     }
 
     /** Stops following the app. An engine that is away stays away. Call it on the main thread. */
-    fun stop() {
+    public fun stop() {
         observer?.let { ProcessLifecycleOwner.get().lifecycle.removeObserver(it) }
         observer = null
         eventJob?.cancel()
