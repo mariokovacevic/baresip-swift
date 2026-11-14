@@ -243,6 +243,14 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   it pushes the commit and the tag in one atomic push, and can be run again after a failure.
 - OpenSSL is built with `no-autoload-config` and without the build path in the library.
 
+### Fixed
+
+- Android: a pushed call answered as audio-only from the system UI before its INVITE arrived no
+  longer sends the camera.
+- Android: an exception while the Telecom adapter handles one event, for example a call Telecom
+  never added, no longer stops it from handling every later call, and no wait for Telecom blocks
+  the events behind it longer than `actionTimeout`.
+
 ### Security
 
 - SPKI pins are checked against the certificate chain the system trust store validated, not

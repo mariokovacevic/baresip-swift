@@ -23,6 +23,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +33,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.UUID
+import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
@@ -153,7 +156,7 @@ class BaresipTelecomAdapter(
                 CallsManager.CAPABILITY_BASELINE
             }
         callsManager.registerAppWithTelecom(capabilities)
-        scope.launch { engine.events.collect { handle(it) } }
+        scope.launch { engine.events.collect { event -> attempt { handle(event) } } }
     }
 
     /** Stops following the engine. Calls Telecom still shows end with the engine's calls. */
@@ -227,7 +230,7 @@ class BaresipTelecomAdapter(
             try {
                 engine.makeCall(destination = destination, video = video)
             } catch (error: Throwable) {
-                call.ready.await().disconnect(DisconnectCause(DisconnectCause.ERROR))
+                attempt { control(call, "disconnect").disconnect(DisconnectCause(DisconnectCause.ERROR)) }
                 forget(call.uuid)
                 throw error
             }
@@ -409,7 +412,7 @@ class BaresipTelecomAdapter(
         scope.launch {
             delay(REPLACEMENT_TIMEOUT)
             val call = mutex.withLock { if (parked.remove(old) != null) calls.remove(uuid) else null } ?: return@launch
-            runCatching { call.ready.await().disconnect(DisconnectCause(DisconnectCause.REMOTE)) }
+            attempt { control(call, "disconnect").disconnect(DisconnectCause(DisconnectCause.REMOTE)) }
             if (mutex.withLock { calls.isEmpty() }) engine.audioSessionDidDeactivate()
         }
     }
@@ -464,15 +467,22 @@ class BaresipTelecomAdapter(
             PushCallLedger.Resolution.Declined -> runCatching { engine.reject(info.id, BUSY) }
             PushCallLedger.Resolution.Unannounced -> call?.let { addToTelecom(it, CallAttributesCompat.DIRECTION_INCOMING) }
             is PushCallLedger.Resolution.Announced -> {
-                val answerNow = mutex.withLock { pendingAnswers.remove(resolution.announcement.uuid) }
+                val uuid = resolution.announcement.uuid
+                val (answerNow, systemVideo) = mutex.withLock { pendingAnswers.remove(uuid) to answerVideo.remove(uuid) }
                 if (answerNow) {
                     val video =
-                        PushCallLedger.sendsCamera(resolution.announcement.hasVideo, info.hasVideo, configuration.sendsCameraOnAnswer)
+                        answerSendsCamera(
+                            systemVideo,
+                            resolution.announcement.hasVideo,
+                            info.hasVideo,
+                            configuration.sendsCameraOnAnswer,
+                        )
                     try {
                         engine.answer(info.id, video = video)
                         engine.audioSessionDidActivate()
-                    } catch (_: Throwable) {
-                        call?.ready?.await()?.disconnect(DisconnectCause(DisconnectCause.ERROR))
+                    } catch (error: Throwable) {
+                        if (error is CancellationException) currentCoroutineContext().ensureActive()
+                        call?.let { attempt { control(it, "disconnect").disconnect(DisconnectCause(DisconnectCause.ERROR)) } }
                         runCatching { engine.hangup(info.id) }
                     }
                 }
@@ -494,11 +504,11 @@ class BaresipTelecomAdapter(
         when (state) {
             BaresipCallState.CONNECTED, BaresipCallState.STREAMS_RUNNING ->
                 if (call.isOutgoing) {
-                    call.ready.await().setActive()
+                    attempt { control(call, "setActive").setActive() }
                     engine.audioSessionDidActivate()
                 }
             BaresipCallState.ENDED, BaresipCallState.FAILED -> {
-                runCatching { call.ready.await().disconnect(disconnectCause(error)) }
+                attempt { control(call, "disconnect").disconnect(disconnectCause(error)) }
                 forget(call.uuid)
                 if (mutex.withLock { calls.isEmpty() }) engine.audioSessionDidDeactivate()
             }
@@ -514,7 +524,7 @@ class BaresipTelecomAdapter(
                 pendingAnswers -= uuid
                 calls.remove(uuid)
             } ?: return
-        runCatching { call.ready.await().disconnect(DisconnectCause(DisconnectCause.MISSED)) }
+        attempt { control(call, "disconnect").disconnect(DisconnectCause(DisconnectCause.MISSED)) }
     }
 
     private suspend fun refused(call: BaresipTelecomCall) {
@@ -552,6 +562,20 @@ class BaresipTelecomAdapter(
         return Uri.parse(if (remoteUri.contains(':')) remoteUri else "sip:$remoteUri")
     }
 
+    private suspend fun control(
+        call: BaresipTelecomCall,
+        action: String,
+    ): CallControlScope = TelecomActions.ready(call.ready, configuration.actionTimeout, action)
+
+    private suspend fun attempt(block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (error: CancellationException) {
+            currentCoroutineContext().ensureActive()
+        } catch (_: Exception) {
+        }
+    }
+
     private fun unknown(call: BaresipCallID) = BaresipError(BaresipError.Code.NOT_FOUND, detail = "Telecom does not know $call")
 
     private fun now(): Long = SystemClock.elapsedRealtime()
@@ -560,6 +584,13 @@ class BaresipTelecomAdapter(
         const val BUSY = 486
         const val DECLINE = 600
         val REPLACEMENT_TIMEOUT = 5.seconds
+
+        fun answerSendsCamera(
+            systemVideo: Boolean?,
+            pushHadVideo: Boolean,
+            inviteHasVideo: Boolean,
+            sendsCameraOnAnswer: Boolean,
+        ): Boolean = systemVideo != false && PushCallLedger.sendsCamera(pushHadVideo, inviteHasVideo, sendsCameraOnAnswer)
 
         fun disconnectCode(error: BaresipError?): Int {
             if (error == null) return DisconnectCause.REMOTE
