@@ -319,6 +319,26 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 
 ### Fixed
 
+- Core threading: logging has its own lock, so a log callback on a media thread that calls into
+  the engine no longer deadlocks, and audio threads no longer wait for a slow event handler. Log
+  callbacks may now run on several threads at once. `bsk_engine_destroy` called on the engine
+  thread does nothing and returns `BSK_ERR_INVALID_STATE` instead of freeing the engine while it
+  runs; calls into the engine from the `STOPPED` event, or from the engine thread while it starts
+  or stops, fail with `BSK_ERR_INVALID_STATE` instead of running against a closed stack. Remote
+  video frame callbacks defer a hangup, reject or account removal as event callbacks do.
+- Native input validation: malformed camera frames (a stride above 65 535, shorter than a row,
+  or a missing plane) and buffers too small for their stride are rejected; MediaCodec output whose
+  crop rectangle or size would read out of bounds is dropped; the decoder's output frame was too
+  small for odd sizes; JNI configuration readers stop at the first pending exception and release
+  the array references they create.
+- `ECANCELED` and `EOVERFLOW` from the stack map to `BSK_ERR_INVALID_STATE` and
+  `BSK_ERR_BUFFER_TOO_SMALL` instead of `BSK_ERR_INTERNAL`; a too long codec list is
+  `BSK_ERR_INVALID_ARGUMENT`.
+- A negative cumulative RTCP loss no longer gives negative loss and wrong MOS figures.
+- `bsk_capabilities` lists `video.h264.videotoolbox` only on Apple platforms and
+  `video.h264.mediacodec` on Android.
+- A session timer minimum (`session_min_se`) below RFC 4028's 90 seconds is rejected; the SDK
+  defaults (90 seconds and 30 minutes) are unchanged.
 - PushKit: an asynchronous push handler (`reportingAsynchronously`) that never returned kept the
   push open until iOS ended the app. It now has a deadline, `reportDeadline` (5 seconds by
   default): the handler is cancelled, a placeholder call is reported and ended, and the error
@@ -344,6 +364,11 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 
 ### Security
 
+- The TLS minimum version accepts only TLS 1.2 and 1.3 (`BSK_TLS_VERSION_1_2`,
+  `BSK_TLS_VERSION_1_3`); other values, such as TLS 1.0, are rejected. The SDKs already offered
+  only these two.
+- The core logs a warning when an account uses SDES-SRTP over UDP or TCP signaling, where the
+  media keys can be read; `Docs/C-ABI.md` describes the encryption defaults.
 - `BaresipOSLog.handler` logs engine messages with private privacy by default, so Console shows
   `<private>` unless a debugger is attached. The core redacts passwords, digest responses and
   push tokens, but messages still contain SIP URIs, IP addresses, display names and headers.
