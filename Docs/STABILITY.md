@@ -77,6 +77,16 @@ not know.
 - A deprecated API keeps working as documented until it is removed, unless it is a security
   problem; then the release notes say why it changed.
 
+## Adding to the API
+
+- A minor release adds types, cases, properties, methods and overloads; it does not change the
+  signature of existing API.
+- In Kotlin a new parameter with a default value breaks binary compatibility, so a minor release
+  adds an overload or a builder setting instead. Configuration types have builders for this
+  reason.
+- Swift is compiled from source, so a new parameter with a default value is a compatible change
+  there.
+
 ## Minimum OS versions
 
 - A minimum OS version is raised only in a major release, and only after it has been announced in
