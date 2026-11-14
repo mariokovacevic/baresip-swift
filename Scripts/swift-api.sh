@@ -33,10 +33,13 @@ if ! (cd "$root" && xcodebuild build "${build[@]}") >"$out/build.log" 2>&1; then
   exit 1
 fi
 
-products=$(cd "$root" && xcodebuild -showBuildSettings "${build[@]}" 2>/dev/null \
-  | awk -F' = ' '/^ *BUILT_PRODUCTS_DIR = / { print $2; exit }')
-[[ -d "$products" ]] || {
-  echo "error: could not find the build products directory" >&2
+derived="${DERIVED_DATA:-$HOME/Library/Developer/Xcode/DerivedData}"
+module=$(find "$derived" -maxdepth 6 -type d -name BaresipKit.swiftmodule -path '*/Debug-iphonesimulator/*' \
+  -print 2>/dev/null | head -1)
+products=${module%/BaresipKit.swiftmodule}
+[[ -n "$module" && -d "$products" ]] || {
+  echo "error: no BaresipKit.swiftmodule for the iOS Simulator under $derived" >&2
+  find "$derived" -maxdepth 4 -type d -name 'Debug-iphonesimulator' 2>/dev/null | head >&2
   exit 1
 }
 echo "Products: $products"
