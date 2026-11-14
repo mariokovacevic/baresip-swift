@@ -57,6 +57,18 @@ setup recipes, an app checklist and the sample app.
 | iOS 16 or later; macOS 13 or later on Apple silicon (partial) | Swift 6, Xcode 16, Swift Package Manager | [iOS and macOS setup](Docs/iOS.md) | [Examples/SampleApp](Examples/SampleApp) |
 | Android 9 or later (API 28) | Kotlin, coroutines, Gradle | [Android setup](Docs/Android.md) | [Android/zvono](Android/zvono/README.md) |
 
+Install a released version with Swift Package Manager:
+
+```swift
+.package(url: "https://github.com/mariokovacevic/baresipkit", from: "1.0.0")
+```
+
+or with Gradle:
+
+```kotlin
+implementation("io.github.mariokovacevic:baresipkit:1.0.0")
+```
+
 Both SDKs build the same C core with the same patches, so SIP, media and NAT behave the same on
 both; only the layers that talk to the operating system differ.
 [Docs/Platforms.md](Docs/Platforms.md) lists those differences, type by type and test by test.
