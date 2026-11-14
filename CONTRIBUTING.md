@@ -26,8 +26,9 @@ Build/build-xcframework.sh
 machine you are on, which the C tests use. The first build downloads and verifies the pinned
 sources listed in `Build/versions.env`; see [Docs/Building.md](Docs/Building.md).
 
-`Package.swift` uses the local XCFramework whenever it exists, so after this step the package
-builds in Xcode like any other.
+On the default branch `Package.swift` uses this local XCFramework, so after this step the package
+builds in Xcode like any other. In a checkout of a release tag, set `BARESIPKIT_LOCAL_CORE=1` to
+use it instead of the published binary.
 
 ## Run the tests
 

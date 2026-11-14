@@ -29,10 +29,15 @@ The script clones each pinned source (`Build/versions.env`), verifies the commit
 
 `Package.swift` resolves the `BaresipKitCore` binary target in two ways:
 
-- **Local build**: when `Build/out/BaresipKitCore.xcframework` exists (after running the build script), or when no release has been made yet, the target uses that path.
-- **Release**: otherwise it downloads the zip from the GitHub release named in `coreReleaseURL` and verifies `coreReleaseChecksum`.
+- **Local build**: on the default branch, where `coreReleaseURL` is empty, or anywhere with the
+  environment variable `BARESIPKIT_LOCAL_CORE=1`, the target uses
+  `Build/out/BaresipKitCore.xcframework`, so run the build script first.
+- **Release**: at a release tag, `coreReleaseURL` and `coreReleaseChecksum` name the published
+  asset, and SwiftPM downloads and verifies it. A local `Build/out` is ignored there unless
+  `BARESIPKIT_LOCAL_CORE=1` is set.
 
-There is no release yet, so `coreReleaseURL` is empty and the local build is always used. Apps add the checkout as a local package (`.package(path: "../baresipkit")`). After the first release, they add it by URL with a version.
+Apps add a checkout as a local package (`.package(path: "../baresipkit")`), or a released version
+by URL. See [Releasing.md](Releasing.md#how-swiftpm-resolves-the-core).
 
 ## Releasing
 

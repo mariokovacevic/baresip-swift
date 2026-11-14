@@ -1,82 +1,84 @@
 # Releasing
 
-How a release is cut, strictly as implemented by `.github/workflows/release.yml` and
-`Build/build-xcframework.sh`. There is no release yet; this is the process the first and every
-later one will follow.
+How a release is cut, as implemented by `.github/workflows/release.yml`. Nothing on this page
+happens on its own: a maintainer starts every step.
 
 ## Versioning
 
-The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html): `MAJOR.MINOR.PATCH`,
-optionally with a pre-release suffix such as `-beta.1`. The release workflow enforces the shape
-with a regular expression (`^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$`); a version such as `0.1.0`
-or `0.1.0-beta.1` is accepted, `v0.1.0` or `0.1` is not. While the project is in beta (0.x), a
-breaking API change bumps the minor version, not the major one, as SemVer allows before 1.0.0. A
-version tagged with a pre-release suffix is published as a GitHub pre-release.
+BaresipKit follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html); what it covers is
+in [STABILITY.md](STABILITY.md). A version is `MAJOR.MINOR.PATCH`, optionally with a pre-release
+suffix such as `-rc.1`, and is published as a GitHub pre-release when it has one. Tags are
+`v<version>`.
 
-## Changelog process
+The version lives in one place, the `VERSION` file at the root. The core reads it at build time
+(`bsk_version_string()` and the default `User-Agent`, `BaresipKit/<version>`), and the release
+workflow refuses a version that differs from it.
 
-`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Every pull
-request adds an entry under the `[Unreleased]` section (the pull request checklist in
-`CONTRIBUTING.md` requires it). Cutting a release means renaming `[Unreleased]` to the new
-version and date, removing the "Beta, not released yet" note once the project leaves beta, and
-adding a fresh empty `[Unreleased]` section above it. The release workflow does not touch
-`CHANGELOG.md`; update it in its own commit (or as part of the pull request that triggers the
-release) before running the workflow, since the workflow only builds, tags and publishes.
+## Before a release
+
+In a pull request to the default branch:
+
+1. Set `VERSION` to the version to release.
+2. In `CHANGELOG.md`, rename `[Unreleased]` to `## [<version>] - <YYYY-MM-DD>`, add a link
+   definition `[<version>]: …` at the end, and add a fresh, empty `[Unreleased]` section above.
+
+Merge it and wait until CI is green for the merge commit.
 
 ## What the release workflow does
 
-Run the **Release** workflow from the Actions tab (`workflow_dispatch`) on the default branch,
-giving a version such as `0.1.0`. It:
+Run **Release** from the Actions tab on the default branch with the version. **Dry run** is on by
+default: it performs every check, assembles every asset and uploads them as a workflow artifact
+named `release-<version>`, and publishes nothing. Review that artifact, then run the workflow again
+with dry run off.
 
-1. Checks the version's shape, that the run is on the default branch, and that the latest CI run
-   for the current commit succeeded (`gh run list --workflow ci.yml`); it refuses otherwise.
-2. Builds the XCFramework with `MODULE_SET=default` (`Build/build-xcframework.sh`).
-3. Collects the license texts of BaresipKit, libre, baresip, OpenSSL, Opus and libg722, plus
-   `THIRD_PARTY_NOTICES.md`, into `BaresipKitCore-licenses.zip`.
-4. Creates a **draft** GitHub release at tag `v<version>` with three assets:
-   `BaresipKitCore.xcframework.zip`, `BaresipKitCore-licenses.zip` and `checksum.txt` (the SPM
-   binary target checksum, from `swift package compute-checksum`, computed by the build script
-   over the exact zip that is uploaded).
-5. Writes `coreReleaseURL` (the download URL of the zip, on this GitHub repository) and
-   `coreReleaseChecksum` into `Package.swift`, commits that change, tags the commit `v<version>`,
-   and pushes the branch and the tag **in one atomic push** (`git push --atomic`). A tag therefore
-   never exists without its assets already uploaded.
-6. Publishes the draft release (`gh release edit --draft=false`).
-
-Nothing here is invented: every step is a direct read of `release.yml`. The checksum changes on
-every rebuild because the zip carries timestamps, so step 4 always runs before step 5 computes
-the checksum from the actual uploaded file.
+1. **Checks** the version's shape, that the run is on the default branch, that `VERSION` matches,
+   that `CHANGELOG.md` has a dated section and a link for the version, and that the latest CI run
+   for the commit succeeded.
+2. **Takes the XCFramework that CI built and tested** for that commit (the
+   `BaresipKitCore.xcframework` artifact of the CI run, `MODULE_SET=default`), instead of
+   building a new one, and checks its SwiftPM checksum.
+3. **Assembles** the other assets:
+   - `BaresipKitCore-licenses.zip`: BaresipKit's `LICENSE`, `LICENSES/` and
+     `THIRD_PARTY_NOTICES.md`.
+   - `BaresipKitCore.spdx.json`: an SPDX 2.3 SBOM from `Scripts/sbom.py`, listing the pinned
+     components, the patches applied to them and the SHA-256 of the XCFramework.
+   - `checksum.txt`: the SwiftPM checksum.
+   - `SHA256SUMS`: the SHA-256 of every other asset.
+   - Release notes: the version's section of `CHANGELOG.md` and the CI run that built the
+     XCFramework.
+4. Without dry run, from here on:
+   - **Attests** the provenance of the assets (`actions/attest-build-provenance`). Check an
+     asset with `gh attestation verify <file> --repo mariokovacevic/baresipkit`.
+   - Creates a **draft** release `v<version>` with the assets.
+   - Creates a release commit that sets `coreReleaseURL` and `coreReleaseChecksum` in
+     `Package.swift`, **tags it** `v<version>` and pushes **only the tag**. The default branch
+     keeps an empty URL, so it always builds the core from source; only the tag points SwiftPM at
+     the published binary.
+   - **Checks** the draft against the tag: every asset is there, `SHA256SUMS` matches, and the
+     tagged `Package.swift` names this release's URL and the asset's checksum.
+   - **Publishes** the release.
 
 ## Resuming a failed run
 
-- **Failed before the push** (steps 1–5): run the workflow again with the same version. No tag
-  exists yet, so it builds again and replaces the draft release.
-- **Failed after the push** (step 6, or a runner problem right after): run the workflow again
-  with the same version. The workflow detects the existing tag and, instead of building again,
-  checks that the release has all three assets and that the XCFramework asset's checksum matches
-  the one recorded in the tagged `Package.swift`, then publishes it.
-- **The release or an asset was deleted after the tag was pushed**: the tagged `Package.swift` can
-  no longer be satisfied by anything the workflow can produce (rebuilding gives a different
-  checksum, since the archive carries timestamps). Delete the tag
-  (`git push --delete origin v<version>`) and run the workflow again, or release a new version
-  instead.
+- **Failed before the tag was pushed:** run the workflow again with the same version. It replaces
+  the draft release.
+- **Failed after the tag was pushed:** run it again with the same version. It finds the tag, skips
+  assembling, checks the draft against the tag and publishes it.
+- **The release or an asset was deleted after the tag was pushed:** the tagged `Package.swift`
+  can no longer be satisfied, because a new zip has a different checksum. Delete the tag
+  (`git push --delete origin v<version>`) and run the workflow again, or release a new version.
 
-## After a release exists
+## How SwiftPM resolves the core
 
-Once a release has been published, `Package.swift` resolves `BaresipKitCore` locally when
-`Build/out/BaresipKitCore.xcframework` exists, and otherwise downloads the asset of the latest
-tagged `coreReleaseURL`/`coreReleaseChecksum`. Apps that depend on a released version add the
-package by URL and a version requirement instead of a local path; see
-[Building.md](Building.md#using-the-package). Each new release updates `coreReleaseURL` and
-`coreReleaseChecksum` again through the same workflow, so an app that pins a version keeps
-resolving the XCFramework that was published for it.
+`Package.swift` uses `Build/out/BaresipKitCore.xcframework` when `coreReleaseURL` is empty, which
+is always the case on the default branch, or when the environment variable
+`BARESIPKIT_LOCAL_CORE` is `1`. Otherwise, at a release tag, it downloads the release asset and
+verifies its checksum. An app that depends on a version therefore always gets the binary that
+was published for it, even if a local `Build/out` exists in a checkout of that tag.
 
-## Gaps not covered by the workflow
+## Not covered
 
-These are not implemented, so they are not described as if they were:
-
-- No automated check that `CHANGELOG.md` has a dated entry for the version being released.
-- No automatic update of `README.md`'s beta badge or installation instructions when the first
-  release is cut; that remains a manual documentation step (this file and the root `README.md`).
-- No signing or notarization step for the XCFramework; it is distributed as a plain zip with a
-  SPM checksum.
+- The XCFramework is a plain zip verified by its SwiftPM checksum and attestation. It is not
+  code-signed.
+- The Android libraries are released by `.github/workflows/release-android.yml`, described in
+  its own section once its checks match this workflow.

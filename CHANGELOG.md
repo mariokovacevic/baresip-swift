@@ -270,6 +270,17 @@ Beta, not released yet. The SDK is in active development, and the API can still 
     `BaresipNetworkEvent.init`, and `BaresipPhoneCall.refresh()`, `userPart(of:)` and
     `samePeer`.
   - `BaresipCallController` is documented as implemented by the SDK's adapters only.
+- The version comes from the `VERSION` file: the core reports it in `bsk_version_string()` and in
+  the default `User-Agent` (`BaresipKit/<version>` instead of `BaresipKit/beta`).
+- Releases: `Package.swift` uses a local `Build/out` XCFramework only on the default branch, where
+  no release URL is set, or with `BARESIPKIT_LOCAL_CORE=1`; a stale local build no longer
+  replaces the published binary at a release tag. The release workflow defaults to a dry run,
+  checks `VERSION` and `CHANGELOG.md`, publishes the XCFramework that CI built and tested instead
+  of a new build, adds an SPDX SBOM, `SHA256SUMS` and provenance attestations, and tags a release
+  commit without pushing it to the default branch.
+- `THIRD_PARTY_NOTICES.md` has the upstream copyright lines of libre and baresip, the Android
+  sample's fonts, and no longer says that OpenSSL's NOTICE must ship (OpenSSL 3 has none). The
+  license texts of the pinned sources are in `LICENSES/`, checked against the sources in CI.
 - `Docs/STABILITY.md` also states that creating output types yourself (initializers, Kotlin
   constructors, `copy` and `componentN`) and implementing SDK protocols are not covered.
 

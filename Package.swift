@@ -5,10 +5,8 @@ import PackageDescription
 let coreReleaseURL = ""
 let coreReleaseChecksum = ""
 
-let packageRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
 let localCorePath = "Build/out/BaresipKitCore.xcframework"
-let useLocalCore = FileManager.default.fileExists(atPath: packageRoot.appendingPathComponent(localCorePath).path)
-    || coreReleaseURL.isEmpty
+let useLocalCore = coreReleaseURL.isEmpty || ProcessInfo.processInfo.environment["BARESIPKIT_LOCAL_CORE"] == "1"
 
 let coreTarget: Target = useLocalCore
     ? .binaryTarget(name: "BaresipKitCore", path: localCorePath)
