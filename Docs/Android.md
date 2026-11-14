@@ -27,7 +27,7 @@ the two platforms share the core and differ where they must is in [Platforms.md]
 ## Requirements
 
 - Android 9 (API 28) or later, on `arm64-v8a` or `x86_64`
-- Kotlin with coroutines; Jetpack Compose for `baresipkit-compose`
+- Kotlin 2.1 or later, with coroutines; Jetpack Compose for `baresipkit-compose`
 - To build from source: JDK 21, the Android SDK and NDK, see [Building from source](#building-from-source)
 
 ## Installation
