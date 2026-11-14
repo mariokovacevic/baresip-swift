@@ -310,6 +310,10 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 - `THIRD_PARTY_NOTICES.md` has the upstream copyright lines of libre and baresip, the Android
   sample's fonts, and no longer says that OpenSSL's NOTICE must ship (OpenSSL 3 has none). The
   license texts of the pinned sources are in `LICENSES/`, checked against the sources in CI.
+- Android: the libraries take their version from `VERSION` (overridable with `-PVERSION_NAME`)
+  instead of `0.1.0-SNAPSHOT`; the `baresipkit` AAR carries the license texts and notices in
+  `META-INF/baresipkit/`, and its POM lists Apache-2.0 (OpenSSL) and BSD-2-Clause (G.722) next to
+  BSD-3-Clause.
 - `Docs/STABILITY.md` also states that creating output types yourself (initializers, Kotlin
   constructors, `copy` and `componentN`) and implementing SDK protocols are not covered.
 
