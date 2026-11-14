@@ -340,6 +340,10 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 
 ### Security
 
+- OpenSSL is built without QUIC (`no-quic`), which BaresipKit never used. This removes the code of
+  two of the four OpenSSL 3.5.9 vulnerabilities published on 10 November 2026 (CVE-2026-88822,
+  CVE-2026-95691); the other two (CVE-2026-88823, CVE-2026-95692) are in AES-GCM-SIV, which
+  neither TLS nor SRTP uses. OpenSSL 3.5.10, which fixes all four, is not released yet.
 - SPKI pins are checked against the certificate chain the system trust store validated, not
   against every certificate the server sent. Before, a server with any chain the system trusts
   for the host could append the pinned certificate and pass the pin check. Pins with a private

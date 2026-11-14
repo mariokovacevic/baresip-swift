@@ -171,7 +171,7 @@ build_openssl() {
       --openssldir="$OPENSSL_CONFIG_DIR" \
       no-shared no-dso no-engine no-module no-apps no-tests no-docs no-legacy \
       no-comp no-ssl3 no-weak-ssl-ciphers no-ui-console no-autoload-config \
-      no-async $MIN_FLAG >/dev/null)
+      no-async no-quic $MIN_FLAG >/dev/null)
   local plugin_dirs=(ENGINESDIR="$OPENSSL_PLUGIN_DIR" MODULESDIR="$OPENSSL_PLUGIN_DIR")
   ${ndk_env[@]+"${ndk_env[@]}"} make -C "$bdir" -j"$JOBS" "${plugin_dirs[@]}" build_libs >/dev/null
   ${ndk_env[@]+"${ndk_env[@]}"} make -C "$bdir" "${plugin_dirs[@]}" install_dev >/dev/null
