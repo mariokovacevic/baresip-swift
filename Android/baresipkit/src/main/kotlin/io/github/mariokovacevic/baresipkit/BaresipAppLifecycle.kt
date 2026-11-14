@@ -86,7 +86,10 @@ class BaresipAppLifecycle(
         changeHandler = handler
     }
 
-    /** Starts following the app's process lifecycle and the engine's calls. Call it on the main thread. */
+    /**
+     * Starts following the app's process lifecycle and the engine's calls. Call it on the main
+     * thread. Following the calls ends when the engine is closed.
+     */
     fun start() {
         if (observer != null) return
         val watcher =

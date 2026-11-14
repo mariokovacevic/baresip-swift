@@ -1,11 +1,10 @@
 package io.github.mariokovacevic.baresipkit
 
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.CopyOnWriteArrayList
@@ -41,12 +40,7 @@ class EventRecorder private constructor(
             scope: CoroutineScope,
         ): EventRecorder {
             val events = CopyOnWriteArrayList<BaresipEvent>()
-            val subscribed = CompletableDeferred<Unit>()
-            val job =
-                scope.launch(Dispatchers.Default) {
-                    engine.events.onSubscription { subscribed.complete(Unit) }.collect { events += it }
-                }
-            subscribed.await()
+            val job = scope.launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) { engine.events.collect { events += it } }
             return EventRecorder(job, events)
         }
     }

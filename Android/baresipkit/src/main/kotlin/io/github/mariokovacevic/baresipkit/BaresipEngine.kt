@@ -11,9 +11,10 @@ import io.github.mariokovacevic.baresipkit.internal.values
 import io.github.mariokovacevic.baresipkit.internal.wholeMilliseconds
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ExecutorService
@@ -54,7 +55,9 @@ class BaresipEngine(
         }
     private val dispatcher: ExecutorCoroutineDispatcher = executor.asCoroutineDispatcher()
     private val closed = AtomicBoolean(false)
-    private val eventFlow = MutableSharedFlow<BaresipEvent>(extraBufferCapacity = Int.MAX_VALUE)
+    private val eventFlow = MutableSharedFlow<Any>(extraBufferCapacity = Int.MAX_VALUE)
+
+    @Volatile private var eventsEnded = false
 
     @Volatile private var logHandler: BaresipLogHandler? = null
     private val videoSinks = HashMap<VideoSinkKey, VideoSinkBox>()
@@ -71,10 +74,33 @@ class BaresipEngine(
     }
 
     /**
-     * Engine events. Every collector receives every event from the moment it subscribes; use
-     * `onSubscription` to act once the subscription is in place.
+     * Engine events.
+     *
+     * Every collector receives every event that happens after its collection started. A collection
+     * launched with `CoroutineStart.UNDISPATCHED` has started when `launch` returns, so an operation
+     * made after it cannot be missed:
+     *
+     * ```kotlin
+     * scope.launch(start = CoroutineStart.UNDISPATCHED) { engine.events.collect { handle(it) } }
+     * engine.start()
+     * ```
+     *
+     * The flow completes when the engine is closed with [close], after the last event of the engine;
+     * collecting the events of a closed engine completes at once. Collectors such as a `collect` loop
+     * therefore end with the engine instead of waiting forever.
+     *
+     * The events are buffered without limit, so the core never waits for a slow collector and no
+     * event is dropped, periodic [BaresipEvent.Statistics] included. A collector that stops reading
+     * without ending its collection keeps every later event in memory; cancel a collection that is no
+     * longer needed.
      */
-    val events: SharedFlow<BaresipEvent> = eventFlow.asSharedFlow()
+    val events: Flow<BaresipEvent> =
+        eventFlow
+            .onSubscription { if (eventsEnded) emit(EndOfEvents) }
+            .transformWhile { item ->
+                if (item is BaresipEvent) emit(item)
+                item is BaresipEvent
+            }
 
     /** Sets the handler that receives engine log output, or removes it with `null`. */
     fun setLogHandler(handler: BaresipLogHandler?) {
@@ -496,13 +522,15 @@ class BaresipEngine(
 
     /**
      * Stops and frees the engine. Pending operations fail with [BaresipError.Code.INVALID_STATE];
-     * [events] receives nothing more.
+     * [events] delivers the engine's last events and then completes.
      */
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         executor.execute {
             Native.engineDestroy(handle)
             synchronized(videoSinks) { videoSinks.values.toList().also { videoSinks.clear() } }.forEach { it.release() }
+            eventsEnded = true
+            eventFlow.tryEmit(EndOfEvents)
         }
         executor.shutdown()
         if (Thread.currentThread().name != THREAD_NAME) {
@@ -530,6 +558,8 @@ class BaresipEngine(
             throw BaresipError(BaresipError.Code.INVALID_STATE, detail = "engine is closed")
         }
     }
+
+    private object EndOfEvents
 
     companion object {
         private const val THREAD_NAME = "baresipkit.engine"

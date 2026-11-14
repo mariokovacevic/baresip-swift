@@ -1,6 +1,11 @@
 package io.github.mariokovacevic.baresipkit
 
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -91,6 +96,17 @@ class EngineLifecycleTest {
             assertEquals(BaresipEngineState.STOPPED, engine.state)
             val error = runCatching { engine.start() }.exceptionOrNull()
             assertEquals(BaresipError.Code.INVALID_STATE, (error as BaresipError).code)
+        }
+
+    @Test
+    fun eventsCompleteWhenTheEngineIsClosed() =
+        runBlocking {
+            val engine = BaresipEngine(HostCore.configuration())
+            val collected = async(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) { engine.events.toList() }
+            engine.start()
+            engine.close()
+            withTimeout(5.seconds) { collected.await() }
+            assertEquals(emptyList<BaresipEvent>(), withTimeout(1.seconds) { engine.events.toList() })
         }
 
     @Test

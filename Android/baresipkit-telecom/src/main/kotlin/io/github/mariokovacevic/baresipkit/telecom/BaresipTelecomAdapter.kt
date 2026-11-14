@@ -129,7 +129,10 @@ class BaresipTelecomAdapter(
         scope.launch { engine.events.collect { event -> attempt { handle(event) } } }
     }
 
-    /** Stops following the engine. Calls Telecom still shows end with the engine's calls. */
+    /**
+     * Stops following the engine. Calls Telecom still shows end with the engine's calls. The adapter
+     * also stops following an engine that is closed.
+     */
     fun close() {
         scope.cancel()
     }
