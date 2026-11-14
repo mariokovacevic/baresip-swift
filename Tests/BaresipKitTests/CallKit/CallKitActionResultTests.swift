@@ -8,7 +8,7 @@
     final class CallKitActionResultTests: XCTestCase {
         private func makeAdapter(_ callKit: BaresipCallKitConfiguration = BaresipCallKitConfiguration()) throws
             -> BaresipCallKitAdapter {
-            var configuration = BaresipConfiguration()
+            var configuration = BaresipConfiguration(instanceUUID: UUID())
             configuration.modules = ["g711"]
             configuration.audio.sourceModule = "ausine"
             configuration.audio.playerModule = "aufile"

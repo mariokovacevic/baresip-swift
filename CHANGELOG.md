@@ -253,6 +253,25 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   SDKs, that output structs grow at their end, that bindings ignore unknown values, and corrects
   what it said about wiping passwords, re-entrant events, `bsk_engine_destroy` and
   `BSK_EVENT_DIAGNOSTIC`.
+- Swift API, before the 1.0 freeze (BREAKING):
+  - `BaresipEngine.hangup(callID:)` is `hangUp(callID:)`, and the system call adapters'
+    `setHeld(_:uuid:)` is `setOnHold(_:uuid:)`.
+  - `BaresipCallInfo.account` is `accountID`.
+  - `BaresipConfiguration.init` takes `instanceUUID` as its first, required parameter. A random
+    default gave every launch a new `+sip.instance`, which left stale bindings on the registrar
+    that incoming calls were forked to; store the UUID once per installation and pass it every
+    time.
+  - `BaresipCallKitAdapter`, `BaresipLiveCommunicationAdapter` and `BaresipPushKitAdapter` no
+    longer conform to `CXProviderDelegate`, `ConversationManagerDelegate` and
+    `PKPushRegistryDelegate` themselves, and the first and last are no longer `NSObject`
+    subclasses. The system callbacks go to private objects, so an app can no longer call them or
+    replace the adapter as the delegate by mistake.
+  - Plumbing is internal: `BaresipEngine.isEngineThread`, `abiVersion` and `capabilities`,
+    `BaresipNetworkEvent.init`, and `BaresipPhoneCall.refresh()`, `userPart(of:)` and
+    `samePeer`.
+  - `BaresipCallController` is documented as implemented by the SDK's adapters only.
+- `Docs/STABILITY.md` also states that creating output types yourself (initializers, Kotlin
+  constructors, `copy` and `componentN`) and implementing SDK protocols are not covered.
 
 ### Fixed
 

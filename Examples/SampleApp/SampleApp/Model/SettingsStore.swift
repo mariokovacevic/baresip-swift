@@ -56,6 +56,17 @@ enum SettingsStore {
         }
     }
 
+    private static let instanceKey = "sip.instance"
+
+    static var instanceUUID: UUID {
+        if let stored = UserDefaults.standard.string(forKey: instanceKey).flatMap(UUID.init(uuidString:)) {
+            return stored
+        }
+        let created = UUID()
+        UserDefaults.standard.set(created.uuidString, forKey: instanceKey)
+        return created
+    }
+
     private static let ringtoneKey = "ringtone"
 
     static var ringtone: Ringtone {

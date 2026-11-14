@@ -71,7 +71,7 @@
         /// - Throws: ``BaresipLiveCommunicationError/unknownCall`` for a call the system does not
         ///   show, or the LiveCommunicationKit error when the system refuses the request.
         public func setOnHold(_ onHold: Bool, call: BaresipCallID) async throws {
-            try await setHeld(onHold, uuid: knownUUID(for: call))
+            try await setOnHold(onHold, uuid: knownUUID(for: call))
         }
 
         /// Mutes or unmutes a call through LiveCommunicationKit.

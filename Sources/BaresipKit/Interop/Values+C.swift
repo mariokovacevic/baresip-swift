@@ -38,7 +38,7 @@ extension BaresipCallEndReason {
 extension BaresipCallInfo {
     init(_ info: bsk_call_info) {
         self.init(id: BaresipCallID(rawValue: info.id),
-                  account: BaresipAccountID(rawValue: info.account),
+                  accountID: BaresipAccountID(rawValue: info.account),
                   state: BaresipCallState(info.state),
                   isOutgoing: info.outgoing,
                   hasVideo: info.has_video,

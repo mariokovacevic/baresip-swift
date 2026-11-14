@@ -56,7 +56,7 @@ extension BaresipPhoneCall {
     ///
     /// - Parameter uri: A SIP URI.
     /// - Returns: The user part, or the URI itself when it has none.
-    public nonisolated static func userPart(of uri: String) -> String {
+    nonisolated static func userPart(of uri: String) -> String {
         var value = uri
         for scheme in ["sips:", "sip:", "tel:"] where value.hasPrefix(scheme) {
             value = String(value.dropFirst(scheme.count))

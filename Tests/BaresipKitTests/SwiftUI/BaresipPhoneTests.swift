@@ -5,7 +5,7 @@ import BaresipKit
 @MainActor
 final class BaresipPhoneTests: XCTestCase {
     private func makePhone() throws -> BaresipPhone {
-        var configuration = BaresipConfiguration()
+        var configuration = BaresipConfiguration(instanceUUID: UUID())
         configuration.modules = ["g711"]
         configuration.audio.sourceModule = "ausine"
         configuration.audio.playerModule = "aufile"

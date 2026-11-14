@@ -7,7 +7,7 @@ import Foundation
 /// accepted them. What happens afterwards arrives through ``events``.
 ///
 /// ```swift
-/// let engine = try BaresipEngine(configuration: BaresipConfiguration())
+/// let engine = try BaresipEngine(configuration: BaresipConfiguration(instanceUUID: installID))
 /// try await engine.start()
 /// let account = try await engine.addAccount(
 ///     BaresipAccountConfiguration(aor: "sip:alice@example.com", authPassword: password)
@@ -85,17 +85,17 @@ public final class BaresipEngine: @unchecked Sendable {
     }
 
     /// `true` when called on the engine's internal thread, for example from a log handler.
-    public var isEngineThread: Bool {
+    var isEngineThread: Bool {
         core.isEngineThread
     }
 
     /// The C ABI version of the linked core.
-    public static var abiVersion: (major: Int, minor: Int) {
+    static var abiVersion: (major: Int, minor: Int) {
         CoreEngine.abiVersion
     }
 
     /// Feature flags of the linked core, for example `reg.contact-params`.
-    public static var capabilities: [String] {
+    static var capabilities: [String] {
         CoreEngine.capabilities
     }
 

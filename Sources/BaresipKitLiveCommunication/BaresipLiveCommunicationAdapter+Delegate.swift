@@ -6,16 +6,16 @@
     import BaresipKitSystemCall
 
     @available(iOS 17.4, *)
-    extension BaresipLiveCommunicationAdapter: ConversationManagerDelegate {
+    extension BaresipLiveCommunicationAdapter {
         /// Does nothing; the adapter is ready once it is created.
         ///
         /// - Parameter manager: The conversation manager.
-        public func conversationManagerDidBegin(_ manager: ConversationManager) {}
+        func conversationManagerDidBegin(_ manager: ConversationManager) {}
 
         /// Hangs up every call after the system reset the conversation manager.
         ///
         /// - Parameter manager: The conversation manager.
-        public func conversationManagerDidReset(_ manager: ConversationManager) {
+        func conversationManagerDidReset(_ manager: ConversationManager) {
             let (calls, waiters) = lock.withLock {
                 () -> ([BaresipCallID], [CheckedContinuation<BaresipCallID, Error>]) in
                 let calls = book.reset()
@@ -35,7 +35,7 @@
             }
             Task {
                 for call in calls {
-                    try? await engine.hangup(callID: call)
+                    try? await engine.hangUp(callID: call)
                 }
                 await engine.audioSessionDidDeactivate()
             }
@@ -46,15 +46,15 @@
         /// - Parameters:
         ///   - manager: The conversation manager.
         ///   - conversation: The conversation that changed.
-        public func conversationManager(_ manager: ConversationManager,
-                                        conversationChanged conversation: Conversation) {}
+        func conversationManager(_ manager: ConversationManager,
+                                 conversationChanged conversation: Conversation) {}
 
         /// Tells the engine that the system activated the audio session.
         ///
         /// - Parameters:
         ///   - manager: The conversation manager.
         ///   - audioSession: The activated session.
-        public func conversationManager(_ manager: ConversationManager, didActivate audioSession: AVAudioSession) {
+        func conversationManager(_ manager: ConversationManager, didActivate audioSession: AVAudioSession) {
             Task {
                 await engine.audioSessionDidActivate()
             }
@@ -65,7 +65,7 @@
         /// - Parameters:
         ///   - manager: The conversation manager.
         ///   - audioSession: The deactivated session.
-        public func conversationManager(_ manager: ConversationManager, didDeactivate audioSession: AVAudioSession) {
+        func conversationManager(_ manager: ConversationManager, didDeactivate audioSession: AVAudioSession) {
             Task {
                 await engine.audioSessionDidDeactivate()
             }
@@ -78,7 +78,7 @@
         /// - Parameters:
         ///   - manager: The conversation manager.
         ///   - action: The action.
-        public func conversationManager(_ manager: ConversationManager, perform action: ConversationAction) {
+        func conversationManager(_ manager: ConversationManager, perform action: ConversationAction) {
             switch action {
             case let start as StartConversationAction:
                 performStart(start)
@@ -107,7 +107,7 @@
         /// - Parameters:
         ///   - manager: The conversation manager.
         ///   - action: The action that timed out.
-        public func conversationManager(_ manager: ConversationManager, timedOutPerforming action: ConversationAction) {
+        func conversationManager(_ manager: ConversationManager, timedOutPerforming action: ConversationAction) {
             takeActionWaiter(action.uuid)?.resume(throwing: BaresipLiveCommunicationError.actionTimedOut)
             let uuid = action.conversationUUID
             if action is StartConversationAction {
@@ -115,12 +115,12 @@
                 takePlacedCallWaiter(uuid)?.resume(throwing: BaresipLiveCommunicationError.actionTimedOut)
                 if let placed {
                     Task {
-                        try? await engine.hangup(callID: placed)
+                        try? await engine.hangUp(callID: placed)
                     }
                 }
             } else if action is JoinConversationAction, let call = callID(for: uuid) {
                 Task {
-                    try? await engine.hangup(callID: call)
+                    try? await engine.hangUp(callID: call)
                 }
             }
         }
@@ -141,7 +141,7 @@
                     let id = try await engine.makeCall(destination: destination, video: video)
                     let bound = lock.withLock { book.placed(id, uuid: uuid) }
                     if !bound {
-                        try? await engine.hangup(callID: id)
+                        try? await engine.hangUp(callID: id)
                         return
                     }
                     box.value.fulfill(dateStarted: Date())
@@ -194,7 +194,7 @@
                 return
             }
             Task {
-                try? await engine.hangup(callID: call)
+                try? await engine.hangUp(callID: call)
                 complete(box.value, error: nil) {
                     box.value.fulfill(dateEnded: Date())
                 }

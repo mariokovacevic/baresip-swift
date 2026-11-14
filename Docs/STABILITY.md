@@ -40,6 +40,13 @@ makes other incompatible changes, or raises a minimum OS version.
 - **The sample apps** (`Examples/SampleApp`, `Android/zvono`) and everything in `Tools/`.
 - **Exact timing**, for example how long a timeout takes or how often statistics arrive, unless
   the documentation states it.
+- **Creating output types yourself.** Types that the SDK returns or emits, such as
+  `BaresipCallInfo`, `BaresipCallStatistics`, `BaresipMessage` and the event payloads, gain
+  properties in minor releases. Their initializers, and in Kotlin their constructors, `copy` and
+  `componentN` functions, are not covered: create them only in tests, and expect to update those
+  tests. Reading their properties is covered.
+- **Implementing protocols and interfaces that the SDK implements**, such as
+  `BaresipCallController`. Requirements may be added to them in a minor release.
 
 ## Enumerations and events that grow
 

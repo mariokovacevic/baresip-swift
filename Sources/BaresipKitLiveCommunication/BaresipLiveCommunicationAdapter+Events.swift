@@ -103,7 +103,7 @@
                 try await engine.answer(callID: info.id, video: video)
             } catch {
                 report(.conversationEnded(Date(), .failed), for: uuid)
-                try? await engine.hangup(callID: info.id)
+                try? await engine.hangUp(callID: info.id)
             }
         }
 

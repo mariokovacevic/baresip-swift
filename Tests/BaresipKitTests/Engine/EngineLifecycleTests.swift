@@ -3,7 +3,7 @@ import XCTest
 
 final class EngineLifecycleTests: XCTestCase {
     func testCreateStartStop() async throws {
-        var cfg = BaresipConfiguration()
+        var cfg = BaresipConfiguration(instanceUUID: UUID())
         cfg.modules = ["g711", "l16", "auconv", "auresamp", "fakevideo"]
         cfg.audio.sourceModule = "ausine"
         cfg.audio.playerModule = "aufile"
@@ -30,7 +30,7 @@ final class EngineLifecycleTests: XCTestCase {
     }
 
     func testHoldMusicFileIsReadWhenTheEngineIsCreated() throws {
-        var cfg = BaresipConfiguration()
+        var cfg = BaresipConfiguration(instanceUUID: UUID())
         cfg.modules = ["g711", "l16", "auconv", "auresamp"]
         cfg.audio.sourceModule = "ausine"
         cfg.audio.playerModule = "aufile"
@@ -51,7 +51,7 @@ final class EngineLifecycleTests: XCTestCase {
     }
 
     func testASessionTimerShorterThanItsMinimumIsRejected() throws {
-        var cfg = BaresipConfiguration()
+        var cfg = BaresipConfiguration(instanceUUID: UUID())
         cfg.modules = ["g711", "l16", "auconv", "auresamp"]
         cfg.audio.sourceModule = "ausine"
         cfg.audio.playerModule = "aufile"

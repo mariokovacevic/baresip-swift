@@ -42,7 +42,7 @@ Mute and hold through the adapter, so the system call screen and the app show th
 
 ```swift
 try await callKit.setMuted(true, uuid: uuid)
-try await callKit.setHeld(true, uuid: uuid)
+try await callKit.setOnHold(true, uuid: uuid)
 callKit.setMuteHandler { call, muted in
     print("call", call, "muted:", muted)
 }
@@ -221,7 +221,7 @@ within five seconds, the CallKit call ends.
 
 CallKit gives the app a limited time to carry out an action. When the engine does not finish in
 time, the adapter gives up on it: whoever waits for the action, for example in
-`setHeld(_:uuid:)`, gets `BaresipCallKitError.actionTimedOut`. CallKit fails a call whose start
+`setOnHold(_:uuid:)`, gets `BaresipCallKitError.actionTimedOut`. CallKit fails a call whose start
 or answer timed out, so the adapter ends the engine's side as well: an outgoing call is hung up
 as soon as the engine has placed it, and an incoming one at once.
 

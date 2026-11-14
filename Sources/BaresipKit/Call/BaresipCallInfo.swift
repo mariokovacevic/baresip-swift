@@ -4,7 +4,7 @@ public struct BaresipCallInfo: Sendable, Equatable {
     /// The call.
     public let id: BaresipCallID
     /// The account the call belongs to.
-    public let account: BaresipAccountID
+    public let accountID: BaresipAccountID
     /// The call state when the snapshot was taken.
     public let state: BaresipCallState
     /// Whether the call was placed by this device.

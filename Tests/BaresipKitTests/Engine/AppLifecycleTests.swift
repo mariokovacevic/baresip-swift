@@ -5,7 +5,7 @@
     @MainActor
     final class AppLifecycleTests: XCTestCase {
         private func makeEngine() throws -> BaresipEngine {
-            var configuration = BaresipConfiguration()
+            var configuration = BaresipConfiguration(instanceUUID: UUID())
             configuration.modules = ["g711"]
             configuration.audio.sourceModule = "ausine"
             configuration.audio.playerModule = "aufile"

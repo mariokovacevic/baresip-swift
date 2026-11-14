@@ -29,6 +29,7 @@
 
         let engine: BaresipEngine
         let manager: ConversationManager
+        let managerDelegate = ConversationManagerForwarder()
         let pushInviteTimeout: Duration
         let sendsCameraOnAnswer: Bool
         let callUUIDHeader: String?
@@ -68,7 +69,8 @@
             )
             manager = ConversationManager(configuration: managerConfiguration)
             let events = engine.events
-            manager.delegate = self
+            managerDelegate.adapter = self
+            manager.delegate = managerDelegate
             eventTask = Task { [weak self] in
                 for await event in events {
                     await self?.handle(event)
@@ -152,7 +154,7 @@
         ///   - uuid: The conversation UUID of the call.
         /// - Throws: The LiveCommunicationKit error when the system refuses the request, or the
         ///   engine's error when the action fails on the call.
-        public func setHeld(_ onHold: Bool, uuid: UUID) async throws {
+        public func setOnHold(_ onHold: Bool, uuid: UUID) async throws {
             try await requestAndWait(PauseConversationAction(conversationUUID: uuid, isPaused: onHold))
         }
 

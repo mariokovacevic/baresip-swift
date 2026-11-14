@@ -8,6 +8,10 @@
 /// `BaresipPhone` in `BaresipKitSwiftUI` uses a controller when one is set and the controller
 /// ``controls(_:)`` the call, and the engine otherwise. Leave it unset to call the engine
 /// directly, for example in the simulator, where CallKit does not activate the audio session.
+///
+/// The SDK's adapters implement this protocol; apps use it and do not implement it. Requirements
+/// may be added to it in a minor release, so a type outside BaresipKit that conforms to it can
+/// stop compiling.
 public protocol BaresipCallController: AnyObject, Sendable {
     /// Whether the call is shown by the system call interface, so its actions go through the
     /// controller.

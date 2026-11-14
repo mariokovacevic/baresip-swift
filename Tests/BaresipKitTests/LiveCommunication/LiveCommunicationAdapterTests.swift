@@ -10,7 +10,7 @@
         private func makeAdapter(
             _ settings: BaresipLiveCommunicationConfiguration = BaresipLiveCommunicationConfiguration()
         ) throws -> BaresipLiveCommunicationAdapter {
-            var configuration = BaresipConfiguration()
+            var configuration = BaresipConfiguration(instanceUUID: UUID())
             configuration.modules = ["g711"]
             configuration.audio.sourceModule = "ausine"
             configuration.audio.playerModule = "aufile"

@@ -5,11 +5,11 @@
     import BaresipKit
     import BaresipKitSystemCall
 
-    extension BaresipCallKitAdapter: CXProviderDelegate {
+    extension BaresipCallKitAdapter {
         /// Hangs up every call after CallKit reset the provider.
         ///
         /// - Parameter provider: The provider.
-        public func providerDidReset(_ provider: CXProvider) {
+        func providerDidReset(_ provider: CXProvider) {
             let (calls, waiters) = lock.withLock {
                 () -> ([BaresipCallID], [CheckedContinuation<BaresipCallID, Error>]) in
                 let calls = book.reset()
@@ -29,7 +29,7 @@
             }
             Task {
                 for call in calls {
-                    try? await engine.hangup(callID: call)
+                    try? await engine.hangUp(callID: call)
                 }
                 await engine.audioSessionDidDeactivate()
             }
@@ -40,7 +40,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - action: The start action.
-        public func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
+        func provider(_ provider: CXProvider, perform action: CXStartCallAction) {
             let box = UncheckedSendable(value: action)
             let video = action.isVideo
             let uuid = action.callUUID
@@ -50,7 +50,7 @@
                     let id = try await engine.makeCall(destination: destination, video: video)
                     let bound = lock.withLock { book.placed(id, uuid: uuid) }
                     if !bound {
-                        try? await engine.hangup(callID: id)
+                        try? await engine.hangUp(callID: id)
                         return
                     }
                     box.value.fulfill()
@@ -74,7 +74,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - action: The action that timed out.
-        public func provider(_ provider: CXProvider, timedOutPerforming action: CXAction) {
+        func provider(_ provider: CXProvider, timedOutPerforming action: CXAction) {
             takeActionWaiter(action.uuid)?.resume(throwing: BaresipCallKitError.actionTimedOut)
             if let start = action as? CXStartCallAction {
                 let uuid = start.callUUID
@@ -82,12 +82,12 @@
                 takePlacedCallWaiter(uuid)?.resume(throwing: BaresipCallKitError.actionTimedOut)
                 if let placed {
                     Task {
-                        try? await engine.hangup(callID: placed)
+                        try? await engine.hangUp(callID: placed)
                     }
                 }
             } else if let answer = action as? CXAnswerCallAction, let call = callID(for: answer.callUUID) {
                 Task {
-                    try? await engine.hangup(callID: call)
+                    try? await engine.hangUp(callID: call)
                 }
             }
         }
@@ -99,7 +99,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - action: The answer action.
-        public func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
+        func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
             let uuid = action.callUUID
             let target = lock.withLock { book.answerTarget(uuid) }
             guard case .call(let call) = target else {
@@ -126,7 +126,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - action: The end action.
-        public func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
+        func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
             let uuid = action.callUUID
             let deadline = ContinuousClock.now.advanced(by: pushInviteTimeout)
             let call = lock.withLock { book.end(uuid, declineUntil: deadline) }
@@ -136,7 +136,7 @@
             }
             let box = UncheckedSendable(value: action)
             Task {
-                try? await engine.hangup(callID: call)
+                try? await engine.hangUp(callID: call)
                 complete(box.value, error: nil)
             }
         }
@@ -146,7 +146,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - action: The hold action.
-        public func provider(_ provider: CXProvider, perform action: CXSetHeldCallAction) {
+        func provider(_ provider: CXProvider, perform action: CXSetHeldCallAction) {
             guard let call = callID(for: action.callUUID) else {
                 complete(action, error: CXErrorCodeRequestTransactionError(.unknownCallUUID))
                 return
@@ -166,7 +166,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - action: The mute action.
-        public func provider(_ provider: CXProvider, perform action: CXSetMutedCallAction) {
+        func provider(_ provider: CXProvider, perform action: CXSetMutedCallAction) {
             guard let call = callID(for: action.callUUID) else {
                 complete(action, error: CXErrorCodeRequestTransactionError(.unknownCallUUID))
                 return
@@ -187,7 +187,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - action: The DTMF action.
-        public func provider(_ provider: CXProvider, perform action: CXPlayDTMFCallAction) {
+        func provider(_ provider: CXProvider, perform action: CXPlayDTMFCallAction) {
             guard let call = callID(for: action.callUUID) else {
                 complete(action, error: CXErrorCodeRequestTransactionError(.unknownCallUUID))
                 return
@@ -203,7 +203,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - audioSession: The activated session.
-        public func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+        func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
             Task {
                 await engine.audioSessionDidActivate()
             }
@@ -214,7 +214,7 @@
         /// - Parameters:
         ///   - provider: The provider.
         ///   - audioSession: The deactivated session.
-        public func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+        func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
             Task {
                 await engine.audioSessionDidDeactivate()
             }

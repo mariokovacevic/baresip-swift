@@ -6,7 +6,11 @@ import Foundation
 public struct BaresipConfiguration: Sendable, Equatable {
     /// The `User-Agent` header value.
     public var userAgent: String
-    /// The instance identifier sent as `+sip.instance` (RFC 5626). Keep it stable per install.
+    /// The instance identifier sent as `+sip.instance` (RFC 5626).
+    ///
+    /// Create it once per install, store it, and pass the same value on every launch: the
+    /// registrar binds the device's `Contact` to it, so a new value at every launch leaves stale
+    /// bindings behind and forks incoming calls to them.
     public var instanceUUID: UUID
     /// The network interface to bind to, or `nil` for all interfaces.
     public var networkInterface: String?
@@ -58,8 +62,8 @@ public struct BaresipConfiguration: Sendable, Equatable {
     /// Creates engine settings.
     ///
     /// - Parameters:
+    ///   - instanceUUID: The instance identifier, stored once per install.
     ///   - userAgent: The `User-Agent` header value.
-    ///   - instanceUUID: The stable instance identifier.
     ///   - networkInterface: The interface to bind to.
     ///   - modules: The baresip modules to load.
     ///   - extraConfiguration: Extra baresip configuration lines.
@@ -76,7 +80,7 @@ public struct BaresipConfiguration: Sendable, Equatable {
     ///   - videoMinimumBitrate: The lowest adaptive video bitrate.
     ///   - sessionTimer: The session timer calls offer and accept, or `nil` for none.
     ///   - minimumSessionTimer: The shortest session timer accepted.
-    public init(userAgent: String = "BaresipKit", instanceUUID: UUID = UUID(),
+    public init(instanceUUID: UUID, userAgent: String = "BaresipKit",
                 networkInterface: String? = nil,
                 modules: [String] = BaresipConfiguration.defaultModules,
                 extraConfiguration: String? = nil, ipv6: Bool = true,

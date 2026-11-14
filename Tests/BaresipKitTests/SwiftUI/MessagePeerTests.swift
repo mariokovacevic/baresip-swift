@@ -25,7 +25,7 @@ final class MessagePeerTests: XCTestCase {
     }
 
     func testAMessageBelongsToTheEstablishedCallWithItsSender() throws {
-        var configuration = BaresipConfiguration()
+        var configuration = BaresipConfiguration(instanceUUID: UUID())
         configuration.modules = ["g711"]
         configuration.extraConfiguration = "sip_listen\t\t0.0.0.0:0"
         let phone = try BaresipPhone(engine: BaresipEngine(configuration: configuration))
@@ -48,7 +48,7 @@ final class MessagePeerTests: XCTestCase {
     }
 
     private func info(_ id: BaresipCallID, _ uri: String) -> BaresipCallInfo {
-        BaresipCallInfo(id: id, account: BaresipAccountID(rawValue: 1), state: .incoming, isOutgoing: false,
+        BaresipCallInfo(id: id, accountID: BaresipAccountID(rawValue: 1), state: .incoming, isOutgoing: false,
                         hasVideo: false, audioDirection: .sendReceive, videoDirection: .inactive, sipCallID: "",
                         remoteURI: uri, remoteDisplayName: "", audioCodec: "", videoCodec: "", setupTime: .zero,
                         duration: .zero, isMicrophoneMuted: false, replacesCallID: nil)

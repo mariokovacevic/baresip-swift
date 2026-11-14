@@ -62,7 +62,7 @@ extension BaresipEngine {
     }
 
     /// Rejects an incoming call that is still ringing. End an answered call with
-    /// ``hangup(callID:)``.
+    /// ``hangUp(callID:)``.
     ///
     /// - Parameters:
     ///   - callID: The ringing call.
@@ -78,8 +78,8 @@ extension BaresipEngine {
     ///
     /// - Parameter callID: The call.
     /// - Throws: ``BaresipError`` with ``BaresipError/Code/notFound`` for an unknown call.
-    public func hangup(callID: BaresipCallID) async throws {
-        try await run { try $0.hangup(callID) }
+    public func hangUp(callID: BaresipCallID) async throws {
+        try await run { try $0.hangUp(callID) }
     }
 
     /// Puts a call on hold.

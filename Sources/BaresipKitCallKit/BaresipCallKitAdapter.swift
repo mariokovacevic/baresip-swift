@@ -16,13 +16,14 @@
     /// let callKit = BaresipCallKitAdapter(engine: engine, configuration: BaresipCallKitConfiguration())
     /// let uuid = try await callKit.startOutgoingCall(to: "sip:bob@example.com")
     /// ```
-    public final class BaresipCallKitAdapter: NSObject, @unchecked Sendable {
+    public final class BaresipCallKitAdapter: @unchecked Sendable {
         // SAFETY: `book`, the waiters and the mute handlers are read and written only while
         // holding `lock`; CXProvider and CXCallController are thread-safe.
 
         let engine: BaresipEngine
         let provider: CXProvider
         let controller = CXCallController()
+        let providerDelegate = ProviderDelegate()
         let pushInviteTimeout: Duration
         let sendsCameraOnAnswer: Bool
         let callUUIDHeader: String?
@@ -61,8 +62,8 @@
             providerConfiguration.ringtoneSound = configuration.ringtoneSound
             provider = CXProvider(configuration: providerConfiguration)
             let events = engine.events
-            super.init()
-            provider.setDelegate(self, queue: nil)
+            providerDelegate.adapter = self
+            provider.setDelegate(providerDelegate, queue: nil)
             eventTask = Task { [weak self] in
                 for await event in events {
                     await self?.handle(event)
@@ -159,7 +160,7 @@
         ///   - uuid: The CallKit UUID of the call.
         /// - Throws: The CallKit error when the system refuses the request, or the engine's error when
         ///   the action fails on the call.
-        public func setHeld(_ onHold: Bool, uuid: UUID) async throws {
+        public func setOnHold(_ onHold: Bool, uuid: UUID) async throws {
             try await requestAndWait(CXSetHeldCallAction(call: uuid, onHold: onHold))
         }
 

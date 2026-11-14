@@ -9,7 +9,7 @@ import BaresipKitSwiftUI
 extension CallModel {
     func startEngine() async {
         do {
-            var config = BaresipConfiguration()
+            var config = BaresipConfiguration(instanceUUID: SettingsStore.instanceUUID)
             config.userAgent = "BaresipKitSample/1.0"
             config.logLevel = .info
             config.logSIPTrace = logsSIPMessages

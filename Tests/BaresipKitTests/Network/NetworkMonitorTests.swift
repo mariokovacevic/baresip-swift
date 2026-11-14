@@ -26,7 +26,7 @@ final class NetworkMonitorTests: XCTestCase {
     }
 
     func testStartAndStopDoNotCrash() throws {
-        let engine = try BaresipEngine(configuration: BaresipConfiguration())
+        let engine = try BaresipEngine(configuration: BaresipConfiguration(instanceUUID: UUID()))
         let monitor = BaresipNetworkMonitor(engine: engine)
         let expectation = expectation(description: "handler set")
         monitor.setChangeHandler { _ in }

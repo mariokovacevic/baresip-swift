@@ -65,7 +65,7 @@ private final class RecordingController: BaresipCallController, @unchecked Senda
 @MainActor
 final class BaresipPhoneControlTests: XCTestCase {
     private func makePhone(controller: BaresipCallController? = nil) throws -> BaresipPhone {
-        var configuration = BaresipConfiguration()
+        var configuration = BaresipConfiguration(instanceUUID: UUID())
         configuration.modules = ["g711"]
         configuration.audio.sourceModule = "ausine"
         configuration.audio.playerModule = "aufile"
@@ -290,7 +290,7 @@ final class BaresipPhoneControlTests: XCTestCase {
 @MainActor
 final class BaresipPhoneAnsweredElsewhereTests: XCTestCase {
     func testACallAnsweredOnTheSystemScreenBecomesActive() throws {
-        var configuration = BaresipConfiguration()
+        var configuration = BaresipConfiguration(instanceUUID: UUID())
         configuration.modules = ["g711"]
         configuration.audio.sourceModule = "ausine"
         configuration.audio.playerModule = "aufile"

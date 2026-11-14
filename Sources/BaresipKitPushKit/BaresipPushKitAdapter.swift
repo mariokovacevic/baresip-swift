@@ -31,7 +31,7 @@
     /// }
     /// push.bind(accountID: account)
     /// ```
-    public final class BaresipPushKitAdapter: NSObject, PKPushRegistryDelegate, @unchecked Sendable {
+    public final class BaresipPushKitAdapter: @unchecked Sendable {
         // SAFETY: `tokens`, `additionalParameters`, `accountID`, `updates` and `errorHandler` are
         // accessed only while holding `lock`; the other properties are immutable.
 
@@ -73,6 +73,7 @@
 
         private let engine: BaresipEngine
         private let registry: PKPushRegistry
+        private let registryDelegate = PushRegistryDelegate()
         private let lock = NSLock()
         private var tokens: BaresipPushTokens
         private var additionalParameters: [BaresipContactParameter]
@@ -134,8 +135,8 @@
             self.accountID = accountID
             onIncomingPush = handler
             registry = PKPushRegistry(queue: nil)
-            super.init()
-            registry.delegate = self
+            registryDelegate.adapter = self
+            registry.delegate = registryDelegate
             registry.desiredPushTypes = [.voIP]
         }
 
@@ -204,8 +205,8 @@
         ///   - registry: The push registry.
         ///   - pushCredentials: The new credentials.
         ///   - type: The push type.
-        public func pushRegistry(_ registry: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials,
-                                 for type: PKPushType) {
+        func pushRegistry(_ registry: PKPushRegistry, didUpdate pushCredentials: PKPushCredentials,
+                          for type: PKPushType) {
             guard type == .voIP else { return }
             let token = pushCredentials.token
             updateTokens { $0.voipToken = token }
@@ -216,7 +217,7 @@
         /// - Parameters:
         ///   - registry: The push registry.
         ///   - type: The push type.
-        public func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
+        func pushRegistry(_ registry: PKPushRegistry, didInvalidatePushTokenFor type: PKPushType) {
             guard type == .voIP else { return }
             updateTokens { $0.voipToken = nil }
         }
@@ -232,8 +233,8 @@
         ///   - payload: The push payload.
         ///   - type: The push type.
         ///   - completion: Called after the call was reported and the engine woken.
-        public func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload,
-                                 for type: PKPushType, completion: @escaping () -> Void) {
+        func pushRegistry(_ registry: PKPushRegistry, didReceiveIncomingPushWith payload: PKPushPayload,
+                          for type: PKPushType, completion: @escaping () -> Void) {
             guard type == .voIP else {
                 completion()
                 return

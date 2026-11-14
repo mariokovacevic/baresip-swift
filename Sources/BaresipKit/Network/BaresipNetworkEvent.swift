@@ -10,7 +10,7 @@ public struct BaresipNetworkEvent: Sendable, Equatable {
     /// - Parameters:
     ///   - transportsReset: Whether transports were recreated.
     ///   - localAddress: The local address.
-    public init(transportsReset: Bool, localAddress: String) {
+    init(transportsReset: Bool, localAddress: String) {
         self.transportsReset = transportsReset
         self.localAddress = localAddress
     }

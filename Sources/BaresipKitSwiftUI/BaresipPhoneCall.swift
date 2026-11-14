@@ -177,7 +177,7 @@ public final class BaresipPhoneCall: ObservableObject, Identifiable {
         if let controller {
             try await controller.end(id)
         } else {
-            try await engine.hangup(callID: id)
+            try await engine.hangUp(callID: id)
         }
     }
 
@@ -255,7 +255,7 @@ public final class BaresipPhoneCall: ObservableObject, Identifiable {
     ///
     /// ``BaresipPhone`` calls this after every state and media change. A read that a newer read
     /// or a mute or video change overtook is dropped.
-    public func refresh() {
+    func refresh() {
         refreshGeneration += 1
         let generation = refreshGeneration
         let engine = engine

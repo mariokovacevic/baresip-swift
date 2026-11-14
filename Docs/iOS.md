@@ -73,7 +73,9 @@ Register an account and place a call:
 ```swift
 import BaresipKit
 
-let engine = try BaresipEngine(configuration: BaresipConfiguration())
+let installID = UUID(uuidString: UserDefaults.standard.string(forKey: "sip.instance") ?? "") ?? UUID()
+UserDefaults.standard.set(installID.uuidString, forKey: "sip.instance")
+let engine = try BaresipEngine(configuration: BaresipConfiguration(instanceUUID: installID))
 try await engine.start()
 
 let account = try await engine.addAccount(BaresipAccountConfiguration(
@@ -114,7 +116,7 @@ encryption, NAT traversal and DTMF method.
 ```swift
 import BaresipKit
 
-var configuration = BaresipConfiguration()
+var configuration = BaresipConfiguration(instanceUUID: installID)
 configuration.userAgent = "MyApp/1.0"
 configuration.maxCalls = 2
 configuration.video = BaresipVideoConfiguration(width: 640, height: 480,
@@ -241,7 +243,7 @@ out, throwing the engine's error when it failed. Without SwiftUI, use the adapte
 ```swift
 let uuid = try await callKit.startOutgoingCall(to: "sip:bob@example.com", video: false)
 try await callKit.setMuted(true, uuid: uuid)
-try await callKit.setHeld(true, uuid: uuid)
+try await callKit.setOnHold(true, uuid: uuid)
 try await callKit.endCall(uuid: uuid)
 
 callKit.setMuteHandler { call, muted in
@@ -278,7 +280,7 @@ final class VoIPService {
     private(set) var push: BaresipPushKitAdapter?
 
     init() throws {
-        engine = try BaresipEngine(configuration: BaresipConfiguration())
+        engine = try BaresipEngine(configuration: BaresipConfiguration(instanceUUID: installID))
         callKit = BaresipCallKitAdapter(engine: engine,
                                         configuration: BaresipCallKitConfiguration(supportsVideo: true))
 

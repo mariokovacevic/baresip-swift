@@ -22,11 +22,14 @@ app declares its own data use and API use in its own manifest.
 ```swift
 import BaresipKit
 
-var configuration = BaresipConfiguration()
+var configuration = BaresipConfiguration(instanceUUID: installID)
 configuration.userAgent = "ExampleApp/1.0"
 let engine = try BaresipEngine(configuration: configuration)
 engine.setLogHandler(BaresipOSLog.handler(subsystem: "com.example.app"))
 ```
+
+`installID` is a `UUID` the app creates on first launch and stores, for example in
+`UserDefaults`, so that the registrar sees the same device on every launch.
 
 ### Listen for events
 
@@ -83,7 +86,7 @@ configuration.
 
 ```swift
 let call = try await engine.makeCall(destination: "sip:bob@example.com")
-try await engine.hangup(callID: call)
+try await engine.hangUp(callID: call)
 ```
 
 A destination without a domain, such as `1002`, is completed with the account's domain.

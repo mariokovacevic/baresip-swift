@@ -97,7 +97,7 @@ through to the other side instead of playing their own music, so the phone plays
 WAV file:
 
 ```swift
-var configuration = BaresipConfiguration()
+var configuration = BaresipConfiguration(instanceUUID: installID)
 configuration.audio.holdMusicFile = Bundle.main.url(forResource: "HoldMusic", withExtension: "wav")
 ```
 

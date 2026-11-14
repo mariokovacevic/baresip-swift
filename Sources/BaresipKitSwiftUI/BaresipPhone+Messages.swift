@@ -4,7 +4,12 @@ import BaresipKitSystemCall
 
 extension BaresipPhoneCall {
     /// Whether a SIP address names the other side of this call, such as the sender of a SIP
-    /// MESSAGE; see ``samePeer(_:_:)``.
+    /// MESSAGE.
+    ///
+    /// Two addresses name the same party when they have the same user, compared without regard
+    /// to case, and the same host when both name one. Display names, the scheme, the port, URI
+    /// parameters and headers are ignored, so `"Door" <sip:door1@pbx:5061;transport=tls>`,
+    /// `sip:door1@pbx` and `door1` are the same party.
     ///
     /// - Parameter address: A SIP URI, a `From`-style address with a display name, or a user name.
     /// - Returns: `true` when the address names the call's other side.
@@ -21,7 +26,7 @@ extension BaresipPhoneCall {
     ///   - first: A SIP address.
     ///   - second: Another SIP address.
     /// - Returns: `true` when both name the same user, and the same host where both name one.
-    public nonisolated static func samePeer(_ first: String, _ second: String) -> Bool {
+    nonisolated static func samePeer(_ first: String, _ second: String) -> Bool {
         let one = SIPIdentity(first)
         let other = SIPIdentity(second)
         guard !one.user.isEmpty, one.user == other.user else { return false }
