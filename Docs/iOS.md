@@ -144,8 +144,8 @@ let account = try await engine.addAccount(BaresipAccountConfiguration(
 try await engine.register(accountID: account)
 ```
 
-Server verification is always on in release builds. `BaresipTLSConfiguration.insecureSkippingServerVerification()`
-exists only in debug builds, for test servers.
+Server verification is always on and cannot be turned off. For a test server with a
+self-signed certificate, put that certificate or its CA in `caCertificatesPEM`.
 
 ### Logging
 

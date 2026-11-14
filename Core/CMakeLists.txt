@@ -77,6 +77,10 @@ check_include_file(threads.h BSK_HAVE_THREADS_H)
 if(BSK_HAVE_THREADS_FUN AND BSK_HAVE_THREADS_H)
   target_compile_definitions(baresipkitcore PRIVATE HAVE_THREADS)
 endif()
+option(BARESIPKIT_ALLOW_INSECURE_TLS "Accept bsk_tls_config.insecure_skip_verify (test builds only)" OFF)
+if(BARESIPKIT_ALLOW_INSECURE_TLS)
+  target_compile_definitions(baresipkitcore PRIVATE BSK_ALLOW_INSECURE_TLS=1)
+endif()
 target_compile_options(baresipkitcore PRIVATE -Wall -Wextra -Wshadow -Werror)
 # Vendored code is kept unchanged; do not fail its build on warnings.
 set_source_files_properties(third_party/g722/g722_encode.c third_party/g722/g722_decode.c

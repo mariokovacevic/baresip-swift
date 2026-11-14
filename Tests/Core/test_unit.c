@@ -491,6 +491,29 @@ static void test_config_validation(void)
 	cfg.user_agent = "Agent\r\nX-Injected: 1";
 	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
 
+	{
+		bsk_engine *e = NULL;
+		bsk_error err;
+
+		base_config(&cfg);
+		cfg.tls.insecure_skip_verify = true;
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_engine_create(&cfg, NULL, NULL, &e, &err));
+		CHECK(strstr(err.message, "BSK_ALLOW_INSECURE_TLS") != NULL);
+
+		base_config(&cfg);
+		cfg.extra_config = "sip_listen\t\t0.0.0.0:0\n"
+				   "  sip_verify_server\tno";
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_engine_create(&cfg, NULL, NULL, &e, &err));
+		CHECK(strstr(err.message, "sip_verify_server") != NULL);
+		cfg.extra_config = "sip_listen\t\t0.0.0.0:0\nsip_cafile /x";
+		CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+		cfg.extra_config =
+			"sip_listen\t\t0.0.0.0:0\nsip_verify_servers 1";
+		CHECK(BSK_OK == create_status(&cfg));
+	}
+
 	base_config(&cfg);
 	cfg.rtp_port_min = 20000;
 	cfg.rtp_port_max = 10000;

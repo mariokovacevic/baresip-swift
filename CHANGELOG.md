@@ -259,7 +259,15 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 - SPKI pins are checked against the certificate chain the system trust store validated, not
   against every certificate the server sent. Before, a server with any chain the system trusts
   for the host could append the pinned certificate and pass the pin check. Pins with a private
-  CA (`caPEM`) were already checked against the verified chain.
+  CA (`caCertificatesPEM`) were already checked against the verified chain.
+- Server certificate verification can no longer be turned off. `insecureSkippingServerVerification()`
+  is gone from the Swift API (where it existed in DEBUG builds, so every Debug build of an app had
+  it) and from the Kotlin API (where it existed in every build), with `verifyServer` on both. The C
+  field `insecure_skip_verify` is rejected unless the core is built with
+  `BARESIPKIT_ALLOW_INSECURE_TLS`, which no released binary is, and `extra_config` may not set the
+  TLS keys (`sip_verify_server`, `sip_cafile`, `sip_capath`, `sip_certificate`,
+  `sip_verify_client`). A test server with a self-signed certificate goes in `caCertificatesPEM`.
+  The sample apps lose their debug-only "verify server" switch.
 
 ### Removed
 

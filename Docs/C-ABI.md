@@ -61,7 +61,7 @@ Header: `Core/include/baresip_kit.h`. The header compiles as C11 and C++17 with 
 
 ## TLS
 
-- The server certificate is verified unless `bsk_tls_config.insecure_skip_verify` is set; a zeroed configuration verifies. The engine logs a warning when it starts without verification, and rejects pins together with `insecure_skip_verify`.
+- The server certificate is always verified. `bsk_tls_config.insecure_skip_verify` is accepted only by a core built with the CMake option `BARESIPKIT_ALLOW_INSECURE_TLS` (off by default, and off in every released XCFramework and AAR); otherwise `bsk_engine_create` fails with `BSK_ERR_INVALID_ARGUMENT`. Pins together with `insecure_skip_verify` are always rejected. `extra_config` may not set `sip_verify_server`, `sip_cafile`, `sip_capath`, `sip_certificate` or `sip_verify_client`.
 - `ca_pem` may hold several certificates. A chain that these do not anchor, or any chain when `ca_pem` is empty, is given to the system trust store: SecTrust with the SSL policy for the host on Apple platforms, OpenSSL's default verify paths elsewhere.
 - `pinned_spki_sha256_base64` entries are base64 SHA-256 hashes (44 characters). A connection needs a verified chain and at least one certificate of it matching a pin.
 - The same settings apply to SIP over TLS, to the WSS transport and to TURN over TLS.

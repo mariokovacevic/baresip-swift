@@ -207,15 +207,6 @@ private fun CertificateSections(model: CallModel) {
                     singleLine = false,
                 )
             }
-            if (model.isDebugBuild) {
-                RowDivider()
-                ToggleRow(
-                    "Verify the server",
-                    settings.verifyServer,
-                    { value -> model.updateSettings { it.copy(verifyServer = value) } },
-                    "Debug builds only: off accepts any server certificate",
-                )
-            }
         }
     }
     TitledSection("Client certificate", note = "For servers that ask for one: a certificate with its private key, as one PEM file or pasted.") {

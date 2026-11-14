@@ -260,5 +260,4 @@ data class TlsSnapshot(
     val ca: List<Byte>?,
     val client: List<Byte>?,
     val pins: List<String>,
-    val verifyServer: Boolean,
 )

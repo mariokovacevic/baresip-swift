@@ -142,41 +142,29 @@ data class BaresipVideoConfiguration(
 /**
  * TLS settings for SIP over TLS.
  *
- * By default the server certificate is verified against the trust store of the core. Add
- * [caCertificatesPem] for a private CA or a self-signed server, and [pinnedSpkiSha256] to accept
- * only specific server keys on top of normal validation.
+ * The server certificate is always verified: against the trust store of the core by default, or
+ * against [caCertificatesPem] for a private CA or a self-signed server. Add [pinnedSpkiSha256] to
+ * accept only specific server keys on top of that validation. There is no setting that accepts any
+ * certificate; a test server needs its CA in [caCertificatesPem].
+ *
+ * @param caCertificatesPem Extra trusted CA certificates in PEM format.
+ * @param clientCertificatePem A client certificate and key in PEM format.
+ * @param pinnedSpkiSha256 Accepted server key hashes.
+ * @param cipherList An OpenSSL cipher list.
+ * @param minimumVersion The lowest accepted TLS version.
  */
-class BaresipTlsConfiguration private constructor(
+class BaresipTlsConfiguration(
     /** Extra trusted CA certificates in PEM format. */
-    val caCertificatesPem: ByteArray?,
+    val caCertificatesPem: ByteArray? = null,
     /** A client certificate followed by its private key, in PEM format, for mutual TLS. */
-    val clientCertificatePem: ByteArray?,
+    val clientCertificatePem: ByteArray? = null,
     /** Base64-encoded SHA-256 hashes of accepted server SubjectPublicKeyInfo structures. */
-    val pinnedSpkiSha256: List<String>,
+    val pinnedSpkiSha256: List<String> = emptyList(),
     /** An OpenSSL cipher list, or `null` for the core's default. */
-    val cipherList: String?,
+    val cipherList: String? = null,
     /** The lowest accepted TLS version. */
-    val minimumVersion: TlsVersion,
-    /** Whether the server certificate is verified. Always `true` except for [insecureSkippingServerVerification]. */
-    val verifyServer: Boolean,
+    val minimumVersion: TlsVersion = TlsVersion.TLS_1_2,
 ) {
-    /**
-     * Creates TLS settings that verify the server.
-     *
-     * @param caCertificatesPem Extra trusted CA certificates in PEM format.
-     * @param clientCertificatePem A client certificate and key in PEM format.
-     * @param pinnedSpkiSha256 Accepted server key hashes.
-     * @param cipherList An OpenSSL cipher list.
-     * @param minimumVersion The lowest accepted TLS version.
-     */
-    constructor(
-        caCertificatesPem: ByteArray? = null,
-        clientCertificatePem: ByteArray? = null,
-        pinnedSpkiSha256: List<String> = emptyList(),
-        cipherList: String? = null,
-        minimumVersion: TlsVersion = TlsVersion.TLS_1_2,
-    ) : this(caCertificatesPem, clientCertificatePem, pinnedSpkiSha256, cipherList, minimumVersion, true)
-
     /** A TLS protocol version. */
     enum class TlsVersion(
         internal val wire: Int,
@@ -194,8 +182,7 @@ class BaresipTlsConfiguration private constructor(
             clientCertificatePem.contentEquals(other.clientCertificatePem) &&
             pinnedSpkiSha256 == other.pinnedSpkiSha256 &&
             cipherList == other.cipherList &&
-            minimumVersion == other.minimumVersion &&
-            verifyServer == other.verifyServer
+            minimumVersion == other.minimumVersion
 
     override fun hashCode(): Int =
         listOf(
@@ -204,16 +191,5 @@ class BaresipTlsConfiguration private constructor(
             pinnedSpkiSha256,
             cipherList,
             minimumVersion,
-            verifyServer,
         ).hashCode()
-
-    companion object {
-        /**
-         * Settings that accept any server certificate, for development against a test server.
-         *
-         * The engine logs a warning when it starts with these settings. They cannot be combined
-         * with pins: the engine rejects pins without verification.
-         */
-        fun insecureSkippingServerVerification(): BaresipTlsConfiguration = BaresipTlsConfiguration(null, null, emptyList(), null, TlsVersion.TLS_1_2, false)
-    }
 }

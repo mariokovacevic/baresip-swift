@@ -53,7 +53,6 @@ class AccountConfigurationTest {
     @Test
     fun defaultsAreSecure() {
         val configuration = BaresipConfiguration()
-        assertTrue(configuration.tls.verifyServer)
         assertEquals(BaresipTlsConfiguration.TlsVersion.TLS_1_2, configuration.tls.minimumVersion)
         val account = BaresipAccountConfiguration(aor = "sip:alice@example.com")
         assertEquals(BaresipTransport.TLS, account.transport)

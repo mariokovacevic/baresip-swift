@@ -17,7 +17,6 @@ data class SipSettings(
     val outboundProxy: String = "",
     val mediaEncryption: BaresipMediaEncryption = BaresipMediaEncryption.SRTP_OPTIONAL,
     val pins: String = "",
-    val verifyServer: Boolean = true,
     val natMode: BaresipNatTraversal = BaresipNatTraversal.NONE,
     val stunUri: String = "",
     val turnUri: String = "",

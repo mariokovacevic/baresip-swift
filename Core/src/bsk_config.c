@@ -230,6 +230,36 @@ static int copy_video(bsk_engine *e, const bsk_engine_config *c)
 }
 
 
+static const char *const tls_keys[] = {
+	"sip_verify_server", "sip_cafile",        "sip_capath",
+	"sip_certificate",   "sip_verify_client",
+};
+
+
+const char *bsk_extra_config_tls_key(const char *extra)
+{
+	const char *line = extra;
+
+	while (line && *line) {
+		const char *key = line + strspn(line, " \t");
+		size_t len = strcspn(key, " \t\r\n");
+		size_t i;
+
+		for (i = 0; i < RE_ARRAY_SIZE(tls_keys); i++) {
+			if (len == strlen(tls_keys[i]) &&
+			    0 == strncmp(key, tls_keys[i], len))
+				return tls_keys[i];
+		}
+
+		line = strchr(line, '\n');
+		if (line)
+			++line;
+	}
+
+	return NULL;
+}
+
+
 uint32_t bsk_session_min_se(const bsk_engine_config *c)
 {
 	return c->session_min_se ? c->session_min_se : 90;

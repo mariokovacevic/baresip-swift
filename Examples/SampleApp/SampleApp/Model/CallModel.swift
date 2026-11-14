@@ -12,7 +12,6 @@ struct TLSSnapshot: Equatable {
     let ca: Data?
     let client: Data?
     let pins: [String]
-    var verifyServer = true
 }
 
 @MainActor

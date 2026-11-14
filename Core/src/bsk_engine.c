@@ -461,6 +461,25 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 		memset(&local, 0, sizeof(local));
 		memcpy(&local, config, n);
 		local.size = (uint32_t)sizeof(local);
+#ifndef BSK_ALLOW_INSECURE_TLS
+		if (local.tls.insecure_skip_verify) {
+			bsk_engine_destroy(e);
+			return bsk_error_set(
+				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
+				"insecure_skip_verify needs a core "
+				"built with BSK_ALLOW_INSECURE_TLS");
+		}
+#endif
+		if (str_isset(local.extra_config) &&
+		    bsk_extra_config_tls_key(local.extra_config)) {
+			const char *key =
+				bsk_extra_config_tls_key(local.extra_config);
+
+			bsk_engine_destroy(e);
+			return bsk_error_set(
+				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
+				"extra_config may not set %s", key);
+		}
 		if (local.session_expires &&
 		    bsk_session_min_se(&local) > local.session_expires) {
 			bsk_engine_destroy(e);

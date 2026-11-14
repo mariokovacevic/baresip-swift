@@ -255,12 +255,10 @@ suspend fun CallModel.unregister() {
     runCatching { engine.unregister(id) }
 }
 
-fun CallModel.savedTls(): TlsSnapshot = TlsSnapshot(caCertificates?.toList(), clientIdentity?.toList(), settings.pinList, settings.verifyServer)
+fun CallModel.savedTls(): TlsSnapshot = TlsSnapshot(caCertificates?.toList(), clientIdentity?.toList(), settings.pinList)
 
-fun CallModel.tlsConfiguration(tls: TlsSnapshot): BaresipTlsConfiguration {
-    if (isDebugBuild && !tls.verifyServer) return BaresipTlsConfiguration.insecureSkippingServerVerification()
-    return BaresipTlsConfiguration(tls.ca?.toByteArray(), tls.client?.toByteArray(), tls.pins)
-}
+fun tlsConfiguration(tls: TlsSnapshot): BaresipTlsConfiguration =
+    BaresipTlsConfiguration(tls.ca?.toByteArray(), tls.client?.toByteArray(), tls.pins)
 
 fun accountConfiguration(
     settings: SipSettings,

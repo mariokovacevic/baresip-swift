@@ -64,7 +64,7 @@ extension bsk_engine_config {
         tls.pinned_count = settings.pinnedSPKISHA256.count
         tls.cipher_list = arena.cString(settings.cipherList)
         tls.min_version = Int32(settings.minimumVersion.rawValue)
-        tls.insecure_skip_verify = !settings.verifyServer
+        tls.insecure_skip_verify = false
     }
 }
 

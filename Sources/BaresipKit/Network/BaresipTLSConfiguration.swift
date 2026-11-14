@@ -2,9 +2,10 @@ import Foundation
 
 /// TLS settings for SIP over TLS.
 ///
-/// By default the server certificate is verified against the system trust store. Add
-/// ``caCertificatesPEM`` for a private CA or a self-signed server, and ``pinnedSPKISHA256``
-/// to accept only specific server keys on top of normal validation.
+/// The server certificate is always verified: against the system trust store by default, or
+/// against ``caCertificatesPEM`` for a private CA or a self-signed server. Add
+/// ``pinnedSPKISHA256`` to accept only specific server keys on top of that validation. There is
+/// no setting that accepts any certificate; a test server needs its CA in ``caCertificatesPEM``.
 public struct BaresipTLSConfiguration: Sendable, Equatable {
     /// Extra trusted CA certificates in PEM format.
     public var caCertificatesPEM: Data?
@@ -16,11 +17,6 @@ public struct BaresipTLSConfiguration: Sendable, Equatable {
     public var cipherList: String?
     /// The lowest accepted TLS version.
     public var minimumVersion: TLSVersion
-    /// Whether the server certificate is verified.
-    ///
-    /// Always `true`, except for settings made with `insecureSkippingServerVerification()`,
-    /// which exists in debug builds only.
-    public private(set) var verifyServer: Bool
 
     /// A TLS protocol version.
     public enum TLSVersion: Int, Sendable, Codable {
@@ -46,20 +42,6 @@ public struct BaresipTLSConfiguration: Sendable, Equatable {
         self.pinnedSPKISHA256 = pinnedSPKISHA256
         self.cipherList = cipherList
         self.minimumVersion = minimumVersion
-        verifyServer = true
     }
 
-    #if DEBUG
-        /// Settings that accept any server certificate. Only available in debug builds.
-        ///
-        /// The engine logs a warning when it starts with these settings. They cannot be
-        /// combined with ``pinnedSPKISHA256``: the engine rejects pins without verification.
-        ///
-        /// - Returns: TLS settings with verification turned off.
-        public static func insecureSkippingServerVerification() -> BaresipTLSConfiguration {
-            var configuration = BaresipTLSConfiguration()
-            configuration.verifyServer = false
-            return configuration
-        }
-    #endif
 }

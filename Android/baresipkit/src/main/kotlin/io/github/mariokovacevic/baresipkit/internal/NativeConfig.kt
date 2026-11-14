@@ -99,7 +99,7 @@ internal class NativeEngineConfig(
 
     @JvmField val tlsMinVersion = configuration.tls.minimumVersion.wire
 
-    @JvmField val insecureSkipVerify = !configuration.tls.verifyServer
+    @JvmField val insecureSkipVerify = false
 }
 
 internal class NativeAccountConfig(

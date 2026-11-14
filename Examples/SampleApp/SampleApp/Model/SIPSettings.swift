@@ -11,7 +11,6 @@ struct SIPSettings: Codable, Equatable {
     var outboundProxy = ""
     var mediaEncryption: BaresipMediaEncryption = .srtpOptional
     var pins = ""
-    var verifyServer = true
     var natMode: BaresipNATTraversal = .none
     var stunURI = ""
     var turnURI = ""
@@ -146,7 +145,6 @@ extension SIPSettings {
         try read(.outboundProxy, &outboundProxy)
         try read(.mediaEncryption, &mediaEncryption)
         try read(.pins, &pins)
-        try read(.verifyServer, &verifyServer)
         try read(.natMode, &natMode)
         try read(.stunURI, &stunURI)
         try read(.turnURI, &turnURI)

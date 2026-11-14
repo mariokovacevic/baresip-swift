@@ -118,4 +118,4 @@ The differences from iOS, and why, are listed in [Platforms.md](Platforms.md#par
 
 ## What the core never does
 
-It never owns `AVAudioSession` or Android's audio focus, never sends APNs or FCM traffic, never accepts a TLS certificate without verification unless `insecure_skip_verify` is explicitly set (possible from Swift in DEBUG builds only, and from Kotlin only through `BaresipTlsConfiguration.insecureSkippingServerVerification()`), never follows a transfer or answers a call on its own except for a REFER on an established call and an INVITE whose `Replaces` header names one, and never logs credentials or complete push tokens.
+It never owns `AVAudioSession` or Android's audio focus, never sends APNs or FCM traffic, never accepts a TLS certificate without verification (the C field `insecure_skip_verify` is rejected unless the core is built with `BARESIPKIT_ALLOW_INSECURE_TLS`, which no released binary is, and neither SDK can set it), never follows a transfer or answers a call on its own except for a REFER on an established call and an INVITE whose `Replaces` header names one, and never logs credentials or complete push tokens.

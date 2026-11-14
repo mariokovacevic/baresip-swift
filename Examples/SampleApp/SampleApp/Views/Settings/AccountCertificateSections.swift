@@ -33,10 +33,6 @@ struct AccountCertificateSections: View {
                            identifier: "account.ca.enter") {
                     entryTarget = .ca
                 }
-                #if DEBUG
-                    RowDivider()
-                    ToggleRow(title: "Verify server certificate", isOn: $model.settings.verifyServer)
-                #endif
             }
         }
 
