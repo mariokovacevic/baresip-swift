@@ -29,6 +29,11 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/Build/versions.env"
 source "$ROOT/Build/module-sets.env"
 
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$ROOT" log -1 --format=%ct 2>/dev/null || echo 315532800)}"
+export SOURCE_DATE_EPOCH
+export ZERO_AR_DATE=1
+PREFIX_MAP="-ffile-prefix-map=$ROOT=."
+
 MODULE_SET="${MODULE_SET:-default}"
 PLATFORM="${PLATFORM:-ios}"
 DEPS_DIR="${DEPS_DIR:-$ROOT/Build/.deps}"
@@ -125,7 +130,9 @@ cmake_common() {
   local prefix="$1"; shift
   local args=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$prefix"
               -DCMAKE_PREFIX_PATH="$prefix" -DCMAKE_FIND_ROOT_PATH="$prefix"
-              -DCMAKE_POSITION_INDEPENDENT_CODE=ON)
+              -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+              -DCMAKE_PROJECT_INCLUDE="$ROOT/Build/cmake/reproducible.cmake"
+              -DBARESIPKIT_PREFIX_MAP="$PREFIX_MAP")
   if [[ "$SDK" == "macosx" ]]; then
     args+=(-DCMAKE_OSX_SYSROOT=macosx
            -DCMAKE_OSX_ARCHITECTURES="$ARCH"
@@ -171,7 +178,7 @@ build_openssl() {
       --openssldir="$OPENSSL_CONFIG_DIR" \
       no-shared no-dso no-engine no-module no-apps no-tests no-docs no-legacy \
       no-comp no-ssl3 no-weak-ssl-ciphers no-ui-console no-autoload-config \
-      no-async no-quic $MIN_FLAG >/dev/null)
+      no-async no-quic $MIN_FLAG "$PREFIX_MAP" >/dev/null)
   local plugin_dirs=(ENGINESDIR="$OPENSSL_PLUGIN_DIR" MODULESDIR="$OPENSSL_PLUGIN_DIR")
   ${ndk_env[@]+"${ndk_env[@]}"} make -C "$bdir" -j"$JOBS" "${plugin_dirs[@]}" build_libs >/dev/null
   ${ndk_env[@]+"${ndk_env[@]}"} make -C "$bdir" "${plugin_dirs[@]}" install_dev >/dev/null
@@ -218,7 +225,8 @@ build_libvpx() {
   fi
   (cd "$bdir" && ${tools[@]+"${tools[@]}"} "$src/configure" ${target:+--target=$target} --prefix="$prefix" \
       --disable-examples --disable-tools --disable-docs --disable-unit-tests \
-      --enable-vp8 --disable-vp9 --enable-pic --disable-shared --enable-static >/dev/null)
+      --enable-vp8 --disable-vp9 --enable-pic --disable-shared --enable-static \
+      --extra-cflags="$PREFIX_MAP" >/dev/null)
   ${tools[@]+"${tools[@]}"} make -C "$bdir" -j"$JOBS" >/dev/null
   ${tools[@]+"${tools[@]}"} make -C "$bdir" install >/dev/null
 }
@@ -337,7 +345,11 @@ create_xcframework() {
   done
   rm -rf "$OUT_DIR/BaresipKitCore.xcframework" "$OUT_DIR/BaresipKitCore.xcframework.zip"
   xcodebuild -create-xcframework "${args[@]}" -output "$OUT_DIR/BaresipKitCore.xcframework" >/dev/null
-  (cd "$OUT_DIR" && ditto -c -k --keepParent BaresipKitCore.xcframework BaresipKitCore.xcframework.zip)
+  local stamp
+  stamp="$(TZ=UTC date -r "$SOURCE_DATE_EPOCH" +%Y%m%d%H%M.%S)"
+  find "$OUT_DIR/BaresipKitCore.xcframework" -exec env TZ=UTC touch -h -t "$stamp" {} +
+  (cd "$OUT_DIR" && ditto -c -k --norsrc --noextattr --noqtn --keepParent BaresipKitCore.xcframework \
+    BaresipKitCore.xcframework.zip)
   (cd "$OUT_DIR" && swift package compute-checksum BaresipKitCore.xcframework.zip > checksum.txt)
   printf '%s xcframework.zip bytes=%s checksum=%s\n' "$MODULE_SET" \
     "$(stat -f%z "$OUT_DIR/BaresipKitCore.xcframework.zip")" "$(cat "$OUT_DIR/checksum.txt")" >> "$OUT_DIR/sizes.txt"

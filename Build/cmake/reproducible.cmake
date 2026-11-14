@@ -1,0 +1,3 @@
+if(BARESIPKIT_PREFIX_MAP)
+  add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX,OBJC>:${BARESIPKIT_PREFIX_MAP}>")
+endif()
