@@ -5,6 +5,7 @@
 #include "../../Core/src/bsk_rate.h"
 #include "../../Core/src/bsk_h264.h"
 #include "../../Core/src/bsk_reason.h"
+#include "../../Core/src/bsk_frame.h"
 #include <baresip.h>
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
@@ -425,6 +426,71 @@ static void test_loss_and_mos(void)
 	CHECK(bsk_mos_estimate(UINT32_MAX, 0, 0) ==
 	      bsk_mos_estimate(1000, 0, 0));
 	CHECK(bsk_mos_estimate(0, 300, 200) < clean);
+}
+
+
+static void test_frame_bounds(void)
+{
+	static uint8_t plane[16];
+	bsk_video_frame f;
+
+	memset(&f, 0, sizeof(f));
+	f.format = BSK_PIX_I420;
+	f.width = 5;
+	f.height = 3;
+	f.planes[0] = f.planes[1] = f.planes[2] = plane;
+	f.strides[0] = 5;
+	f.strides[1] = f.strides[2] = 3;
+	CHECK(bsk_frame_strides_ok(&f));
+	f.strides[1] = 2;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[1] = 3;
+	f.strides[0] = 4;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[0] = 65536;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[0] = 65535;
+	CHECK(bsk_frame_strides_ok(&f));
+	f.planes[2] = NULL;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.format = BSK_PIX_NV12;
+	f.strides[1] = 5;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[1] = 6;
+	CHECK(bsk_frame_strides_ok(&f));
+	f.width = 0;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.width = 5;
+	f.format = BSK_PIX_BGRA;
+	CHECK(!bsk_frame_strides_ok(&f));
+
+	CHECK(bsk_crop_valid(640, 480, 0, 0, 639, 479));
+	CHECK(bsk_crop_valid(640, 480, 10, 20, 10, 20));
+	CHECK(!bsk_crop_valid(640, 480, 0, 0, 640, 479));
+	CHECK(!bsk_crop_valid(640, 480, 0, 0, 639, 480));
+	CHECK(!bsk_crop_valid(640, 480, -1, 0, 639, 479));
+	CHECK(!bsk_crop_valid(640, 480, 0, -1, 639, 479));
+	CHECK(!bsk_crop_valid(640, 480, 100, 0, 99, 479));
+	CHECK(!bsk_crop_valid(0, 480, 0, 0, -1, 479));
+	CHECK(!bsk_crop_valid(640, -5, 0, 0, 639, 0));
+
+	CHECK(bsk_yuv420_extent(640, 480, true, 0, 0, 640, 480) ==
+	      640 * 480 * 3 / 2);
+	CHECK(bsk_yuv420_extent(640, 480, false, 0, 0, 640, 480) ==
+	      640 * 480 * 3 / 2);
+	CHECK(bsk_yuv420_extent(640, 480, false, 0, 0, 641, 480) == 0);
+	CHECK(bsk_yuv420_extent(640, 480, false, 0, 1, 640, 480) == 0);
+	CHECK(bsk_yuv420_extent(640, 480, true, 0, 0, 0, 480) == 0);
+	CHECK(bsk_yuv420_extent(5, 3, false, 0, 0, 5, 3) == 15 + 5 + 6);
+	CHECK(bsk_yuv420_extent(5, 3, true, 0, 0, 5, 3) == 15 + 2 + 2 + 3);
+	CHECK(bsk_yuv420_extent(704, 576, false, 32, 16, 640, 544) <=
+	      704 * 576 * 3 / 2);
+	CHECK(bsk_yuv420_extent(UINT32_MAX, UINT32_MAX, true, 0, 0, UINT32_MAX,
+				UINT32_MAX) > UINT32_MAX);
+
+	CHECK(bsk_yuv420_packed_size(640, 480) == 640 * 480 * 3 / 2);
+	CHECK(bsk_yuv420_packed_size(1, 3) == 3 + 2 * 1 * 2);
+	CHECK(bsk_yuv420_packed_size(5, 3) == 15 + 2 * 3 * 2);
 }
 
 
@@ -1309,6 +1375,7 @@ int main(void)
 	test_config_size_compat();
 	test_rate_control();
 	test_loss_and_mos();
+	test_frame_bounds();
 	test_h264_depacketizer();
 	test_h264_access_unit();
 	test_reason_header();

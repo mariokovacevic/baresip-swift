@@ -5,6 +5,7 @@
 #include <baresip.h>
 #include "baresip_kit_android.h"
 #include "bsk_android.h"
+#include "../bsk_frame.h"
 
 enum { MAX_SOURCES = 4 };
 
@@ -65,7 +66,7 @@ bool bsk_camera_push(void *source, const bsk_video_frame *frame)
 
 	memset(&vf, 0, sizeof(vf));
 	vf.fmt = frame_format(frame->format);
-	if (vf.fmt == VID_FMT_N)
+	if (vf.fmt == VID_FMT_N || !bsk_frame_strides_ok(frame))
 		return false;
 	vf.size.w = frame->width;
 	vf.size.h = frame->height;
