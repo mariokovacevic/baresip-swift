@@ -116,4 +116,6 @@ the body when it is not obvious.
 - [ ] `CHANGELOG.md` has an entry under "Unreleased".
 - [ ] No credentials, real hostnames, IP addresses or phone numbers in code, tests or logs; use
   `example.com` and the documentation address ranges (192.0.2.0/24, 198.51.100.0/24,
-  203.0.113.0/24, 2001:db8::/32).
+  203.0.113.0/24, 2001:db8::/32), and fictional numbers such as `+1 555 0100` to `+1 555 0199`.
+- [ ] No names of companies, commercial products, other SDKs or apps; describe the behaviour
+  instead.

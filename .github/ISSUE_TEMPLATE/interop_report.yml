@@ -13,7 +13,7 @@ body:
     attributes:
       label: Counterpart
       description: Make and model, or product name.
-      placeholder: Asterisk, FreeSWITCH, 2N IP Verso, a hosted provider, ...
+      placeholder: Asterisk, FreeSWITCH, a door station model, a hosted provider, ...
     validations:
       required: true
   - type: dropdown

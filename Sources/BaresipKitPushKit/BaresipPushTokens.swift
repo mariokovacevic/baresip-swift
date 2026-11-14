@@ -3,8 +3,8 @@ import BaresipKit
 
 /// The push tokens of an app, encoded as `Contact` header parameters for the registrar.
 ///
-/// The parameters follow the format used by push-capable SIP servers such as Flexisip and
-/// Kamailio's push module: `app-id`, `pn-type`, `pn-tok` (hex tokens joined as
+/// The parameters follow the format used by push-capable SIP servers and Kamailio's push
+/// module: `app-id`, `pn-type`, `pn-tok` (hex tokens joined as
 /// `remote&voip`), `pn-silent`, `pn-timeout` and an optional `pn-channel`.
 public struct BaresipPushTokens: Sendable, Equatable {
     /// The app's bundle identifier, sent as `app-id`.

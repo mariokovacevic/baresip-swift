@@ -5,10 +5,10 @@ Subject: [PATCH] stream: optionally send RTP while on hold
 
 A stream on hold offers sendonly in the SDP but stream_send() drops every
 packet, so the peer of a held call hears nothing. Phones commonly play
-music on hold to the peer from a file (liblinphone's play file, for
-example). Add stream_set_hold_send(): after replacing the audio source,
-an application enables sending while on hold; without it the behaviour
-is unchanged and no microphone audio leaves a held call.
+music on hold to the peer from a file. Add stream_set_hold_send(): after
+replacing the audio source, an application enables sending while on
+hold; without it the behaviour is unchanged and no microphone audio
+leaves a held call.
 ---
  include/baresip.h |  1 +
  src/stream.c      | 22 +++++++++++++++++++++-

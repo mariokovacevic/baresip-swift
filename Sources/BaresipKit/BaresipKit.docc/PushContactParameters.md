@@ -25,8 +25,8 @@ try await engine.updateContactParameters(
 With `reregisterNow`, a registered account sends a REGISTER with the new parameters right away,
 without unregistering first.
 
-`BaresipPushTokens` in the `BaresipKitPushKit` module builds the parameter set used by servers
-such as Flexisip (`app-id`, `pn-type`, `pn-tok`, `pn-silent`, `pn-timeout`), and
+`BaresipPushTokens` in the `BaresipKitPushKit` module builds the parameter set that push-capable
+SIP servers use (`app-id`, `pn-type`, `pn-tok`, `pn-silent`, `pn-timeout`), and
 `BaresipPushKitAdapter` keeps it current.
 
 ### Validation

@@ -55,7 +55,7 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 - Hold, resume, mute (`BaresipCallInfo.isMicrophoneMuted`), DTMF over RFC 4733 and SIP INFO,
   several calls with switching, blind and attended transfer (REFER with Replaces), and following
   incoming transfers.
-- Music on hold from the phone, like liblinphone's play file: with
+- Music on hold from the phone, from a WAV file: with
   `BaresipAudioConfiguration.holdMusicFile` (a 16-bit PCM WAV file) a held call plays it to the
   other side in a loop instead of the microphone, also while iOS has deactivated the audio
   session, and also when baresip renews the audio source during the hold. baresip drops every

@@ -24,7 +24,7 @@ public struct BaresipAudioConfiguration: Sendable, Equatable {
     public var codecs: [String]
     /// Music on hold: a WAV file (16-bit PCM, mono or stereo, 8 to 48 kHz) that a call put on
     /// hold with ``BaresipEngine/hold(callID:)`` plays to the other side in a loop instead of
-    /// the microphone, like liblinphone's play file. It plays without the audio session, so
+    /// the microphone. It plays without the audio session, so
     /// also while iOS has deactivated it for a held call. `nil` sends nothing while on hold.
     ///
     /// The engine reads the file when it is created and fails with ``BaresipError`` when the

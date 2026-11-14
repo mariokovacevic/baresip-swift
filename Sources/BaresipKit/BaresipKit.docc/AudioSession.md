@@ -93,8 +93,8 @@ because outputs appear and go away while a call runs.
 ### Music on hold
 
 A held call sends nothing unless the engine has music on hold. Many PBXs pass a phone's hold
-through to the other side instead of playing their own music, so the phone plays it, as
-liblinphone does with its play file:
+through to the other side instead of playing their own music, so the phone plays it from a
+WAV file:
 
 ```swift
 var configuration = BaresipConfiguration()

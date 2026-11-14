@@ -21,8 +21,6 @@ extension CallModel {
                 config.audio = BaresipAudioConfiguration(sourceModule: "ausine", playerModule: "aufile",
                                                          playerDevice: NSTemporaryDirectory() + "speaker.wav")
             }
-            // Music on hold, as Linphone's play file: a held call plays this tune to the
-            // other side instead of the microphone, whatever the server does.
             config.audio.holdMusicFile = Bundle.main.url(forResource: "HoldMusic", withExtension: "wav")
             let tls = savedTLS
             config.tls = tlsConfiguration(tls)

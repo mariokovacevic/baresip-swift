@@ -38,7 +38,7 @@ lock screen" with a few dozen lines of code.
 ## Contents
 
 - [Setup](#setup)
-- [Why BaresipKit](#why-baresipkit)
+- [Licensing](#licensing)
 - [Highlights](#highlights)
 - [Modules](#modules)
 - [Features](#features)
@@ -61,25 +61,11 @@ Both SDKs build the same C core with the same patches, so SIP, media and NAT beh
 both; only the layers that talk to the operating system differ.
 [Docs/Platforms.md](Docs/Platforms.md) lists those differences, type by type and test by test.
 
-## Why BaresipKit
+## Licensing
 
-The other SIP stacks with an iOS or Android SDK are copyleft unless you buy a license from their vendor.
 BaresipKit and everything it ships are under permissive licenses (BSD and Apache 2.0, listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)), so a closed-source app can use it as it is.
-
-| | BaresipKit | Linphone SDK | PJSIP |
-|---|---|---|---|
-| License | BSD-3-Clause | AGPLv3, or a paid proprietary license | GPLv2 or later, or a paid proprietary license |
-| Closed-source app without buying a license | Yes | No | No |
-| SIP stack | baresip and libre | liblinphone and belle-sip | pjsip |
-| Swift API | `async`/`await`, Swift 6 concurrency | Swift wrapper over the C API (`linphonesw`) | None official: C, or C++ (PJSUA2) through a bridging header |
-| Swift Package Manager | Yes | Yes, since 5.4 | No official package |
-| Android | Kotlin with coroutines and `Flow`, over the same C core | Java API, usable from Kotlin, from Linphone's Maven repository | Java (PJSUA2 through SWIG), built yourself with the NDK |
-
-Licenses as [linphone.org](https://www.linphone.org/en/liblinphone-voip-sdk/) and
-[pjsip.org](https://www.pjsip.org/licensing.htm) state them in November 2026; check them for
-your own case. H.264 patent licensing is the app publisher's in every case, see
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+H.264 patent licensing is the app publisher's; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Highlights
 

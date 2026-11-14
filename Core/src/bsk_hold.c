@@ -3,14 +3,6 @@
 #include <re_atomic.h>
 #include "bsk_internal.h"
 
-/*
- * Music on hold, as liblinphone's play file: while the application holds a
- * call, the call's audio source is this module instead of the microphone,
- * and it plays the configured WAV file to the other side in a loop. It needs
- * no audio device, so it keeps playing when iOS deactivated the audio
- * session of a call that is only on hold.
- */
-
 #define HOLD_MAX_BYTES (64u * 1024u * 1024u)
 #define HOLD_READ_SAMPLES 2048u
 

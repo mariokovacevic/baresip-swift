@@ -256,7 +256,7 @@ controller and use [Audio without CallKit](#audio-without-callkit).
 To ring while the app is not running, the SIP server (or a push proxy) sends a VoIP push when a
 call arrives for a registered device. The adapter registers for VoIP pushes, sends the token to
 the registrar as `Contact` parameters (`app-id`, `pn-type`, `pn-tok`, `pn-silent`,
-`pn-timeout`, the set used by servers such as Flexisip), and wakes the engine when a push
+`pn-timeout`, the set that push-capable SIP servers use), and wakes the engine when a push
 arrives. For RFC 8599 parameters (`pn-provider`, `pn-prid`, `pn-param`), set them yourself with
 `engine.updateContactParameters(accountID:parameters:reregisterNow:)`.
 

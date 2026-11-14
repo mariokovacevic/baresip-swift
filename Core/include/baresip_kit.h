@@ -236,8 +236,8 @@ typedef struct bsk_engine_config {
 	bool video_adaptive_bitrate;
 	uint32_t video_min_bitrate_bps;
 	/* A 16-bit PCM WAV file, mono or stereo, 8 to 48 kHz, that a held call
-	 * plays to the other side in a loop instead of the microphone, like
-	 * liblinphone's play file. NULL sends nothing while on hold. */
+	 * plays to the other side in a loop instead of the microphone. NULL
+	 * sends nothing while on hold. */
 	const char *hold_music_path;
 	/* The RFC 4028 session timer in seconds that calls offer and accept:
 	 * the refresher renews the session with UPDATE or re-INVITE, the

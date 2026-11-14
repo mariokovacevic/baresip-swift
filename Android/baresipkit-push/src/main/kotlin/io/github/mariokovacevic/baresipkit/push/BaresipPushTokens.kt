@@ -5,8 +5,7 @@ import io.github.mariokovacevic.baresipkit.BaresipContactParameter
 /**
  * The push token of an app, encoded as `Contact` header parameters for the registrar.
  *
- * The parameters follow the format push-capable SIP servers such as Flexisip and Kamailio's push
- * module use: `app-id`, `pn-type`, `pn-tok`, `pn-silent`, `pn-timeout` and an optional
+ * The parameters follow the format push-capable SIP servers and Kamailio's push module use: `app-id`, `pn-type`, `pn-tok`, `pn-silent`, `pn-timeout` and an optional
  * `pn-channel`, the same names as on iOS with the Firebase token in `pn-tok`.
  */
 data class BaresipPushTokens(
