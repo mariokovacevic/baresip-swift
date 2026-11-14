@@ -1,0 +1,1 @@
+ice,connected,sdpm=0x1234 ltype=host rtype=relay laddr=192.0.2.1:5000 raddr=192.0.2.2:6000

@@ -4,6 +4,7 @@
 #include <re.h>
 #include "baresip_kit.h"
 #include "bsk_h264.h"
+#include "bsk_reason.h"
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
 
@@ -149,16 +150,34 @@ static void fuzz_h264(const uint8_t *data, size_t size)
 	bsk_h264_depack_close(&d);
 }
 
+static void fuzz_reason(const uint8_t *data, size_t size)
+{
+	char *copy = malloc(size + 1);
+	char phrase[64];
+	char tiny[1];
+	uint16_t cause = 0;
+
+	if (!copy)
+		return;
+	memcpy(copy, data, size);
+	copy[size] = '\0';
+	(void)bsk_reason_sip_cause(copy, &cause, phrase, sizeof(phrase));
+	(void)bsk_reason_sip_cause(copy, &cause, tiny, sizeof(tiny));
+	(void)bsk_reason_sip_cause(copy, &cause, NULL, 0);
+	free(copy);
+}
+
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
 	if (!size)
 		return 0;
 
-	switch (data[0] % 4) {
+	switch (data[0] % 5) {
 	case 0: fuzz_contact(data + 1, size - 1); break;
 	case 1: fuzz_redact(data + 1, size - 1); break;
 	case 2: fuzz_ice(data + 1, size - 1); break;
-	default: fuzz_h264(data + 1, size - 1); break;
+	case 3: fuzz_h264(data + 1, size - 1); break;
+	default: fuzz_reason(data + 1, size - 1); break;
 	}
 
 	return 0;

@@ -1,0 +1,10 @@
+REGISTER sip:example.com SIP/2.0
+Via: SIP/2.0/TLS 192.0.2.10:5061;branch=z9hG4bK776asdhds
+From: "Alice" <sip:alice@example.com>;tag=1928301774
+To: <sip:alice@example.com>
+Call-ID: a84b4c76e66710@192.0.2.10
+CSeq: 2 REGISTER
+Contact: <sip:alice@192.0.2.10:5061;transport=tls;pn-provider=apns;pn-param=ABCD.com.example.voip;pn-prid=0123456789abcdef>
+Authorization: Digest username="alice", realm="example.com", nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093", uri="sip:example.com", response="6629fae49393a05397450978507c4ef1"
+Content-Length: 0
+

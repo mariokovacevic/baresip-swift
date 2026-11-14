@@ -19,6 +19,7 @@ INCS=(-I "$ROOT/Core/include" -I "$ROOT/Core/src" -I "$ROOT/Core/third_party/g72
 DEFS=(-DDEBUG_MODULE='"bsk"' -DDEBUG_LEVEL=5)
 
 mkdir -p "$OUT/corpus"
+cp "$HERE"/corpus/* "$OUT/corpus/"
 printf 'app-id=com.example\npn-tok=abc:remote&def:voip\n' > "$OUT/corpus/contact"
 printf 'Authorization: Digest response="deadbeef", pn-tok=0123456789abcdef' > "$OUT/corpus/redact"
 printf 'ice,connected,sdpm=0x1234 ltype=host rtype=relay laddr=192.0.2.1:5000 raddr=192.0.2.2:6000' > "$OUT/corpus/ice"
@@ -36,5 +37,5 @@ fi
   "${INCS[@]}" "${DEFS[@]}" \
   "${SRCS[@]}" -o "$OUT/fuzz_parsers" "${LIBS[@]}"
 
-"$OUT/fuzz_parsers" -runs="$RUNS" -max_len=512 "$OUT/corpus"
+"$OUT/fuzz_parsers" -runs="$RUNS" -max_len=4096 "$OUT/corpus"
 echo "fuzz: PASS ($RUNS runs)"
