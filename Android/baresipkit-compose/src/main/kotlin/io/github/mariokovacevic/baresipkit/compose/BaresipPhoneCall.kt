@@ -283,8 +283,7 @@ class BaresipPhoneCall internal constructor(
         }
     }
 
-    /** Reads the call's details from the engine again. A read that a newer one overtook is dropped. */
-    fun refresh() {
+    internal fun refresh() {
         val scope = phone?.scope ?: return
         val generation = ++refreshGeneration
         scope.launch {
@@ -362,8 +361,7 @@ class BaresipPhoneCall internal constructor(
         }
     }
 
-    companion object {
-        /** The user or number of a SIP URI, such as `alice` for `sip:alice@example.com;transport=tls`. */
+    internal companion object {
         fun userPart(uri: String): String {
             var value = uri
             for (scheme in listOf("sips:", "sip:", "tel:")) {
@@ -373,11 +371,6 @@ class BaresipPhoneCall internal constructor(
             return value.ifEmpty { uri }
         }
 
-        /**
-         * Whether two SIP addresses name the same party: the same user, compared without regard
-         * to case, and the same host when both name one. Display names, the scheme, the port, URI
-         * parameters and headers are ignored.
-         */
         fun samePeer(
             first: String,
             second: String,

@@ -1,9 +1,14 @@
 package io.github.mariokovacevic.baresipkit.zvono.model
 
-import io.github.mariokovacevic.baresipkit.compose.BaresipPhoneCall
-
 object SipNames {
-    fun user(remote: String): String = BaresipPhoneCall.userPart(remote)
+    fun user(remote: String): String {
+        var value = remote
+        for (scheme in listOf("sips:", "sip:", "tel:")) {
+            if (value.startsWith(scheme)) value = value.removePrefix(scheme)
+        }
+        value = value.substringBefore(';').substringBefore('@')
+        return value.ifEmpty { remote }
+    }
 
     fun initials(name: String): String {
         val words = name.split(' ', '.', '-').filter { it.isNotEmpty() }.take(2)

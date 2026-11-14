@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.mariokovacevic.baresipkit.BaresipCertificates
 import io.github.mariokovacevic.baresipkit.BaresipDtmfMode
+import io.github.mariokovacevic.baresipkit.BaresipInternalApi
 import io.github.mariokovacevic.baresipkit.BaresipMediaEncryption
 import io.github.mariokovacevic.baresipkit.BaresipNatTraversal
 import io.github.mariokovacevic.baresipkit.BaresipTransport
@@ -229,6 +230,7 @@ private fun CertificateSections(model: CallModel) {
     pasting?.let { kind -> PemDialog(model, kind) { pasting = null } }
 }
 
+@OptIn(BaresipInternalApi::class)
 @Composable
 private fun PemDialog(
     model: CallModel,

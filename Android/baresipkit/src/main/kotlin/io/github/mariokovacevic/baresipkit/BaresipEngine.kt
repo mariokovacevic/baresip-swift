@@ -85,8 +85,7 @@ class BaresipEngine(
     val state: BaresipEngineState
         get() = if (closed.get()) BaresipEngineState.STOPPED else BaresipEngineState.of(Native.engineState(handle))
 
-    /** `true` when called on the engine's internal thread, for example from a log handler. */
-    val isEngineThread: Boolean
+    internal val isEngineThread: Boolean
         get() = !closed.get() && Native.engineIsEngineThread(handle)
 
     /**
@@ -537,12 +536,10 @@ class BaresipEngine(
         private const val CLOSE_TIMEOUT_SECONDS = 10L
         private const val MAXIMUM_SIP_STATUS = 699
 
-        /** The C ABI version of the linked core. */
-        val abiVersion: AbiVersion
+        internal val abiVersion: AbiVersion
             get() = Native.abiVersion().let { AbiVersion(it ushr 16, it and 0xffff) }
 
-        /** Feature flags of the linked core, for example `reg.contact-params`. */
-        val capabilities: List<String>
+        internal val capabilities: List<String>
             get() = Native.capabilities().split(' ').filter { it.isNotEmpty() }
 
         /** The version string of the linked core. */
@@ -559,8 +556,7 @@ class BaresipEngine(
         fun encodeContactParameters(parameters: List<BaresipContactParameter>): String = Native.encodeContactParameters(parameters.names(), parameters.values())
     }
 
-    /** The C ABI version of the core, as a major and a minor number. */
-    data class AbiVersion(
+    internal data class AbiVersion(
         val major: Int,
         val minor: Int,
     )

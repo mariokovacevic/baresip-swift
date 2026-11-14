@@ -19,6 +19,7 @@ import android.view.Surface
 import android.view.WindowManager
 import io.github.mariokovacevic.baresipkit.BaresipCameraHost
 import io.github.mariokovacevic.baresipkit.BaresipCameraSource
+import io.github.mariokovacevic.baresipkit.BaresipInternalApi
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import kotlin.time.Duration.Companion.nanoseconds
@@ -34,9 +35,10 @@ import kotlin.time.Duration.Companion.nanoseconds
  * The app needs the `CAMERA` permission before a call sends video. Frames are rotated upright for
  * the display's current rotation before they are encoded.
  */
+@OptIn(BaresipInternalApi::class)
 class BaresipCamera private constructor(
     context: Context,
-) : BaresipCameraHost {
+) {
     private val context = context.applicationContext
     private val manager = this.context.getSystemService(CameraManager::class.java)
     private val thread = HandlerThread("baresipkit.camera").apply { start() }
@@ -165,7 +167,25 @@ class BaresipCamera private constructor(
         }
     }
 
-    override fun start(
+    private val host =
+        object : BaresipCameraHost {
+            override fun start(
+                source: BaresipCameraSource,
+                device: String,
+                width: Int,
+                height: Int,
+                fps: Int,
+            ): Boolean = this@BaresipCamera.start(source, device, width, height, fps)
+
+            override fun stop(source: BaresipCameraSource) = this@BaresipCamera.stop(source)
+
+            override fun switchDevice(
+                source: BaresipCameraSource,
+                device: String,
+            ): Boolean = this@BaresipCamera.switchDevice(source, device)
+        }
+
+    private fun start(
         source: BaresipCameraSource,
         device: String,
         width: Int,
@@ -179,13 +199,13 @@ class BaresipCamera private constructor(
         return true
     }
 
-    override fun stop(source: BaresipCameraSource) {
+    private fun stop(source: BaresipCameraSource) {
         val capture = captures.remove(source) ?: return
         capture.closed = true
         handler.post { capture.close() }
     }
 
-    override fun switchDevice(
+    private fun switchDevice(
         source: BaresipCameraSource,
         device: String,
     ): Boolean {
@@ -236,7 +256,7 @@ class BaresipCamera private constructor(
             synchronized(this) {
                 shared ?: BaresipCamera(context).also {
                     shared = it
-                    BaresipCameraHost.install(it)
+                    BaresipCameraHost.install(it.host)
                 }
             }
     }

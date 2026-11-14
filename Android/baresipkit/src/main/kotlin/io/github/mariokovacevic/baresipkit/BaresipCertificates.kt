@@ -146,7 +146,11 @@ object BaresipCertificates {
         return pem.toByteArray(Charsets.UTF_8)
     }
 
-    /** Splits a client identity, as returned by [clientIdentity], into its certificate and key text, for editing. */
+    /**
+     * Splits a client identity, as returned by [clientIdentity], into its certificate and key text,
+     * for editing. Used by the sample app; not covered by Semantic Versioning.
+     */
+    @BaresipInternalApi
     fun split(identity: ByteArray?): Pair<String, String> {
         if (identity == null) return "" to ""
         val all = blocks(identity)

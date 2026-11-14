@@ -87,7 +87,11 @@ enum class BaresipCameraPosition {
 /**
  * A running camera source of the engine. The engine's `bskcamera` video source asks the installed
  * [BaresipCameraHost] to start a camera for it; the host then pushes the camera's frames here.
+ *
+ * Plumbing between baresipkit and baresipkit-video: apps use `BaresipCamera` instead. Not covered
+ * by Semantic Versioning.
  */
+@BaresipInternalApi
 class BaresipCameraSource internal constructor(
     internal val handle: Long,
 ) {
@@ -131,7 +135,13 @@ class BaresipCameraSource internal constructor(
     override fun toString(): String = "camera#$handle"
 }
 
-/** Opens cameras for the engine's `bskcamera` video source; see [BaresipCameraSource]. */
+/**
+ * Opens cameras for the engine's `bskcamera` video source; see [BaresipCameraSource].
+ *
+ * Plumbing between baresipkit and baresipkit-video: apps call `BaresipCamera.install` instead. Not
+ * covered by Semantic Versioning.
+ */
+@BaresipInternalApi
 interface BaresipCameraHost {
     /**
      * Starts the camera named [device] (`front`, `back` or a camera id) for [source] at about
@@ -161,6 +171,7 @@ interface BaresipCameraHost {
         @Volatile internal var installed: BaresipCameraHost? = null
 
         /** Makes [host] the camera of every engine in the process, or removes it with `null`. */
+        @BaresipInternalApi
         fun install(host: BaresipCameraHost?) {
             installed = host
             Native.cameraInstallHost(host != null)
