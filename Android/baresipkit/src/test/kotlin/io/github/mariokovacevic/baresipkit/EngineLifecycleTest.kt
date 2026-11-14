@@ -28,7 +28,10 @@ class EngineLifecycleTest {
                 assertTrue(engine.state == BaresipEngineState.READY || engine.state == BaresipEngineState.RUNNING)
                 val id =
                     engine.addAccount(
-                        BaresipAccountConfiguration(aor = "sip:alice@example.invalid", authUser = "alice", authPassword = "secret"),
+                        BaresipAccountConfiguration(aor = "sip:alice@example.invalid") {
+                            authUser = "alice"
+                            authPassword = "secret"
+                        },
                     )
                 assertEquals(BaresipRegistrationState.NONE, engine.registrationState(id))
                 assertEquals(mapOf(id to BaresipRegistrationState.NONE), engine.accounts())
@@ -49,13 +52,13 @@ class EngineLifecycleTest {
 
     @Test
     fun holdMusicFileIsReadWhenTheEngineIsCreated() {
-        val missing = HostCore.configuration().let { it.copy(audio = it.audio.copy(holdMusicFile = File("/nonexistent/hold.wav"))) }
+        val missing = HostCore.configuration().copy { audio { holdMusicFile = File("/nonexistent/hold.wav") } }
         assertThrows(BaresipError::class.java) { BaresipEngine(missing).close() }
 
         val file = File.createTempFile("hold", ".wav")
         try {
             file.writeText("not a wave file, only text")
-            val text = HostCore.configuration().let { it.copy(audio = it.audio.copy(holdMusicFile = file)) }
+            val text = HostCore.configuration().copy { audio { holdMusicFile = file } }
             assertThrows(BaresipError::class.java) { BaresipEngine(text).close() }
 
             file.writeBytes(wav(8000, 1))
@@ -70,9 +73,14 @@ class EngineLifecycleTest {
         val base = HostCore.configuration()
         assertEquals(1800.seconds, base.sessionTimer)
         assertEquals(90.seconds, base.minimumSessionTimer)
-        assertThrows(BaresipError::class.java) { BaresipEngine(base.copy(sessionTimer = 60.seconds)).close() }
-        BaresipEngine(base.copy(sessionTimer = 60.seconds, minimumSessionTimer = 60.seconds)).close()
-        BaresipEngine(base.copy(sessionTimer = null)).close()
+        assertThrows(BaresipError::class.java) { BaresipEngine(base.copy { sessionTimer = 60.seconds }).close() }
+        BaresipEngine(
+            base.copy {
+                sessionTimer = 60.seconds
+                minimumSessionTimer = 60.seconds
+            },
+        ).close()
+        BaresipEngine(base.copy { sessionTimer = null }).close()
     }
 
     @Test

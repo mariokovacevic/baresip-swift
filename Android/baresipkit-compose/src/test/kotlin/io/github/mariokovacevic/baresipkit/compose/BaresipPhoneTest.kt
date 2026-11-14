@@ -49,7 +49,7 @@ class BaresipPhoneTest {
         runBlocking {
             val phone = phone()
             phone.engine.start()
-            val account = phone.engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.invalid", transport = BaresipTransport.UDP))
+            val account = phone.engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.invalid") { transport = BaresipTransport.UDP })
             phone.synchronize()
             val listed = phone.engine.accounts()
             phone.engine.stop()

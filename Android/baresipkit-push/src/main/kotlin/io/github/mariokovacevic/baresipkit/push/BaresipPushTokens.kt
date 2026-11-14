@@ -6,7 +6,8 @@ import io.github.mariokovacevic.baresipkit.BaresipContactParameter
  * The push token of an app, encoded as `Contact` header parameters for the registrar.
  *
  * The parameters follow the format push-capable SIP servers and Kamailio's push module use: `app-id`, `pn-type`, `pn-tok`, `pn-silent`, `pn-timeout` and an optional
- * `pn-channel`, the same names as on iOS with the Firebase token in `pn-tok`.
+ * `pn-channel`, the same names as on iOS with the Firebase token in `pn-tok`. [toString] shows
+ * the token as `***`.
  */
 data class BaresipPushTokens(
     /** The app's package name, sent as `app-id`. */
@@ -33,6 +34,9 @@ data class BaresipPushTokens(
                 add(BaresipContactParameter("pn-timeout", timeout.toString()))
                 channel?.let { add(BaresipContactParameter("pn-channel", it)) }
             }
+
+    override fun toString(): String =
+        "BaresipPushTokens(appId=$appId, token=${token?.let { "***" }}, platform=$platform, silent=$silent, timeout=$timeout, channel=$channel)"
 
     internal fun mergedContactParameters(additional: List<BaresipContactParameter>): List<BaresipContactParameter> {
         val push = contactParameters

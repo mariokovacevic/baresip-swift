@@ -29,25 +29,33 @@ class H264LoopbackTest {
         runBlocking {
             val port = DatagramSocket(0).use { it.localPort }
             val configuration =
-                BaresipConfiguration(
-                    modules = listOf("g711", "auconv", "auresamp", "ausine", "aufile", "fakevideo"),
-                    audio = BaresipAudioConfiguration(sourceModule = "ausine", playerModule = "aufile", playerDevice = "/dev/null"),
-                    video = BaresipVideoConfiguration(sourceModule = "fakevideo", width = 320, height = 240, framesPerSecond = 15),
-                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port",
-                    ipv6 = false,
-                )
+                BaresipConfiguration {
+                    modules = listOf("g711", "auconv", "auresamp", "ausine", "aufile", "fakevideo")
+                    audio {
+                        sourceModule = "ausine"
+                        playerModule = "aufile"
+                        playerDevice = "/dev/null"
+                    }
+                    video {
+                        sourceModule = "fakevideo"
+                        width = 320
+                        height = 240
+                        framesPerSecond = 15
+                    }
+                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port"
+                    ipv6 = false
+                }
             BaresipEngine(configuration).use { engine ->
                 engine.setLogHandler { println("${it.domain} ${it.message}") }
                 val recorder = EventRecorder.start(engine, this)
                 engine.start()
                 engine.addAccount(
-                    BaresipAccountConfiguration(
-                        aor = "sip:alice@$host:$port",
-                        transport = BaresipTransport.UDP,
-                        mediaEncryption = BaresipMediaEncryption.NONE,
-                        audioCodecs = listOf("PCMU/8000/1"),
-                        videoCodecs = listOf("H264"),
-                    ),
+                    BaresipAccountConfiguration(aor = "sip:alice@$host:$port") {
+                        transport = BaresipTransport.UDP
+                        mediaEncryption = BaresipMediaEncryption.NONE
+                        audioCodecs = listOf("PCMU/8000/1")
+                        videoCodecs = listOf("H264")
+                    },
                 )
                 SipPeer(host, port).use { peer ->
                     val answered = async(Dispatchers.IO) { peer.answerInvite(h264 = true) }

@@ -111,7 +111,7 @@ package io.github.mariokovacevic.baresipkit.zvono.local
 
 class LocalAppProfile : AppProfile {
     override fun configure(account: BaresipAccountConfiguration) =
-        account.copy(contactParameters = account.contactParameters + BaresipContactParameter("x-site", "home"))
+        account.copy { contactParameters = contactParameters + BaresipContactParameter("x-site", "home") }
 
     override fun pushAppId(context: Context) = "com.example.intercom"
 

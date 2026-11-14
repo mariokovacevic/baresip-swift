@@ -30,24 +30,23 @@ class CallTest {
     private suspend fun <T> io(body: () -> T): T = withContext(Dispatchers.IO) { body() }
 
     private fun account(port: Int) =
-        BaresipAccountConfiguration(
-            aor = "sip:alice@$host:$port",
-            transport = BaresipTransport.UDP,
-            mediaEncryption = BaresipMediaEncryption.NONE,
-            audioCodecs = listOf("PCMU/8000/1"),
-            incomingHeaders = listOf("X-Device-ID"),
-        )
+        BaresipAccountConfiguration(aor = "sip:alice@$host:$port") {
+            transport = BaresipTransport.UDP
+            mediaEncryption = BaresipMediaEncryption.NONE
+            audioCodecs = listOf("PCMU/8000/1")
+            incomingHeaders = listOf("X-Device-ID")
+        }
 
     @Test
     fun incomingCallWithDtmfMessagesAndHangup() =
         runBlocking {
             val port = freePort()
             val configuration =
-                HostCore.configuration().copy(
-                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port",
-                    ipv6 = false,
-                    logSipTrace = true,
-                )
+                HostCore.configuration().copy {
+                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port"
+                    ipv6 = false
+                    logSipTrace = true
+                }
             val log = CopyOnWriteArrayList<BaresipLogEntry>()
             BaresipEngine(configuration).use { engine ->
                 engine.setLogHandler {

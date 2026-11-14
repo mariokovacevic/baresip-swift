@@ -20,7 +20,7 @@ class AccountConfigurationTest {
         BaresipAccountConfiguration(aor = "sip:alice@example.com").validate()
         rejects(BaresipAccountConfiguration(aor = "alice@example.com"))
         rejects(BaresipAccountConfiguration(aor = "sip:example.com"))
-        rejects(BaresipAccountConfiguration(aor = "sip:a@b", authUser = ""))
+        rejects(BaresipAccountConfiguration(aor = "sip:a@b") { authUser = "" })
     }
 
     @Test
@@ -31,23 +31,29 @@ class AccountConfigurationTest {
         rejects(BaresipAccountConfiguration(aor = "sip:alice@example.com?transport=udp"))
         rejects(BaresipAccountConfiguration(aor = "sip:alice@example.com;transport=udp"))
         rejects(BaresipAccountConfiguration(aor = "sip:alice@example.com\r\nX-Injected: 1"))
-        rejects(BaresipAccountConfiguration(aor = aor, registrar = "example.com"))
-        rejects(BaresipAccountConfiguration(aor = aor, outboundProxy = "sip:proxy.example.com\r\nX: 1"))
-        rejects(BaresipAccountConfiguration(aor = aor, authUser = "alice\nbob"))
-        BaresipAccountConfiguration(aor = "sips:alice@example.com", registrar = "sip:registrar.example.com:5061;transport=tls")
+        rejects(BaresipAccountConfiguration(aor = aor) { registrar = "example.com" })
+        rejects(BaresipAccountConfiguration(aor = aor) { outboundProxy = "sip:proxy.example.com\r\nX: 1" })
+        rejects(BaresipAccountConfiguration(aor = aor) { authUser = "alice\nbob" })
+        BaresipAccountConfiguration(aor = "sips:alice@example.com") { registrar = "sip:registrar.example.com:5061;transport=tls" }
             .validate()
     }
 
     @Test
     fun onlyOneTurnServerIsAccepted() {
-        val turn = BaresipTurnServer("turn:turn.example.com:3478", "user", "secret")
+        val turn =
+            BaresipTurnServer("turn:turn.example.com:3478") {
+                username = "user"
+                password = "secret"
+            }
         val account =
-            BaresipAccountConfiguration(
-                aor = "sip:alice@example.com",
-                nat = BaresipNatConfiguration(mode = BaresipNatTraversal.ICE, turnServers = listOf(turn)),
-            )
+            BaresipAccountConfiguration(aor = "sip:alice@example.com") {
+                nat {
+                    mode = BaresipNatTraversal.ICE
+                    turnServers = listOf(turn)
+                }
+            }
         account.validate()
-        rejects(account.copy(nat = account.nat.copy(turnServers = listOf(turn, turn))))
+        rejects(account.copy { nat { turnServers = listOf(turn, turn) } })
     }
 
     @Test

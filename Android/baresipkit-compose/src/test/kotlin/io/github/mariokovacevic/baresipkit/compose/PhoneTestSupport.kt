@@ -1,7 +1,6 @@
 package io.github.mariokovacevic.baresipkit.compose
 
 import io.github.mariokovacevic.baresipkit.BaresipAccountID
-import io.github.mariokovacevic.baresipkit.BaresipAudioConfiguration
 import io.github.mariokovacevic.baresipkit.BaresipCallController
 import io.github.mariokovacevic.baresipkit.BaresipCallID
 import io.github.mariokovacevic.baresipkit.BaresipCallInfo
@@ -21,11 +20,15 @@ fun requireHostCore() = assumeTrue(System.getProperty("baresipkit.hostCore") == 
 
 fun testEngine(): BaresipEngine =
     BaresipEngine(
-        BaresipConfiguration(
-            modules = listOf("g711"),
-            audio = BaresipAudioConfiguration(sourceModule = "ausine", playerModule = "aufile", playerDevice = "/dev/null"),
-            extraConfiguration = "sip_listen\t\t0.0.0.0:0",
-        ),
+        BaresipConfiguration {
+            modules = listOf("g711")
+            audio {
+                sourceModule = "ausine"
+                playerModule = "aufile"
+                playerDevice = "/dev/null"
+            }
+            extraConfiguration = "sip_listen\t\t0.0.0.0:0"
+        },
     )
 
 fun CoroutineScope.phone(controller: BaresipCallController? = null) = BaresipPhone(testEngine(), controller, this)

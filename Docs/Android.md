@@ -59,10 +59,10 @@ dependencies {
 ## Quick start
 
 ```kotlin
-val engine = BaresipEngine(BaresipConfiguration(userAgent = "MyApp"))
+val engine = BaresipEngine(BaresipConfiguration { userAgent = "MyApp" })
 engine.setLogHandler(BaresipLogcat.handler())
 engine.start()
-val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com", authPassword = password))
+val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com") { authPassword = password })
 engine.register(account)
 engine.events.collect { event ->
     when (event) {

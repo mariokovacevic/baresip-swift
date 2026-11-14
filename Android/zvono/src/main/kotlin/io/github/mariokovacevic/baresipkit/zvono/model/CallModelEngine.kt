@@ -3,20 +3,17 @@ package io.github.mariokovacevic.baresipkit.zvono.model
 import androidx.compose.runtime.snapshotFlow
 import io.github.mariokovacevic.baresipkit.BaresipAccountConfiguration
 import io.github.mariokovacevic.baresipkit.BaresipAppLifecycle
-import io.github.mariokovacevic.baresipkit.BaresipAudioConfiguration
 import io.github.mariokovacevic.baresipkit.BaresipCertificates
 import io.github.mariokovacevic.baresipkit.BaresipConfiguration
 import io.github.mariokovacevic.baresipkit.BaresipEngine
 import io.github.mariokovacevic.baresipkit.BaresipHandleStyle
 import io.github.mariokovacevic.baresipkit.BaresipLogLevel
 import io.github.mariokovacevic.baresipkit.BaresipLogcat
-import io.github.mariokovacevic.baresipkit.BaresipNatConfiguration
 import io.github.mariokovacevic.baresipkit.BaresipNatTraversal
 import io.github.mariokovacevic.baresipkit.BaresipNetworkMonitor
 import io.github.mariokovacevic.baresipkit.BaresipRegistrationState
 import io.github.mariokovacevic.baresipkit.BaresipTlsConfiguration
 import io.github.mariokovacevic.baresipkit.BaresipTurnServer
-import io.github.mariokovacevic.baresipkit.BaresipVideoConfiguration
 import io.github.mariokovacevic.baresipkit.audio.BaresipAudioController
 import io.github.mariokovacevic.baresipkit.compose.BaresipPhone
 import io.github.mariokovacevic.baresipkit.push.BaresipPushAdapter
@@ -35,27 +32,26 @@ suspend fun CallModel.startEngine() {
     try {
         val tls = savedTls()
         val options = settings.engine
-        val defaults = BaresipVideoConfiguration()
-        val video =
-            defaults.copy(
-                width = if (options.videoHeight > 0) EngineOptions.width(options.videoHeight) else defaults.width,
-                height = if (options.videoHeight > 0) options.videoHeight else defaults.height,
-                framesPerSecond = if (options.videoFramesPerSecond > 0) options.videoFramesPerSecond else defaults.framesPerSecond,
-                bitrate = if (options.videoBitrateKbps > 0) options.videoBitrateKbps * 1000 else defaults.bitrate,
-            )
         val configuration =
-            BaresipConfiguration(
-                userAgent = "Zvono/1.0",
-                instanceUuid = store.instanceUuid,
-                logLevel = BaresipLogLevel.INFO,
-                logSipTrace = logsSipMessages,
-                audio = BaresipAudioConfiguration(holdMusicFile = holdMusicFile()),
-                video = video,
-                tls = tlsConfiguration(tls),
-                ipv6 = options.ipv6,
-                iceRelayOnly = options.iceRelayOnly,
-                videoAdaptiveBitrate = options.adaptiveBitrate,
-            )
+            BaresipConfiguration {
+                userAgent = "Zvono/1.0"
+                instanceUuid = store.instanceUuid
+                logLevel = BaresipLogLevel.INFO
+                logSipTrace = logsSipMessages
+                audio { holdMusicFile = holdMusicFile() }
+                video {
+                    if (options.videoHeight > 0) {
+                        width = EngineOptions.width(options.videoHeight)
+                        height = options.videoHeight
+                    }
+                    if (options.videoFramesPerSecond > 0) framesPerSecond = options.videoFramesPerSecond
+                    if (options.videoBitrateKbps > 0) bitrate = options.videoBitrateKbps * 1000
+                }
+                this.tls = tlsConfiguration(tls)
+                ipv6 = options.ipv6
+                iceRelayOnly = options.iceRelayOnly
+                videoAdaptiveBitrate = options.adaptiveBitrate
+            }
         val engine = BaresipEngine(profile.configure(configuration))
         engine.setLogHandler(fileLog.handler(BaresipLogcat.handler("Zvono")))
         this.engine = engine
@@ -73,10 +69,10 @@ suspend fun CallModel.startEngine() {
                         context,
                         engine,
                         profile.configure(
-                            BaresipTelecomConfiguration(
-                                callUuidHeader = CallModel.CALL_UUID_HEADER,
-                                handleStyle = BaresipHandleStyle.PHONE_NUMBER_WHEN_NUMERIC,
-                            ),
+                            BaresipTelecomConfiguration {
+                                callUuidHeader = CallModel.CALL_UUID_HEADER
+                                handleStyle = BaresipHandleStyle.PHONE_NUMBER_WHEN_NUMERIC
+                            },
                         ),
                     ) { call -> scope.launch { telecomRinging(call) } }
                 }.onFailure { append("Telecom unavailable, calls go to the engine directly: $it") }.getOrNull()
@@ -258,7 +254,11 @@ suspend fun CallModel.unregister() {
 fun CallModel.savedTls(): TlsSnapshot = TlsSnapshot(caCertificates?.toList(), clientIdentity?.toList(), settings.pinList)
 
 fun tlsConfiguration(tls: TlsSnapshot): BaresipTlsConfiguration =
-    BaresipTlsConfiguration(tls.ca?.toByteArray(), tls.client?.toByteArray(), tls.pins)
+    BaresipTlsConfiguration {
+        caCertificatesPem = tls.ca?.toByteArray()
+        clientCertificatePem = tls.client?.toByteArray()
+        pinnedSpkiSha256 = tls.pins
+    }
 
 fun accountConfiguration(
     settings: SipSettings,
@@ -266,46 +266,40 @@ fun accountConfiguration(
     turnPassword: String,
 ): BaresipAccountConfiguration {
     val turnUser = settings.turnUser.trim()
-    val nat =
-        BaresipNatConfiguration(
-            mode = settings.natMode,
-            stunUri = settings.stunUri.trim().takeIf { settings.natMode != BaresipNatTraversal.NONE && it.isNotEmpty() },
-            turnServers =
-                if (settings.natMode == BaresipNatTraversal.ICE && settings.turnUri.isNotBlank()) {
+    return BaresipAccountConfiguration(aor = settings.aor) {
+        displayName = settings.displayName.trim().ifEmpty { null }
+        registrar = settings.registrar
+        outboundProxy = settings.proxy
+        transport = settings.transport
+        authUser = settings.authUser.trim().ifEmpty { settings.username.trim() }
+        authPassword = password
+        registerExpires = settings.registerExpiresSeconds.coerceAtLeast(60).seconds
+        sipOutbound = settings.sipOutbound
+        mediaEncryption = settings.mediaEncryption
+        nat {
+            mode = settings.natMode
+            stunUri = settings.stunUri.trim().takeIf { settings.natMode != BaresipNatTraversal.NONE && it.isNotEmpty() }
+            if (settings.natMode == BaresipNatTraversal.ICE && settings.turnUri.isNotBlank()) {
+                turnServers =
                     listOf(
-                        BaresipTurnServer(
-                            settings.turnUri.trim(),
-                            turnUser.ifEmpty { null },
-                            turnPassword.ifEmpty { null },
-                        ),
+                        BaresipTurnServer(settings.turnUri.trim()) {
+                            username = turnUser.ifEmpty { null }
+                            this.password = turnPassword.ifEmpty { null }
+                        },
                     )
-                } else {
-                    emptyList()
-                },
-            rtpTimeout = settings.rtpTimeoutSeconds.coerceAtLeast(0).seconds,
-            rtcpMultiplexing = settings.rtcpMux,
-            pinhole = settings.pinhole,
-        )
-    return BaresipAccountConfiguration(
-        aor = settings.aor,
-        displayName = settings.displayName.trim().ifEmpty { null },
-        registrar = settings.registrar,
-        outboundProxy = settings.proxy,
-        transport = settings.transport,
-        authUser = settings.authUser.trim().ifEmpty { settings.username.trim() },
-        authPassword = password,
-        registerExpires = settings.registerExpiresSeconds.coerceAtLeast(60).seconds,
-        sipOutbound = settings.sipOutbound,
-        mediaEncryption = settings.mediaEncryption,
-        nat = nat,
-        dtmfMode = settings.dtmfMode,
-        audioCodecs = SipSettings.codecList(settings.audioCodecs),
-        videoCodecs = SipSettings.codecList(settings.videoCodecs),
-        answerEarlyMedia = settings.previewAudio,
-        acceptTransfers = settings.acceptTransfers,
-        pictureUpdateOverSipInfo = settings.pictureUpdateOverInfo,
-        incomingHeaders = listOf(CallModel.CALL_UUID_HEADER),
-    )
+            }
+            rtpTimeout = settings.rtpTimeoutSeconds.coerceAtLeast(0).seconds
+            rtcpMultiplexing = settings.rtcpMux
+            pinhole = settings.pinhole
+        }
+        dtmfMode = settings.dtmfMode
+        audioCodecs = SipSettings.codecList(settings.audioCodecs)
+        videoCodecs = SipSettings.codecList(settings.videoCodecs)
+        answerEarlyMedia = settings.previewAudio
+        acceptTransfers = settings.acceptTransfers
+        pictureUpdateOverSipInfo = settings.pictureUpdateOverInfo
+        incomingHeaders = listOf(CallModel.CALL_UUID_HEADER)
+    }
 }
 
 fun CallModel.setCa(pem: String) {

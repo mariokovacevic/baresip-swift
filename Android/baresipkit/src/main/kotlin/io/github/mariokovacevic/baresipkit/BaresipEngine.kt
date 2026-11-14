@@ -34,7 +34,7 @@ import kotlin.time.Duration.Companion.seconds
  * ```kotlin
  * val engine = BaresipEngine(BaresipConfiguration())
  * engine.start()
- * val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com", authPassword = password))
+ * val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com") { authPassword = password })
  * engine.register(account)
  * val call = engine.makeCall(destination = "sip:bob@example.com")
  * ```

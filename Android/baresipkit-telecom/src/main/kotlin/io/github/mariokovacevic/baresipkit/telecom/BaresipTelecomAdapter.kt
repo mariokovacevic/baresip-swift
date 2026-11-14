@@ -36,37 +36,7 @@ import java.util.UUID
 import java.util.concurrent.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-
-/** Settings for [BaresipTelecomAdapter]. */
-data class BaresipTelecomConfiguration(
-    /** Whether calls may have video. */
-    val supportsVideo: Boolean = true,
-    /** How long a call reported from a push waits for its INVITE before it is ended. */
-    val pushInviteTimeout: Duration = 30.seconds,
-    /** Whether answering a video call sends your camera. The caller's video is received either way. */
-    val sendsCameraOnAnswer: Boolean = true,
-    /**
-     * Whether a call reported from a push that names no caller is bound to the next INVITE,
-     * whoever sends it. Use `false` when every push carries the caller's SIP URI.
-     */
-    val matchesPushWithoutCaller: Boolean = true,
-    /**
-     * The name of an INVITE header that carries the UUID of the call, the one the server also puts
-     * in the push. A call reported from a push with a UUID is then bound to the INVITE with the
-     * same UUID and to no other.
-     */
-    val callUuidHeader: String? = null,
-    /** How callers are identified to the system. */
-    val handleStyle: BaresipHandleStyle = BaresipHandleStyle.SIP_URI,
-    /**
-     * How long an action waits for Telecom before it fails with
-     * [BaresipTelecomException.Reason.ACTION_TIMED_OUT]. A call whose start times out is given up:
-     * if Telecom adds it later, it is disconnected at once.
-     */
-    val actionTimeout: Duration = 10.seconds,
-)
 
 /**
  * A call the adapter added to Telecom, passed to the app to show its incoming call screen or

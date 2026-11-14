@@ -8,14 +8,13 @@ object HostCore {
     }
 
     fun configuration(): BaresipConfiguration =
-        BaresipConfiguration(
-            modules = listOf("g711", "l16", "auconv", "auresamp", "ausine", "aufile", "fakevideo"),
-            audio =
-                BaresipAudioConfiguration(
-                    sourceModule = "ausine",
-                    playerModule = "aufile",
-                    playerDevice = "/dev/null",
-                ),
-            extraConfiguration = "sip_listen\t\t0.0.0.0:0",
-        )
+        BaresipConfiguration {
+            modules = listOf("g711", "l16", "auconv", "auresamp", "ausine", "aufile", "fakevideo")
+            audio {
+                sourceModule = "ausine"
+                playerModule = "aufile"
+                playerDevice = "/dev/null"
+            }
+            extraConfiguration = "sip_listen\t\t0.0.0.0:0"
+        }
 }

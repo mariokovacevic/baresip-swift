@@ -11,7 +11,7 @@ import org.junit.Test
 class AppProfileTest {
     @Test
     fun defaultProfileChangesNothing() {
-        val configuration = BaresipConfiguration(userAgent = "Zvono/1.0")
+        val configuration = BaresipConfiguration { userAgent = "Zvono/1.0" }
         assertSame(configuration, DefaultAppProfile.configure(configuration))
         assertNull(DefaultAppProfile.accountSection())
     }
