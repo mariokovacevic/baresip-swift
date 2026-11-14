@@ -40,7 +40,6 @@ bsk_status bsk_engine_prepare_for_push_wakeup(bsk_engine *engine,
 	    engine->state == BSK_ENGINE_FAILED)
 		return bsk_engine_start(engine, err);
 
-	engine->suspended = false;
 	ret = bsk_run(engine, reregister_all_op, NULL);
 	if (ret)
 		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
@@ -58,7 +57,6 @@ bsk_status bsk_engine_suspend(bsk_engine *engine, bsk_error *err)
 		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
 				     NULL, NULL);
 
-	engine->suspended = true;
 	return BSK_OK;
 }
 
@@ -129,7 +127,6 @@ bsk_status bsk_engine_resume(bsk_engine *engine, bsk_error *err)
 		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
 				     NULL, NULL);
 
-	engine->suspended = false;
 	ret = bsk_run(engine, network_op, &na);
 	if (ret)
 		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,

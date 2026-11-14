@@ -185,7 +185,6 @@ struct bsk_engine {
 	int16_t *hold_pcm;
 	size_t hold_samples;
 	uint32_t hold_srate;
-	bool suspended;
 	bool stop_requested;
 	uint64_t t0_ms;
 	mtx_t video_mtx;

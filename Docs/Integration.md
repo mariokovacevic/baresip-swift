@@ -31,7 +31,7 @@ try await engine.start()
 
 States: `idle → starting → ready → running → stopping → stopped`, or `failed`. `stop()` ends every call, unregisters, waits for the SIP stack to drain (bounded by `timeout`) and joins the engine thread. Its accounts are gone afterwards: `start()` after `stop()` gives an engine without accounts, so add them again. Several engines may exist, but only one may run per process (baresip keeps global state); starting a second one fails with `.busy`.
 
-Background and push: call `prepareForPushWakeUp()` when a VoIP push arrives. If the engine is stopped it starts, without accounts; if it is running, every account that is registered or registering sends a REGISTER right away. An account you unregistered stays unregistered. `suspend()` marks the engine suspended; `resumeFromBackground()` resets the SIP transports and re-registers. Call `networkDidChange()` from `NWPathMonitor`: the engine reads the local addresses again, resets the transports, re-registers and updates calls with a re-INVITE. This also brings up an engine that was started without a network.
+Background and push: call `prepareForPushWakeUp()` when a VoIP push arrives. If the engine is stopped it starts, without accounts; if it is running, every account that is registered or registering sends a REGISTER right away. An account you unregistered stays unregistered. `suspend()` has no effect in this release: transports, registrations and calls stay as they are. `resumeFromBackground()` resets the SIP transports and re-registers, whether or not `suspend()` was called. Call `networkDidChange()` from `NWPathMonitor`: the engine reads the local addresses again, resets the transports, re-registers and updates calls with a re-INVITE. This also brings up an engine that was started without a network.
 
 ## Accounts and registration
 
@@ -154,7 +154,7 @@ The adapter only transports token information into SIP; it never sends pushes. i
 
 Token, `app-id` and account changes are sent to the engine one after the other, and an update overtaken by a newer one is skipped, so the registrar ends up with the latest state. The adapter owns the bound account's Contact parameters: each update replaces all of them, including `BaresipAccountConfiguration.contactParameters`, so pass any other parameters the account needs as `additionalContactParameters` (or later with `updateAdditionalContactParameters(_:)`) and they are sent together with the push ones. Errors of this background work reach `setErrorHandler(_:)` with the step that failed: `contactParameters`, `incomingPush` (the handler threw and a placeholder was reported) or `engineWakeUp`.
 
-After the handler returned, the adapter calls `prepareForPushWakeUp()`. A running engine clears its suspended mark and sends a REGISTER for every account that registers. An idle, stopped or failed engine is started and has no accounts, because stopping removes them, so add the account and register again as after a normal start; the pushed call waits `pushInviteTimeout` for its INVITE.
+After the handler returned, the adapter calls `prepareForPushWakeUp()`. A running engine sends a REGISTER for every account that registers. An idle, stopped or failed engine is started and has no accounts, because stopping removes them, so add the account and register again as after a normal start; the pushed call waits `pushInviteTimeout` for its INVITE.
 
 ## Video
 

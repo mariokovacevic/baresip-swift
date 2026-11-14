@@ -30,6 +30,8 @@ The C ABI is not covered by Semantic Versioning: the Swift and Kotlin SDKs bundl
 |---|---|
 | `bsk_engine_create/start` (event handler via `bsk_engine_set_event_handler`, modules via `bsk_engine_config.modules`) | `libre_init`, `conf_configure_buf`, `baresip_init`, `ua_init`, static `module_load`, `bevent_register`, `re_main` on the engine thread |
 | `bsk_engine_stop` | hang up every call, `ua_stop_all(false)` → `BEVENT_SHUTDOWN`, then `ua_close`, `baresip_close`, `mod_close`, `libre_close` |
+| `bsk_engine_suspend` | nothing: it returns `BSK_OK` and leaves transports, registrations and calls as they are |
+| `bsk_engine_resume` | the same as `bsk_engine_network_changed(engine, true, true)` |
 | `bsk_engine_network_changed` | reload the local addresses (`net_flush_addresses`, `net_if_apply`), `net_dns_refresh`, `uag_reset_transp(reregister, update_calls)`; the TLS settings are applied to a TLS context that did not exist at start |
 | incoming INVITE | `call_accept no`, so `BEVENT_SIPSESS_CONN` reaches the facade, which reads `Replaces` and calls `ua_accept()` |
 | `bsk_engine_audio_session_*` | start/stop `ausrc`/`auplay` of the active call via `audio_set_source/player`; `audiosess_interrupt()` |
@@ -54,7 +56,7 @@ The C ABI is not covered by Semantic Versioning: the Swift and Kotlin SDKs bundl
 - A call ends as `FAILED` only when an outgoing call was not answered and this side did not end it; a cancelled outgoing call and a rejected incoming call end as `ENDED`.
 - A `BSK_EVENT_CALL_STATE` that returns from `PAUSING`, `RESUMING` or `UPDATING` to the previous state carries an error when the other side rejected the change.
 - After `bsk_account_unregister` the account reports `UNREGISTERING` and then `NONE`, and stays unregistered across network changes until `bsk_account_register` is called again.
-- Events are never dropped; if the handler is slow the engine thread is slowed. `BSK_EVENT_DIAGNOSTIC` is reserved and not emitted yet.
+- Events are never dropped; if the handler is slow the engine thread is slowed. `BSK_EVENT_DIAGNOSTIC` and its `u.diagnostic` payload are reserved: this revision never emits them, and warnings reach the log handler instead.
 
 ## Transports
 

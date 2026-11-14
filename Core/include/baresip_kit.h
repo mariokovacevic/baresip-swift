@@ -357,6 +357,7 @@ typedef enum bsk_event_type {
 	BSK_EVENT_ICE = 8,
 	BSK_EVENT_NETWORK = 9,
 	BSK_EVENT_AUDIO = 10,
+	/* Reserved for diagnostics; this revision never emits it. */
 	BSK_EVENT_DIAGNOSTIC = 11,
 	BSK_EVENT_MESSAGE = 12,
 	BSK_EVENT_MESSAGE_STATUS = 13
@@ -512,6 +513,9 @@ BSK_EXPORT bsk_engine_state bsk_engine_get_state(const bsk_engine *engine);
 BSK_EXPORT bool bsk_engine_is_engine_thread(const bsk_engine *engine);
 BSK_EXPORT bsk_status bsk_engine_prepare_for_push_wakeup(bsk_engine *engine,
 							 bsk_error *err);
+/* Has no effect in this revision and returns BSK_OK: transports,
+ * registrations and calls stay as they are. bsk_engine_resume resets the
+ * transports and re-registers whether or not suspend was called. */
 BSK_EXPORT bsk_status bsk_engine_suspend(bsk_engine *engine, bsk_error *err);
 BSK_EXPORT bsk_status bsk_engine_resume(bsk_engine *engine, bsk_error *err);
 BSK_EXPORT bsk_status bsk_engine_network_changed(bsk_engine *engine,
