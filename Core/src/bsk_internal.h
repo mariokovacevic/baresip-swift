@@ -1,6 +1,7 @@
 #ifndef BSK_INTERNAL_H
 #define BSK_INTERNAL_H
 
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <re.h>
 #define DEBUG_MODULE "bsk"
@@ -104,6 +105,9 @@ struct bsk_engine {
 	void *user;
 	bsk_log_handler logh;
 	void *log_user;
+	mtx_t log_mtx;
+	cnd_t log_cnd;
+	unsigned log_inflight;
 
 	char *user_agent;
 	char *instance_uuid;
@@ -155,7 +159,7 @@ struct bsk_engine {
 	int start_err;
 	bool start_done;
 	bool stop_done;
-	volatile int state;
+	_Atomic int state;
 	struct mqueue *mq;
 	bool mq_open;
 	struct list pending_ops;
@@ -226,6 +230,9 @@ void bsk_log_init(bsk_engine *engine);
 void bsk_log_close(bsk_engine *engine);
 void bsk_log_emit(bsk_engine *engine, bsk_log_level level,
 		  bsk_log_domain domain, const char *line, size_t len);
+void bsk_log_set_handler(bsk_engine *engine, bsk_log_handler handler,
+			 void *user);
+bool bsk_log_has_handler(bsk_engine *engine);
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
 void bsk_sip_trace_handler(bool tx, enum sip_transp tp, const struct sa *src,
 			   const struct sa *dst, const uint8_t *pkt, size_t len,

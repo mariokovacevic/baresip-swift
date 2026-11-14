@@ -9,6 +9,8 @@
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
 bsk_status bsk_status_from_errno(int err);
+void bsk_log_emit(bsk_engine *engine, bsk_log_level level,
+		  bsk_log_domain domain, const char *line, size_t len);
 
 
 static void test_contact_params(void)
@@ -913,6 +915,162 @@ static void test_concurrent_stop(void)
 }
 
 
+static int destroy_result = -1;
+static int stopped_call_result = -1;
+
+
+static void destroy_handler(bsk_engine *e, const bsk_event *ev, void *user)
+{
+	bsk_error err;
+	(void)user;
+
+	if (ev->type != BSK_EVENT_ENGINE_STATE)
+		return;
+
+	if (ev->u.engine.state == BSK_ENGINE_RUNNING)
+		__atomic_store_n(&destroy_result, (int)bsk_engine_destroy(e),
+				 __ATOMIC_SEQ_CST);
+	if (ev->u.engine.state == BSK_ENGINE_STOPPED)
+		__atomic_store_n(
+			&stopped_call_result,
+			(int)bsk_engine_network_changed(e, true, true, &err),
+			__ATOMIC_SEQ_CST);
+}
+
+
+static void test_engine_thread_guards(void)
+{
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+	int i;
+
+	base_config(&cfg);
+	CHECK_OK(bsk_engine_create(&cfg, destroy_handler, NULL, &e, &err),
+		 &err);
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+	for (i = 0;
+	     i < 200 && __atomic_load_n(&destroy_result, __ATOMIC_SEQ_CST) < 0;
+	     i++)
+		usleep(10000);
+	CHECK(__atomic_load_n(&destroy_result, __ATOMIC_SEQ_CST) ==
+	      BSK_ERR_INVALID_STATE);
+	CHECK(bsk_engine_get_state(e) == BSK_ENGINE_RUNNING);
+	CHECK(bsk_call_list(e, NULL, 0) == 0);
+
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	CHECK(__atomic_load_n(&stopped_call_result, __ATOMIC_SEQ_CST) ==
+	      BSK_ERR_INVALID_STATE);
+	CHECK(BSK_ERR_INVALID_STATE ==
+	      bsk_engine_network_changed(e, true, true, &err));
+	CHECK(BSK_OK == bsk_engine_destroy(e));
+	CHECK(BSK_OK == bsk_engine_destroy(NULL));
+}
+
+
+struct log_probe {
+	bsk_engine *engine;
+	int calls_ok;
+	int audio_events;
+	int done;
+	int slow;
+	int in_callback;
+	int finished;
+};
+
+static struct log_probe probe;
+
+
+static void probe_event(bsk_engine *e, const bsk_event *ev, void *user)
+{
+	(void)e;
+	(void)user;
+
+	if (ev->type == BSK_EVENT_AUDIO)
+		__atomic_add_fetch(&probe.audio_events, 1, __ATOMIC_SEQ_CST);
+}
+
+
+static void probe_log(bsk_log_level level, bsk_log_domain domain,
+		      const char *line, size_t len, void *user)
+{
+	bsk_error err;
+	(void)level;
+	(void)domain;
+	(void)len;
+	(void)user;
+
+	if (!strstr(line, "probe:"))
+		return;
+
+	if (strstr(line, "probe: call") &&
+	    BSK_OK == bsk_engine_audio_session_activated(probe.engine, &err) &&
+	    BSK_OK == bsk_engine_audio_session_deactivated(probe.engine, &err))
+		__atomic_add_fetch(&probe.calls_ok, 1, __ATOMIC_SEQ_CST);
+
+	if (strstr(line, "probe: slow")) {
+		__atomic_store_n(&probe.in_callback, 1, __ATOMIC_SEQ_CST);
+		usleep(200000);
+		__atomic_store_n(&probe.finished, 1, __ATOMIC_SEQ_CST);
+	}
+}
+
+
+static void *log_from_thread(void *arg)
+{
+	static const char call[] = "probe: call";
+	static const char slow[] = "probe: slow";
+
+	if (arg) {
+		bsk_log_emit(probe.engine, BSK_LOG_WARNING,
+			     BSK_LOG_DOMAIN_MEDIA, slow, sizeof(slow) - 1);
+		return NULL;
+	}
+
+	bsk_log_emit(probe.engine, BSK_LOG_WARNING, BSK_LOG_DOMAIN_MEDIA, call,
+		     sizeof(call) - 1);
+	__atomic_store_n(&probe.done, 1, __ATOMIC_SEQ_CST);
+	return NULL;
+}
+
+
+static void test_log_callback_calls_engine(void)
+{
+	bsk_engine_config cfg;
+	bsk_error err;
+	pthread_t t;
+	int i;
+
+	memset(&probe, 0, sizeof(probe));
+	base_config(&cfg);
+	cfg.log_level = BSK_LOG_WARNING;
+	CHECK_OK(
+		bsk_engine_create(&cfg, probe_event, NULL, &probe.engine, &err),
+		&err);
+	bsk_engine_set_log_handler(probe.engine, probe_log, NULL);
+	CHECK_OK(bsk_engine_start(probe.engine, &err), &err);
+
+	CHECK(0 == pthread_create(&t, NULL, log_from_thread, NULL));
+	for (i = 0; i < 500 && !__atomic_load_n(&probe.done, __ATOMIC_SEQ_CST);
+	     i++)
+		usleep(10000);
+	CHECK(__atomic_load_n(&probe.done, __ATOMIC_SEQ_CST));
+	CHECK(0 == pthread_join(t, NULL));
+	CHECK(__atomic_load_n(&probe.calls_ok, __ATOMIC_SEQ_CST) == 1);
+	CHECK(__atomic_load_n(&probe.audio_events, __ATOMIC_SEQ_CST) == 2);
+
+	CHECK(0 == pthread_create(&t, NULL, log_from_thread, &probe));
+	while (!__atomic_load_n(&probe.in_callback, __ATOMIC_SEQ_CST))
+		usleep(1000);
+	bsk_engine_set_log_handler(probe.engine, NULL, NULL);
+	CHECK(__atomic_load_n(&probe.finished, __ATOMIC_SEQ_CST));
+	CHECK(0 == pthread_join(t, NULL));
+
+	CHECK_OK(bsk_engine_stop(probe.engine, 2000, &err), &err);
+	CHECK(BSK_OK == bsk_engine_destroy(probe.engine));
+}
+
+
 static int h264_put(struct bsk_h264_depack *d, const uint8_t *payload,
 		    size_t len, uint16_t seq, bool marker, bool *complete)
 {
@@ -1144,6 +1302,8 @@ int main(void)
 	test_sdes_warning();
 	test_single_running_engine();
 	test_concurrent_stop();
+	test_engine_thread_guards();
+	test_log_callback_calls_engine();
 	test_status_strings();
 	test_engine_lifecycle_without_network();
 	test_config_size_compat();

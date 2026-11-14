@@ -302,6 +302,10 @@ JNIEXPORT void JNICALL JNI_FN(engineDestroy)(JNIEnv *env, jclass cls,
 		(struct bsk_jni_engine *)(intptr_t)handle;
 	if (!wrapper)
 		return;
+	if (bsk_engine_is_engine_thread(wrapper->engine)) {
+		bsk_jni_throw(env, BSK_ERR_INVALID_STATE, NULL);
+		return;
+	}
 	bsk_jni_remove_callbacks(wrapper);
 	bsk_engine_destroy(wrapper->engine);
 	(*env)->DeleteGlobalRef(env, wrapper->owner);

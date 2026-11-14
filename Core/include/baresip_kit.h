@@ -500,7 +500,10 @@ BSK_EXPORT bsk_status bsk_engine_create(const bsk_engine_config *config,
 					bsk_event_handler handler, void *user,
 					bsk_engine **out_engine,
 					bsk_error *err);
-BSK_EXPORT void bsk_engine_destroy(bsk_engine *engine);
+/* Stops the engine if needed and frees it. On the engine thread (from an
+ * event, log or remote video frame callback) it does nothing and returns
+ * BSK_ERR_INVALID_STATE. See Docs/C-ABI.md for the threading rules. */
+BSK_EXPORT bsk_status bsk_engine_destroy(bsk_engine *engine);
 BSK_EXPORT void bsk_engine_set_log_handler(bsk_engine *engine,
 					   bsk_log_handler handler, void *user);
 BSK_EXPORT void bsk_engine_set_event_handler(bsk_engine *engine,

@@ -169,7 +169,8 @@ static int audio_op(bsk_engine *e, void *arg)
 	struct audio_arg *aa = arg;
 	bsk_event ev;
 
-	e->audio_active = aa->active;
+	if (!aa->route_change)
+		e->audio_active = aa->active;
 	bsk_calls_audio_changed(e);
 
 	bsk_event_init(&ev, BSK_EVENT_AUDIO);
@@ -219,8 +220,7 @@ bsk_status bsk_engine_audio_session_deactivated(bsk_engine *engine,
 
 bsk_status bsk_engine_audio_route_changed(bsk_engine *engine, bsk_error *err)
 {
-	struct audio_arg aa = { engine ? engine->audio_active : false, true,
-				false };
+	struct audio_arg aa = { false, true, false };
 	return run_audio(engine, &aa, err);
 }
 
