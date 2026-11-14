@@ -11,7 +11,9 @@
 #include "baresip_kit.h"
 #include "bsk_rate.h"
 
-#define BSK_VERSION_STRING "beta"
+#ifndef BSK_VERSION_STRING
+#define BSK_VERSION_STRING "0.0.0-dev"
+#endif
 #ifdef __ANDROID__
 #define BSK_DEFAULT_VIDEO_SOURCE "bskcamera"
 #else
