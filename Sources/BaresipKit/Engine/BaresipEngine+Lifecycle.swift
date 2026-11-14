@@ -31,16 +31,22 @@ extension BaresipEngine {
         try await run { try $0.prepareForPushWakeUp() }
     }
 
-    /// Suspends the engine when the app moves to the background without an active call.
+    /// Tells the engine that the app moved to the background without an active call.
     ///
-    /// - Throws: ``BaresipError`` when the engine is not running.
+    /// The core keeps its transports and registrations as they are, so this has no effect on
+    /// the network today; ``resumeFromBackground()`` does the work when the app comes back.
+    ///
+    /// - Throws: ``BaresipError`` when the core reports an error.
     public func suspend() async throws {
         try await run { try $0.suspend() }
     }
 
-    /// Resumes an engine suspended with ``suspend()``.
+    /// Brings the engine back after the app returns to the foreground.
     ///
-    /// - Throws: ``BaresipError`` when the engine is not suspended.
+    /// The engine opens its SIP transports again on the current local addresses and registers
+    /// every account again, whether or not ``suspend()`` was called before.
+    ///
+    /// - Throws: ``BaresipError`` when the engine is not running.
     public func resumeFromBackground() async throws {
         try await run { try $0.resume() }
     }
