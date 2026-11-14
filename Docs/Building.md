@@ -21,7 +21,7 @@ Produces `Build/out/BaresipKitCore.xcframework` with separate iOS device arm64, 
 | `MODULE_SET` | `minimal`, `default`, `full` (adds VP8 via libvpx) | `default` |
 | `SLICES` | `ios-arm64`, `ios-arm64-simulator`, `ios-x86_64-simulator`, `macos-arm64` | iOS device, iOS simulator and macOS, all arm64 |
 | `PLATFORM` | `ios`, `host` | `ios` |
-| `SANITIZE` | `address,undefined` (host only) | unset |
+| `SANITIZE` | `address,undefined` or `thread` (host only) | unset |
 
 The script clones each pinned source (`Build/versions.env`), verifies the commit, applies `Patches/*.patch`, builds OpenSSL, Opus, libvpx (full), libre, baresip and the facade per slice, merges the archives with `libtool -static` and runs `xcodebuild -create-xcframework`. `OUT_DIR` must not contain symlinks (CMake path resolution). A checkout in `Build/.deps` that is not at the pinned commit is deleted and cloned again, and the libre and baresip checkouts are reset and cleaned (`git clean -fdx`) before the patches are applied, so do not keep work in them. OpenSSL is configured with `no-autoload-config` and with fixed directories (`/etc/ssl` for the configuration, `/usr/lib/ossl-modules` for engines and providers, neither of which is used), so the libraries never read a configuration file on their own and do not contain the build path.
 
@@ -52,6 +52,15 @@ HOSTIP=<interface address> PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
 ```
 
 `SANITIZE` builds libre, baresip, Opus and the facade of the host prefix with the given sanitizers (OpenSSL and libvpx are built without); CI does this on Linux, so the patched network code runs under ASan and UBSan in the core tests, the fuzzer and the integration suite. Delete `Build/out/host` when you change `SANITIZE`, because Opus is not rebuilt once it is in the prefix. `BUILD_ONLY=1` makes `run_tests.sh` stop after building the test binaries.
+
+ThreadSanitizer needs its own prefix, and `SANITIZE=thread` for the build and for the tests:
+
+```bash
+OUT_DIR=Build/out/tsan PLATFORM=host MODULE_SET=full SANITIZE=thread Build/build-xcframework.sh
+SANITIZE=thread BUILD_DIR=Build/out/tsan/core-tests HOSTIP=<interface address> PREFIX=Build/out/tsan/host/prefix Tests/Core/run_tests.sh
+```
+
+With `thread`, libre, baresip and the facade use libre's pthread wrappers instead of C11 threads, because ThreadSanitizer does not intercept glibc's `thrd_create` and crashes in the first thread it creates. CI runs this suite in its own job.
 
 `run_tests.sh` compiles the facade and the C tests with ASan/UBSan and runs: unit tests, registration against a Digest-challenging registrar (UDP and TLS with a private CA, pinning and a missing-CA case), registering again and updating the Contact parameters during an unanswered REGISTER against a registrar that answers late and checks that it still holds the binding, a wrong-password case, two-process audio calls (plain and with ICE), a camera preview with `fakevideo`, and a two-process VP8 video call. `HOSTIP` must be a non-loopback address because baresip excludes loopback interfaces.
 

@@ -102,6 +102,16 @@ static bool wait_until(struct waiter *w, int (*pred)(struct waiter *),
 	return true;
 }
 
+static int waiter_int(struct waiter *w, const int *field)
+{
+	int value;
+
+	pthread_mutex_lock(&w->mtx);
+	value = *field;
+	pthread_mutex_unlock(&w->mtx);
+	return value;
+}
+
 static void record_event(struct waiter *w, const bsk_event *ev)
 {
 	pthread_mutex_lock(&w->mtx);

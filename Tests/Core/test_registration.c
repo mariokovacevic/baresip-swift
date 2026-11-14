@@ -146,7 +146,7 @@ int main(int argc, char **argv)
 		CHECK_OK(bsk_engine_network_changed(e, true, true, &err), &err);
 		CHECK(wait_until(&w, registered, 5000));
 		usleep(1500 * 1000);
-		CHECK(w.reg_state == BSK_REG_REGISTERED);
+		CHECK(waiter_int(&w, &w.reg_state) == BSK_REG_REGISTERED);
 		CHECK_OK(bsk_account_unregister(e, acc, &err), &err);
 		CHECK(wait_until(&w, unregistered, 3000));
 		usleep(600 * 1000);
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 			 &err);
 		CHECK_OK(bsk_account_register(e, acc, &err), &err);
 		usleep(2500 * 1000);
-		CHECK(w.reg_state == BSK_REG_REGISTERED);
+		CHECK(waiter_int(&w, &w.reg_state) == BSK_REG_REGISTERED);
 		CHECK_OK(bsk_account_unregister(e, acc, &err), &err);
 		CHECK(wait_until(&w, unregistered, 3000));
 		usleep(600 * 1000);
@@ -194,7 +194,7 @@ int main(int argc, char **argv)
 		CHECK(wait_until(&w, registered_twice, 10000));
 		CHECK_OK(bsk_account_unregister(e, acc, &err), &err);
 		CHECK(wait_until(&w, unregistered, 2000));
-		count = w.reg_count;
+		count = waiter_int(&w, &w.reg_count);
 		CHECK_OK(bsk_engine_network_changed(e, true, true, &err), &err);
 		CHECK_OK(bsk_engine_resume(e, &err), &err);
 		CHECK_OK(bsk_engine_prepare_for_push_wakeup(e, &err), &err);
@@ -202,7 +202,8 @@ int main(int argc, char **argv)
 		CHECK(BSK_OK ==
 		      bsk_account_get_registration_state(e, acc, &state));
 		CHECK(state == BSK_REG_NONE);
-		CHECK(w.reg_state == BSK_REG_NONE && w.reg_count == count);
+		CHECK(waiter_int(&w, &w.reg_state) == BSK_REG_NONE &&
+		      waiter_int(&w, &w.reg_count) == count);
 		printf("registration tls: PASS (registered over TLS, again "
 		       "after a network change, stays unregistered)\n");
 		goto done;
