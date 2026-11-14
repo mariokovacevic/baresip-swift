@@ -62,6 +62,8 @@ jobs:
           key: linux-asan-ubsan-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
       - name: Build host prefix (full module set, libre and baresip under ASan/UBSan)
         run: PLATFORM=host MODULE_SET=full SANITIZE="$HOST_SANITIZE" JOBS=4 Build/build-xcframework.sh
+      - name: Check that LICENSES matches the pinned sources
+        run: Scripts/check-licenses.sh
       - name: Run core test suite under ASan/UBSan
         run: HOSTIP=$(hostname -I | awk '{print $1}') PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
       - name: Fuzz the facade parsers (libFuzzer, 300k runs)

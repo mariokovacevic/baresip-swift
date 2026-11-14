@@ -88,7 +88,7 @@ Test-harness note: the Mac used here has several interfaces, and baresip picked 
 
 - libre's default and only fully featured backend is OpenSSL (`re/cmake/re-config.cmake:19-23`; mbedTLS is an option but DTLS-SRTP, `tls_set_srtp`, fingerprints and SNI code paths are OpenSSL). Apple's Security framework is not a libre backend; without OpenSSL libre falls back to stubs with no TLS at all (`CMakeLists.txt:522-543`).
 - OpenSSL 3.5.9 is built from the pinned tag with: `no-shared no-dso no-engine no-module no-apps no-tests no-docs no-legacy no-comp no-ssl3 no-weak-ssl-ciphers no-ui-console no-async`. These options keep the provider model (needed by libre 4.x) but drop the legacy provider, compression and the apps.
-- License: Apache License 2.0 (OpenSSL 3.x). Obligations: ship the license text and the NOTICE, no advertising clause. Recorded in `THIRD_PARTY_NOTICES.md`.
+- License: Apache License 2.0 (OpenSSL 3.x). Obligations: ship the license text; OpenSSL 3 has no NOTICE file and no advertising clause. Recorded in `THIRD_PARTY_NOTICES.md`.
 - Export/App Store: the app that embeds the XCFramework must answer the encryption export question; standard TLS/SRTP qualifies for the exemption but the app owner files the declaration.
 - Binary size impact: OpenSSL is the largest component (see §5). A future size reduction is possible with additional `no-*` options (e.g. `no-ec2m no-sm2 no-sm3 no-sm4 no-md4 no-mdc2 no-rc2 no-rc4 no-rc5 no-whirlpool no-camellia no-cast no-idea no-seed no-bf no-dsa no-srp no-psk no-ocsp no-ts no-cms no-ct`) once the required cipher suites are confirmed.
 

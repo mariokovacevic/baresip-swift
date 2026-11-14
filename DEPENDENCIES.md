@@ -6,7 +6,7 @@ All third-party code is built from pinned source by `Build/build-xcframework.sh`
 |---|---|---|---|---|
 | libre | v4.13.0 | BSD-3-Clause | SIP, SDP, RTP/RTCP, ICE/STUN/TURN, SRTP, TLS wrapper, main loop; includes librem (audio/video helpers) | one patch in `Patches/` |
 | baresip | v4.13.0 | BSD-3-Clause | user agent, calls, media pipeline, modules | patches in `Patches/`, each with its rationale |
-| OpenSSL | 3.5.9 (LTS) | Apache-2.0 | TLS, DTLS-SRTP, crypto for SRTP and Digest | NOTICE must ship with the app |
+| OpenSSL | 3.5.9 (LTS) | Apache-2.0 | TLS, DTLS-SRTP, crypto for SRTP and Digest | ship its license text with the app; OpenSSL 3 has no NOTICE file |
 | Opus | 1.6.1 | BSD-3-Clause | audio codec | the Opus BSD license includes a patent grant from the contributors; no royalty |
 | libvpx | 1.15.2 (`d168454`) | BSD-3-Clause | VP8 codec, optional (`MODULE_SET=full`) | Google patent grant in `PATENTS`; also used by the host video tests |
 | G.711 | in baresip | BSD-3-Clause | audio codec | ITU-T G.711 patents expired |

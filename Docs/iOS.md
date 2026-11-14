@@ -532,7 +532,7 @@ Before shipping a VoIP app built on BaresipKit:
 | Push sender | A VoIP push certificate or token-based APNs key; the topic is `<bundle id>.voip` |
 | SIP server | Reads the push parameters from the `Contact` and sends a VoIP push for a call to a registered device |
 | CallKit | An icon template (`iconTemplateImageData`) and, optionally, a ringtone in the bundle |
-| Licenses | Ship the third-party notices, including OpenSSL's NOTICE (see [License](../README.md#license)) |
+| Licenses | Ship the third-party notices and license texts (see [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md)) |
 | Privacy | `BaresipKit` includes a privacy manifest; add your own app's entries |
 
 ## Sample app
