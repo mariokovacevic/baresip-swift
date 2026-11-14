@@ -48,7 +48,8 @@ public struct BaresipConfiguration: Sendable, Equatable {
     /// session is not renewed in time. Some providers and PBXs require session timers and end
     /// calls without them.
     public var sessionTimer: Duration?
-    /// The shortest session timer accepted, at most ``sessionTimer``.
+    /// The shortest session timer accepted, at most ``sessionTimer`` and at least 90 seconds, the
+    /// minimum of RFC 4028.
     public var minimumSessionTimer: Duration
 
     /// The modules loaded by default: G.711, Opus, L16, ICE, TURN, STUN, SRTP, DTLS-SRTP,

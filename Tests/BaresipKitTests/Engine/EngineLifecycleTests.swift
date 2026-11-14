@@ -69,6 +69,14 @@ final class EngineLifecycleTests: XCTestCase {
         }
 
         cfg.minimumSessionTimer = .seconds(60)
+        XCTAssertThrowsError(try BaresipEngine(configuration: cfg)) { error in
+            let error = error as? BaresipError
+            XCTAssertEqual(error?.code, .invalidArgument)
+            XCTAssertTrue(error?.message.contains("below the RFC 4028 minimum of 90 s") == true)
+        }
+
+        cfg.sessionTimer = .seconds(120)
+        cfg.minimumSessionTimer = .seconds(120)
         XCTAssertNoThrow(try BaresipEngine(configuration: cfg))
 
         cfg.sessionTimer = nil

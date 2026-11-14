@@ -96,7 +96,7 @@ public class BaresipConfiguration private constructor(
      */
     public val sessionTimer: Duration? = builder.sessionTimer
 
-    /** The shortest session timer accepted, at most [sessionTimer]. */
+    /** The shortest session timer accepted, at most [sessionTimer] and at least 90 seconds (RFC 4028). */
     public val minimumSessionTimer: Duration = builder.minimumSessionTimer
 
     /** Returns a copy of these settings with the changes made in [block]. */
@@ -205,7 +205,7 @@ public class BaresipConfiguration private constructor(
         /** The SIP session timer that calls offer and accept, or `null` for none; see [BaresipConfiguration.sessionTimer]. */
         public var sessionTimer: Duration? = 1800.seconds
 
-        /** The shortest session timer accepted, at most [sessionTimer]. */
+        /** The shortest session timer accepted, at most [sessionTimer] and at least 90 seconds (RFC 4028). */
         public var minimumSessionTimer: Duration = 90.seconds
 
         /** Starts from the settings of [configuration]. */

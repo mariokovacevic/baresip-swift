@@ -79,10 +79,18 @@ class EngineLifecycleTest {
         assertEquals(1800.seconds, base.sessionTimer)
         assertEquals(90.seconds, base.minimumSessionTimer)
         assertThrows(BaresipError::class.java) { BaresipEngine(base.copy { sessionTimer = 60.seconds }).close() }
+        assertThrows(BaresipError::class.java) {
+            BaresipEngine(
+                base.copy {
+                    sessionTimer = 60.seconds
+                    minimumSessionTimer = 60.seconds
+                },
+            ).close()
+        }
         BaresipEngine(
             base.copy {
-                sessionTimer = 60.seconds
-                minimumSessionTimer = 60.seconds
+                sessionTimer = 120.seconds
+                minimumSessionTimer = 120.seconds
             },
         ).close()
         BaresipEngine(base.copy { sessionTimer = null }).close()
