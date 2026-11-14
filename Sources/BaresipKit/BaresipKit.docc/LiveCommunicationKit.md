@@ -37,9 +37,12 @@ if #available(iOS 17.4, *) {
 
 iOS requires that a call is reported for every VoIP push. LiveCommunicationKit reports calls only
 with `async` methods, so create the push adapter with
-`BaresipPushKitAdapter.reportingAsynchronously(engine:appID:accountID:additionalContactParameters:onIncomingPush:)`:
-it completes the push only after the handler returned. A push is matched to its INVITE as with
-CallKit, by a UUID header or else by the caller; see <doc:CallKit>.
+`BaresipPushKitAdapter.reportingAsynchronously(engine:appID:accountID:additionalContactParameters:reportDeadline:onIncomingPush:)`:
+it completes the push only after the handler returned. A handler that has not returned after
+`reportDeadline` (5 seconds by default) is cancelled, and a placeholder call is reported and
+ended instead, because iOS ends an app that does not report a call for a VoIP push in time. A
+push is matched to its INVITE as with CallKit, by a UUID header or else by the caller; see
+<doc:CallKit>.
 
 ### Differences from CallKit
 

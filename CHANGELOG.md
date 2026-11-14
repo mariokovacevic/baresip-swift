@@ -286,6 +286,10 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 
 ### Fixed
 
+- PushKit: an asynchronous push handler (`reportingAsynchronously`) that never returned kept the
+  push open until iOS ended the app. It now has a deadline, `reportDeadline` (5 seconds by
+  default): the handler is cancelled, a placeholder call is reported and ended, and the error
+  handler gets `BaresipPushKitError.reportTimedOut`.
 - Android: a pushed call answered as audio-only from the system UI before its INVITE arrived no
   longer sends the camera.
 - Android: an exception while the Telecom adapter handles one event, for example a call Telecom
