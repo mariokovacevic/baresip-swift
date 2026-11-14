@@ -4,14 +4,4 @@ public struct BaresipNetworkEvent: Sendable, Equatable {
     public let transportsReset: Bool
     /// The local address in use after the change.
     public let localAddress: String
-
-    /// Creates a network event.
-    ///
-    /// - Parameters:
-    ///   - transportsReset: Whether transports were recreated.
-    ///   - localAddress: The local address.
-    init(transportsReset: Bool, localAddress: String) {
-        self.transportsReset = transportsReset
-        self.localAddress = localAddress
-    }
 }
