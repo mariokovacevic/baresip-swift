@@ -67,9 +67,9 @@ class OutgoingCallTest {
                 assertTrue(info.isOutgoing)
                 assertEquals("PCMU", info.audioCodec)
 
-                engine.setMicrophoneMuted(true, call)
+                engine.setMicrophoneMuted(call, true)
                 assertTrue(engine.callInfo(call).isMicrophoneMuted)
-                engine.setMicrophoneMuted(false, call)
+                engine.setMicrophoneMuted(call, false)
 
                 val held = async(Dispatchers.IO) { peer.receive(10) { it.isRequest && it.method == "INVITE" } }
                 engine.hold(call)
@@ -99,7 +99,7 @@ class OutgoingCallTest {
                 assertTrue(digit.await().body.contains("Signal=7"))
 
                 val bye = async(Dispatchers.IO) { peer.answerRequest("BYE") }
-                engine.hangup(call)
+                engine.hangUp(call)
                 bye.await()
                 recorder.awaitCall(call, BaresipCallState.RELEASED)
             }

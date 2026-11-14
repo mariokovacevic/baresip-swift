@@ -224,13 +224,13 @@ class BaresipTelecomAdapter(
         val telecom = telecomCall(call)
         if (telecom == null) {
             try {
-                engine.hangup(call)
+                engine.hangUp(call)
             } catch (error: BaresipError) {
                 if (error.code != BaresipError.Code.NOT_FOUND) throw error
             }
             return
         }
-        engine.hangup(call)
+        engine.hangUp(call)
         val control = TelecomActions.ready(telecom.ready, configuration.actionTimeout, "disconnect")
         TelecomActions.perform(configuration.actionTimeout, "disconnect") { control.disconnect(DisconnectCause(DisconnectCause.LOCAL)) }
     }
@@ -255,7 +255,7 @@ class BaresipTelecomAdapter(
         call: BaresipCallID,
     ) {
         if (!controls(call)) throw unknown(call)
-        engine.setMicrophoneMuted(muted, call)
+        engine.setMicrophoneMuted(call, muted)
         muteObservers.forEach { it(call, muted) }
     }
 
@@ -322,7 +322,7 @@ class BaresipTelecomAdapter(
                 ledger.decline(call.uuid, now() + configuration.pushInviteTimeout.inWholeMilliseconds)
                 call.engineCall.value
             }
-        engineCall?.let { runCatching { engine.hangup(it) } }
+        engineCall?.let { runCatching { engine.hangUp(it) } }
     }
 
     private fun systemMuted(
@@ -332,7 +332,7 @@ class BaresipTelecomAdapter(
         call.muted.value = muted
         val engineCall = call.engineCall.value ?: return
         scope.launch {
-            if (runCatching { engine.setMicrophoneMuted(muted, engineCall) }.isSuccess) {
+            if (runCatching { engine.setMicrophoneMuted(engineCall, muted) }.isSuccess) {
                 muteObservers.forEach { it(engineCall, muted) }
             }
         }
@@ -410,7 +410,7 @@ class BaresipTelecomAdapter(
         if (adoptReplacement(info)) return
         val headerUuid =
             configuration.callUuidHeader?.let { header ->
-                runCatching { engine.incomingHeader(header, info.id) }.getOrNull()?.trim()?.let {
+                runCatching { engine.incomingHeader(info.id, header) }.getOrNull()?.trim()?.let {
                     runCatching { UUID.fromString(it) }.getOrNull()
                 }
             }
@@ -453,7 +453,7 @@ class BaresipTelecomAdapter(
                     } catch (error: Throwable) {
                         if (error is CancellationException) currentCoroutineContext().ensureActive()
                         call?.let { attempt { control(it, "disconnect").disconnect(DisconnectCause(DisconnectCause.ERROR)) } }
-                        runCatching { engine.hangup(info.id) }
+                        runCatching { engine.hangUp(info.id) }
                     }
                 }
             }

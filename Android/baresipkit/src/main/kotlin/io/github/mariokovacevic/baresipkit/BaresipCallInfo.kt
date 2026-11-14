@@ -11,7 +11,7 @@ data class BaresipCallInfo(
     /** The call. */
     val id: BaresipCallID,
     /** The account the call belongs to. */
-    val account: BaresipAccountID,
+    val accountId: BaresipAccountID,
     /** The call state when the snapshot was taken. */
     val state: BaresipCallState,
     /** Whether the call was placed by this device. */

@@ -66,12 +66,12 @@ fun BaresipCallVideo(
         val key = VideoClaims.Key(engine, call, local)
         val claim = VideoClaims.claim(key)
         try {
-            runCatching { engine.setVideoRenderer(view.renderer, call, local) }
+            runCatching { engine.setVideoRenderer(call, view.renderer, local) }
             awaitCancellation()
         } finally {
             withContext(NonCancellable) {
                 if (VideoClaims.release(key, claim)) {
-                    runCatching { engine.setVideoRenderer(null, call, local) }
+                    runCatching { engine.setVideoRenderer(call, null, local) }
                 }
                 view.flush()
             }

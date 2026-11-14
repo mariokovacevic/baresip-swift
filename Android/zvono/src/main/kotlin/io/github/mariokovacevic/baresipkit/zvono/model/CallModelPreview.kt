@@ -22,7 +22,7 @@ suspend fun CallModel.startPreviewFeed(call: BaresipCallID) {
         }
     previewFeed = feed
     try {
-        engine.setVideoRenderer(feed, call)
+        engine.setVideoRenderer(call, feed)
     } catch (error: Throwable) {
         feed.stop()
         if (previewFeed === feed) previewFeed = null

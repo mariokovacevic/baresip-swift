@@ -200,7 +200,7 @@ class BaresipPhoneCall internal constructor(
     /** Ends the call. */
     suspend fun hangUp() {
         val controller = controller
-        if (controller != null) controller.end(id) else engine.hangup(id)
+        if (controller != null) controller.end(id) else engine.hangUp(id)
     }
 
     /**
@@ -212,7 +212,7 @@ class BaresipPhoneCall internal constructor(
         if (controller != null) {
             controller.setMuted(muted, id)
         } else {
-            engine.setMicrophoneMuted(muted, id)
+            engine.setMicrophoneMuted(id, muted)
             applyMuted(muted)
         }
     }
@@ -232,7 +232,7 @@ class BaresipPhoneCall internal constructor(
         val previous = isSendingVideo
         isSendingVideo = enabled
         try {
-            engine.setVideoEnabled(enabled, id)
+            engine.setVideoEnabled(id, enabled)
         } catch (error: Throwable) {
             isSendingVideo = previous
             throw error
@@ -242,7 +242,7 @@ class BaresipPhoneCall internal constructor(
 
     /** Sends the front or back camera. */
     suspend fun setCamera(position: BaresipCameraPosition) {
-        engine.setCamera(position, id)
+        engine.setCamera(id, position)
         camera = position
     }
 

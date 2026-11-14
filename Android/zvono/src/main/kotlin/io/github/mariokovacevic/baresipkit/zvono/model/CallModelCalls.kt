@@ -116,7 +116,7 @@ suspend fun CallModel.reject() {
     previewVideo = false
 }
 
-suspend fun CallModel.hangup() {
+suspend fun CallModel.hangUp() {
     if (demoMode) {
         endDemoCall()
         return
@@ -124,7 +124,7 @@ suspend fun CallModel.hangup() {
     runCatching { activeCall?.hangUp() }
 }
 
-suspend fun CallModel.hangup(call: BaresipCallID) {
+suspend fun CallModel.hangUp(call: BaresipCallID) {
     runCatching { phone?.call(call)?.hangUp() }
 }
 

@@ -8,7 +8,7 @@ import io.github.mariokovacevic.baresipkit.BaresipVideoRenderer
  *
  * ```kotlin
  * val relay = BaresipVideoFrameRelay(onFrame = { frame -> recorder.append(frame) })
- * engine.setVideoRenderer(relay, call)
+ * engine.setVideoRenderer(call, relay)
  * ```
  */
 class BaresipVideoFrameRelay(

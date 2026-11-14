@@ -100,10 +100,10 @@ class EngineLifecycleTest {
                 engine.start()
                 val call = BaresipCallID(9999)
                 for (operation in listOf<suspend () -> Unit>(
-                    { engine.hangup(call) },
+                    { engine.hangUp(call) },
                     { engine.callInfo(call) },
                     { engine.callStatistics(call) },
-                    { engine.incomingHeader("X-Device-ID", call) },
+                    { engine.incomingHeader(call, "X-Device-ID") },
                 )) {
                     val error = runCatching { operation() }.exceptionOrNull()
                     assertEquals(BaresipError.Code.NOT_FOUND, (error as BaresipError).code)

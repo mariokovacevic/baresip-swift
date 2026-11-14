@@ -67,6 +67,7 @@ class H264LoopbackTest {
                     val frames = AtomicInteger()
                     val size = AtomicReference<Pair<Int, Int>>()
                     engine.setVideoRenderer(
+                        call,
                         object : BaresipVideoRenderer {
                             override fun render(frame: BaresipVideoFrame) {
                                 frames.incrementAndGet()
@@ -77,7 +78,6 @@ class H264LoopbackTest {
                                 height: Int,
                             ) = size.set(width to height)
                         },
-                        call,
                     )
                     recorder.awaitCall(call, BaresipCallState.CONNECTED)
                     repeat(300) {
@@ -88,7 +88,7 @@ class H264LoopbackTest {
                     assertEquals(320 to 240, size.get())
                     assertEquals("H264", engine.callInfo(call).videoCodec)
                     val bye = async(Dispatchers.IO) { peer.answerRequest("BYE") }
-                    engine.hangup(call)
+                    engine.hangUp(call)
                     bye.await()
                 }
                 engine.stop()

@@ -307,7 +307,7 @@ data class BaresipDiagnosticEvent(
  */
 class BaresipMessage(
     /** The account that received the message, if known. */
-    val account: BaresipAccountID?,
+    val accountId: BaresipAccountID?,
     /** The sender's URI. */
     val from: String,
     /** The `Content-Type` of the body, for example `text/plain`. */
@@ -327,12 +327,12 @@ class BaresipMessage(
 
     override fun equals(other: Any?): Boolean =
         other is BaresipMessage &&
-            account == other.account &&
+            accountId == other.accountId &&
             from == other.from &&
             contentType == other.contentType &&
             body.contentEquals(other.body)
 
-    override fun hashCode(): Int = listOf(account, from, contentType, body.contentHashCode()).hashCode()
+    override fun hashCode(): Int = listOf(accountId, from, contentType, body.contentHashCode()).hashCode()
 
     override fun toString(): String = "BaresipMessage(from=$from, contentType=$contentType, ${body.size} bytes)"
 }

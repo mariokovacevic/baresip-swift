@@ -155,7 +155,7 @@ internal object EventDecoder {
     ): BaresipCallInfo =
         BaresipCallInfo(
             id = BaresipCallID(n[0]),
-            account = BaresipAccountID(n[1]),
+            accountId = BaresipAccountID(n[1]),
             state = BaresipCallState.of(n[2].toInt()),
             isOutgoing = n[3] != 0L,
             hasVideo = n[4] != 0L,

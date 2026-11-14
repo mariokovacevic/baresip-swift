@@ -272,7 +272,7 @@ class BaresipEngine(
     ) = onEngine { Native.callProgress(handle, call.rawValue, earlyAudio, earlyVideo) }
 
     /**
-     * Rejects an incoming call that is still ringing. End an answered call with [hangup].
+     * Rejects an incoming call that is still ringing. End an answered call with [hangUp].
      *
      * @param statusCode The SIP response code, 486 Busy Here by default.
      * @param reason The reason phrase, or `null` for the standard phrase.
@@ -284,7 +284,7 @@ class BaresipEngine(
     ) = onEngine { Native.callReject(handle, call.rawValue, statusCode.coerceIn(0, MAXIMUM_SIP_STATUS), reason.cStringOrNull()) }
 
     /** Hangs up a call in any state. */
-    suspend fun hangup(call: BaresipCallID) = onEngine { Native.callHangup(handle, call.rawValue) }
+    suspend fun hangUp(call: BaresipCallID) = onEngine { Native.callHangup(handle, call.rawValue) }
 
     /**
      * Puts a call on hold. When the other side rejects the hold, the call returns to its previous
@@ -343,8 +343,8 @@ class BaresipEngine(
      * @return The header value, or `null` when the INVITE had no such header.
      */
     suspend fun incomingHeader(
-        name: String,
         call: BaresipCallID,
+        name: String,
     ): String? = onEngine { Native.callHeader(handle, call.rawValue, name.cString()) }
 
     /** The identifiers of all calls that are not released, oldest first. */
@@ -360,20 +360,20 @@ class BaresipEngine(
 
     /** Mutes or unmutes the microphone for a call. */
     suspend fun setMicrophoneMuted(
-        muted: Boolean,
         call: BaresipCallID,
+        muted: Boolean,
     ) = onEngine { Native.callSetMicrophoneMuted(handle, call.rawValue, muted) }
 
     /** Changes the audio direction of a call with a re-INVITE. */
     suspend fun setAudioDirection(
-        direction: BaresipMediaDirection,
         call: BaresipCallID,
+        direction: BaresipMediaDirection,
     ) = onEngine { Native.callSetAudioDirection(handle, call.rawValue, direction.ordinal) }
 
     /** Changes the video direction of a call with a re-INVITE. */
     suspend fun setVideoDirection(
-        direction: BaresipMediaDirection,
         call: BaresipCallID,
+        direction: BaresipMediaDirection,
     ) = onEngine { Native.callSetVideoDirection(handle, call.rawValue, direction.ordinal) }
 
     /**
@@ -381,14 +381,14 @@ class BaresipEngine(
      * direction becomes receive-only, so you keep seeing the other side.
      */
     suspend fun setVideoEnabled(
-        enabled: Boolean,
         call: BaresipCallID,
-    ) = setVideoDirection(if (enabled) BaresipMediaDirection.SEND_RECEIVE else BaresipMediaDirection.RECEIVE_ONLY, call)
+        enabled: Boolean,
+    ) = setVideoDirection(call, if (enabled) BaresipMediaDirection.SEND_RECEIVE else BaresipMediaDirection.RECEIVE_ONLY)
 
     /** Switches the camera used for a call to a device from [videoDevices]. */
     suspend fun setCamera(
-        device: String,
         call: BaresipCallID,
+        device: String,
     ) = onEngine { Native.callSetCamera(handle, call.rawValue, device.cString()) }
 
     /** Asks the encoder to send a keyframe. */
@@ -396,8 +396,8 @@ class BaresipEngine(
 
     /** Caps the video bitrate of a call below the engine's configured bitrate, or removes the cap with `null`. */
     suspend fun setVideoMaxBitrate(
-        bitsPerSecond: Int?,
         call: BaresipCallID,
+        bitsPerSecond: Int?,
     ) = onEngine { Native.callSetVideoMaxBitrate(handle, call.rawValue, (bitsPerSecond ?: 0).coerceAtLeast(0)) }
 
     /** Restarts ICE for a call, for example after the network changed. */
@@ -440,8 +440,8 @@ class BaresipEngine(
      * @param local `true` for the camera image sent to the peer, `false` for the remote video.
      */
     suspend fun setVideoRenderer(
-        renderer: BaresipVideoRenderer?,
         call: BaresipCallID,
+        renderer: BaresipVideoRenderer?,
         local: Boolean = false,
     ) = replaceSink(VideoSinkKey(call, local), renderer?.let(::VideoSinkBox)) { box ->
         Native.callSetVideoSink(handle, call.rawValue, local, box?.pointer ?: 0)
@@ -467,9 +467,9 @@ class BaresipEngine(
 
     /** Switches the camera used for a call to the front or back camera. */
     suspend fun setCamera(
-        position: BaresipCameraPosition,
         call: BaresipCallID,
-    ) = setCamera(position.deviceName, call)
+        position: BaresipCameraPosition,
+    ) = setCamera(call, position.deviceName)
 
     private suspend fun replaceSink(
         key: VideoSinkKey,

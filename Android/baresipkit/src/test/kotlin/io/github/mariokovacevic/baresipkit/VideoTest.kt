@@ -68,7 +68,7 @@ class VideoTest {
         runBlocking {
             BaresipEngine(HostCore.configuration()).use { engine ->
                 engine.start()
-                val error = runCatching { engine.setVideoRenderer(Counter(), BaresipCallID(4242)) }.exceptionOrNull()
+                val error = runCatching { engine.setVideoRenderer(BaresipCallID(4242), Counter()) }.exceptionOrNull()
                 assertEquals(BaresipError.Code.NOT_FOUND, (error as BaresipError).code)
                 engine.stop()
             }

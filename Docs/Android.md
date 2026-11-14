@@ -129,7 +129,7 @@ focus for voice communication, sets `MODE_IN_COMMUNICATION` and tells the engine
 
 **Video.** Call `BaresipCamera.install(context)` once (the app needs the `CAMERA` permission),
 then show a call's video with `BaresipCallVideo(engine, call)` in Compose or a
-`BaresipVideoView` attached with `engine.setVideoRenderer(view.renderer, call)`. H.264 is coded
+`BaresipVideoView` attached with `engine.setVideoRenderer(call, view.renderer)`. H.264 is coded
 by MediaCodec and VP8 by libvpx.
 
 **Network and lifecycle.** `BaresipNetworkMonitor(context, engine).start()` tells the engine
