@@ -470,6 +470,15 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 				"built with BSK_ALLOW_INSECURE_TLS");
 		}
 #endif
+		if (local.tls.min_version &&
+		    local.tls.min_version != BSK_TLS_VERSION_1_2 &&
+		    local.tls.min_version != BSK_TLS_VERSION_1_3) {
+			bsk_engine_destroy(e);
+			return bsk_error_set(
+				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
+				"tls.min_version 0x%04x is not TLS 1.2 or 1.3",
+				(unsigned)local.tls.min_version);
+		}
 		if (str_isset(local.extra_config) &&
 		    bsk_extra_config_tls_key(local.extra_config)) {
 			const char *key =

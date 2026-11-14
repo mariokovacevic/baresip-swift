@@ -556,6 +556,31 @@ static void test_config_validation(void)
 		CHECK(BSK_OK == create_status(&cfg));
 	}
 
+	{
+		static const int rejected[] = {
+			0x0300, 0x0301, 0x0302, 0x0305, 1, 2, -1, 0x7fff
+		};
+		bsk_engine *e = NULL;
+		bsk_error err;
+
+		CHECK(BSK_TLS_VERSION_1_2 == 0x0303);
+		CHECK(BSK_TLS_VERSION_1_3 == 0x0304);
+		base_config(&cfg);
+		cfg.tls.min_version = BSK_TLS_VERSION_1_2;
+		CHECK(BSK_OK == create_status(&cfg));
+		cfg.tls.min_version = BSK_TLS_VERSION_1_3;
+		CHECK(BSK_OK == create_status(&cfg));
+		for (i = 0; i < sizeof(rejected) / sizeof(rejected[0]); i++) {
+			cfg.tls.min_version = rejected[i];
+			CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+		}
+		cfg.tls.min_version = 0x0301;
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_engine_create(&cfg, NULL, NULL, &e, &err));
+		CHECK(e == NULL);
+		CHECK(strstr(err.message, "0x0301") != NULL);
+	}
+
 	base_config(&cfg);
 	cfg.rtp_port_min = 20000;
 	cfg.rtp_port_max = 10000;

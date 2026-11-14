@@ -163,6 +163,9 @@ typedef enum bsk_pixel_format {
 	BSK_PIX_BGRA = 2
 } bsk_pixel_format;
 
+#define BSK_TLS_VERSION_1_2 0x0303
+#define BSK_TLS_VERSION_1_3 0x0304
+
 typedef struct bsk_tls_config {
 	const char *ca_pem;
 	size_t ca_pem_len;
@@ -171,6 +174,9 @@ typedef struct bsk_tls_config {
 	const char *const *pinned_spki_sha256_base64;
 	size_t pinned_count;
 	const char *cipher_list;
+	/* The lowest TLS version accepted: BSK_TLS_VERSION_1_2 or
+	 * BSK_TLS_VERSION_1_3, the version numbers of the TLS wire format.
+	 * 0 means TLS 1.2. bsk_engine_create rejects any other value. */
 	int min_version;
 	bool insecure_skip_verify;
 } bsk_tls_config;

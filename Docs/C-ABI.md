@@ -67,6 +67,7 @@ The C ABI is not covered by Semantic Versioning: the Swift and Kotlin SDKs bundl
 - `ca_pem` may hold several certificates. A chain that these do not anchor, or any chain when `ca_pem` is empty, is given to the system trust store: SecTrust with the SSL policy for the host on Apple platforms, OpenSSL's default verify paths elsewhere.
 - `pinned_spki_sha256_base64` entries are base64 SHA-256 hashes (44 characters). A connection needs a verified chain and at least one certificate of it matching a pin.
 - The same settings apply to SIP over TLS, to the WSS transport and to TURN over TLS.
+- `bsk_tls_config.min_version` is `BSK_TLS_VERSION_1_2` (0x0303) or `BSK_TLS_VERSION_1_3` (0x0304), the TLS wire format's version numbers; 0 means TLS 1.2. Any other value, TLS 1.0 and 1.1 among them, makes `bsk_engine_create` fail with `BSK_ERR_INVALID_ARGUMENT`.
 
 ## Input validation
 
