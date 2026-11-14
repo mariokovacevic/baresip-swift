@@ -57,6 +57,9 @@ enum class BaresipRegistrationState {
  *
  * A call ends with [ENDED] or [FAILED] and is then [RELEASED]; after [RELEASED] its identifier is
  * no longer valid.
+ *
+ * New entries can be added in a minor release; give a `when` over it an `else` branch. See
+ * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
  */
 enum class BaresipCallState {
     /** An incoming call is ringing. */
@@ -228,7 +231,12 @@ enum class BaresipCandidateType {
     }
 }
 
-/** Why a call ended other than by a hang-up or a failure; see [BaresipError.endReason]. */
+/**
+ * Why a call ended other than by a hang-up or a failure; see [BaresipError.endReason].
+ *
+ * New entries can be added in a minor release; give a `when` over it an `else` branch. See
+ * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
+ */
 enum class BaresipCallEndReason {
     /** Another device answered the call (`Reason: SIP;cause=200`). */
     ANSWERED_ELSEWHERE,

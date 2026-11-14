@@ -32,6 +32,7 @@ The Kotlin API reference is generated with Dokka (`./gradlew :dokkaGeneratePubli
 |---|---|
 | [Platforms.md](Platforms.md) | how the platforms share the core, the decisions behind the Android SDK, and parity type by type and test by test |
 | [Architecture.md](Architecture.md) | the layers, what lives where, threading and ownership, for the Swift and the Kotlin stack |
+| [STABILITY.md](STABILITY.md) | what Semantic Versioning covers, enumerations that grow, deprecation and OS support |
 | [C-ABI.md](C-ABI.md) | ownership, threading, versioning and error conventions of `baresip_kit.h`, the contract both SDKs bind |
 | [Troubleshooting.md](Troubleshooting.md) | real failure modes (registration, audio, video, ICE, push, background) and how to read the log for each |
 | [CompatibilityMatrix.md](CompatibilityMatrix.md) | each requirement and how baresip covers it: as is, through a module, the facade or a patch |

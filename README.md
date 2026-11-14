@@ -153,6 +153,7 @@ in [Docs/Limitations.md](Docs/Limitations.md).
 | [Docs/Integration.md](Docs/Integration.md) | The full integration guide for the Swift package |
 | [Docs/Platforms.md](Docs/Platforms.md) | How the platforms share the core, and parity type by type and test by test |
 | [Docs/Architecture.md](Docs/Architecture.md) | Layers, threading and ownership on both platforms |
+| [Docs/STABILITY.md](Docs/STABILITY.md) | What Semantic Versioning covers, enumerations that grow, deprecation and OS support |
 | [Docs/C-ABI.md](Docs/C-ABI.md) | Conventions of the C ABI in `baresip_kit.h`, which both SDKs bind |
 | [Docs/Troubleshooting.md](Docs/Troubleshooting.md) | Common failures and how to read the log for each |
 | [Docs/Interop.md](Docs/Interop.md) | Servers, door stations and TURN servers BaresipKit has been tried with, and how to report yours |

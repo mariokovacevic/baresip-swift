@@ -12,6 +12,9 @@
 ///     }
 /// }
 /// ```
+///
+/// New cases can be added in a minor release; end a `switch` over it with `default:`. See
+/// [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
 public enum BaresipEvent: Sendable {
     /// The engine changed state, with the error that caused a failure.
     case engine(BaresipEngineState, BaresipError?)

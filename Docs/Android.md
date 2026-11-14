@@ -1,7 +1,10 @@
 # Android setup
 
 BaresipKit for Android: Kotlin libraries over a JNI bridge to the C core, with the same features
-and type names as the [Swift package](iOS.md). This guide covers installing the libraries,
+and types as the [Swift package](iOS.md). Names follow each language's conventions: acronyms
+longer than two letters are capitalized like words in Kotlin, so Swift's `BaresipDTMFReply`,
+`BaresipTLSConfiguration` and `BaresipICEState` are `BaresipDtmfReply`, `BaresipTlsConfiguration`
+and `BaresipIceState` here. What Semantic Versioning covers is in [STABILITY.md](STABILITY.md). This guide covers installing the libraries,
 a quick start, the setup recipes, the sample app, building from source, tests and releases. How
 the two platforms share the core and differ where they must is in [Platforms.md](Platforms.md).
 

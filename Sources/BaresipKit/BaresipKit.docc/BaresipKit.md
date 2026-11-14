@@ -14,6 +14,10 @@ for everything that happens afterwards. Optional modules connect the engine to t
 call screen and VoIP pushes, and
 `BaresipKitSwiftUI` for observable registration and call state.
 
+Enumerations such as ``BaresipEvent``, ``BaresipCallState`` and ``BaresipError/Code`` can gain
+cases in a minor release, so end a `switch` over them with `default:`. What Semantic Versioning
+covers is in [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
+
 ## Topics
 
 ### Essentials

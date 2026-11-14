@@ -75,6 +75,9 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
     ///
     /// The codes mirror the status codes of the C core one to one, so a code seen in a log line
     /// has the same meaning in Swift.
+    ///
+    /// New cases can be added in a minor release; end a `switch` over it with `default:`. See
+    /// [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
     public enum Code: Int, Sendable, Codable {
         /// The operation succeeded.
         case ok = 0
@@ -110,6 +113,9 @@ public struct BaresipError: Error, Sendable, Equatable, CustomStringConvertible 
 }
 
 /// Why a call ended other than by a hang-up or a failure; see ``BaresipError/endReason``.
+///
+/// New cases can be added in a minor release; end a `switch` over it with `default:`. See
+/// [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
 public enum BaresipCallEndReason: Sendable, Equatable {
     /// Another device answered the call (`Reason: SIP;cause=200`).
     case answeredElsewhere

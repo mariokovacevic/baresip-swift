@@ -61,6 +61,9 @@ class BaresipError(
     /**
      * The category of a failed BaresipKit operation. The codes mirror the status codes of the C
      * core one to one.
+     *
+     * New entries can be added in a minor release; give a `when` over it an `else` branch. See
+     * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
      */
     enum class Code {
         /** The operation succeeded. */

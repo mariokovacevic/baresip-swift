@@ -1,4 +1,7 @@
 /// A change in a call's media.
+///
+/// New cases can be added in a minor release; end a `switch` over it with `default:`. See
+/// [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
 public enum BaresipMediaEvent: Int, Sendable, Codable {
     /// The core reported an event this version of BaresipKit does not know.
     case unknown = -1

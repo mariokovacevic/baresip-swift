@@ -243,6 +243,17 @@ Beta, not released yet. The SDK is in active development, and the API can still 
   it pushes the commit and the tag in one atomic push, and can be run again after a failure.
 - OpenSSL is built with `no-autoload-config` and without the build path in the library.
 
+### Changed
+
+- `Docs/STABILITY.md` states what Semantic Versioning covers from 1.0 on: the public Swift and
+  Kotlin API, documented behaviour and the minimum OS versions. The C ABI, internal modules, log
+  formats and the samples are not covered. Enumerations and sealed types can gain cases in a minor
+  release, so `switch` and `when` over them need a `default` / `else` branch.
+- `Docs/C-ABI.md` is no longer a proposal: it states that the C ABI is shipped in lockstep with the
+  SDKs, that output structs grow at their end, that bindings ignore unknown values, and corrects
+  what it said about wiping passwords, re-entrant events, `bsk_engine_destroy` and
+  `BSK_EVENT_DIAGNOSTIC`.
+
 ### Fixed
 
 - Android: a pushed call answered as audio-only from the system UI before its INVITE arrived no

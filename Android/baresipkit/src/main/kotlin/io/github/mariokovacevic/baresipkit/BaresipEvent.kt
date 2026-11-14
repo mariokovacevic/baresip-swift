@@ -14,6 +14,9 @@ import kotlin.time.Duration
  *     }
  * }
  * ```
+ *
+ * New entries can be added in a minor release; give a `when` over it an `else` branch. See
+ * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
  */
 sealed interface BaresipEvent {
     /** The engine changed state, with the error that caused a failure. */
@@ -104,7 +107,12 @@ sealed interface BaresipEvent {
     ) : BaresipEvent
 }
 
-/** A change of a call's media. */
+/**
+ * A change of a call's media.
+ *
+ * New entries can be added in a minor release; give a `when` over it an `else` branch. See
+ * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
+ */
 enum class BaresipMediaEvent(
     internal val code: Int,
 ) {

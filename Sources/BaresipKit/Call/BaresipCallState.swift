@@ -2,6 +2,9 @@
 ///
 /// A call ends with ``ended`` or ``failed`` and is then ``released``; after
 /// ``released`` its identifier is no longer valid.
+///
+/// New cases can be added in a minor release; end a `switch` over it with `default:`. See
+/// [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
 public enum BaresipCallState: Int, Sendable, Codable {
     /// An incoming call is ringing.
     case incoming = 0

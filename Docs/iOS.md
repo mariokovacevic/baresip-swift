@@ -1,7 +1,8 @@
 # iOS and macOS setup
 
 BaresipKit for iOS and macOS: a Swift package with one engine product and optional adapters for
-the system frameworks, with the same features and type names as the [Android libraries](Android.md).
+the system frameworks, with the same features and types as the [Android libraries](Android.md), named after each
+language's conventions. What Semantic Versioning covers is in [STABILITY.md](STABILITY.md).
 The C core is a binary target, `BaresipKitCore`, built into an XCFramework. This guide covers
 installing the package, a quick start, the setup recipes, an app checklist and the sample app.
 How the platforms share the core is in [Platforms.md](Platforms.md); the API reference and longer
