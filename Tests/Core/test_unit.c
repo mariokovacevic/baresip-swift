@@ -544,6 +544,22 @@ static void test_config_validation(void)
 		CHECK(strstr(err.message, "session_min_se 90 s") != NULL);
 		CHECK(strstr(err.message, "session_expires 60 s") != NULL);
 		cfg.session_min_se = 60;
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_engine_create(&cfg, NULL, NULL, &e, &err));
+		CHECK(e == NULL);
+		CHECK(strstr(err.message, "session_min_se 60 s") != NULL);
+		CHECK(strstr(err.message, "RFC 4028") != NULL);
+		cfg.session_min_se = 89;
+		cfg.session_expires = 1800;
+		CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+		cfg.session_min_se = 90;
+		cfg.session_expires = 90;
+		CHECK(BSK_OK == create_status(&cfg));
+		cfg.session_min_se = 0;
+		cfg.session_expires = 89;
+		CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+		cfg.session_min_se = 120;
+		cfg.session_expires = 1800;
 		CHECK(BSK_OK == create_status(&cfg));
 		cfg.session_expires = 0;
 		cfg.session_min_se = 0;

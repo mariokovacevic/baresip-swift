@@ -262,7 +262,7 @@ const char *bsk_extra_config_tls_key(const char *extra)
 
 uint32_t bsk_session_min_se(const bsk_engine_config *c)
 {
-	return c->session_min_se ? c->session_min_se : 90;
+	return c->session_min_se ? c->session_min_se : BSK_SESSION_TIMER_MIN;
 }
 
 

@@ -480,6 +480,15 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
 				"extra_config may not set %s", key);
 		}
+		if (local.session_min_se &&
+		    local.session_min_se < BSK_SESSION_TIMER_MIN) {
+			bsk_engine_destroy(e);
+			return bsk_error_set(
+				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
+				"session_min_se %u s is below "
+				"the RFC 4028 minimum of %u s",
+				local.session_min_se, BSK_SESSION_TIMER_MIN);
+		}
 		if (local.session_expires &&
 		    bsk_session_min_se(&local) > local.session_expires) {
 			bsk_engine_destroy(e);
@@ -706,6 +715,24 @@ void bsk_engine_destroy(bsk_engine *engine)
 	mtx_destroy(&engine->mtx);
 	free(engine);
 }
+
+
+#ifdef BSK_TEST_HOOKS
+int bsk_test_session_timer(bsk_engine *engine, uint32_t expires,
+			   uint32_t min_se);
+
+
+int bsk_test_session_timer(bsk_engine *engine, uint32_t expires,
+			   uint32_t min_se)
+{
+	if (!engine || engine->thread_valid || min_se > expires)
+		return EINVAL;
+
+	engine->session_expires = expires;
+	engine->session_min_se = min_se;
+	return 0;
+}
+#endif
 
 
 bsk_engine_state bsk_engine_get_state(const bsk_engine *engine)

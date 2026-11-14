@@ -244,8 +244,10 @@ typedef struct bsk_engine_config {
 	 * other side hangs up with BYE when it is not renewed. 0 keeps
 	 * session timers off. */
 	uint32_t session_expires;
-	/* The smallest session interval accepted in seconds, at most
-	 * session_expires; 0 means 90. */
+	/* The smallest session interval accepted in seconds: at least 90,
+	 * the minimum of RFC 4028, and at most session_expires; 0 means 90.
+	 * bsk_engine_create rejects other values, so session_expires is
+	 * 0 or at least 90 too. */
 	uint32_t session_min_se;
 } bsk_engine_config;
 

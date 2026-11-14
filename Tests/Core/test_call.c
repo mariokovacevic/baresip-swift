@@ -48,6 +48,9 @@ static int ringing_or_later(struct waiter *x)
 {
 	return x->call_state >= BSK_CALL_OUTGOING_RINGING;
 }
+int bsk_test_session_timer(bsk_engine *engine, uint32_t expires,
+			   uint32_t min_se);
+
 static bool use_ice;
 static uint32_t session_expires;
 static const char *turn_transport;
@@ -77,6 +80,7 @@ static bsk_engine *start_engine(const char *listen)
 	bsk_engine_config cfg;
 	bsk_engine *e = NULL;
 	bsk_error err;
+	uint32_t min_se = 0;
 
 	snprintf(extra, sizeof(extra), "sip_listen\t\t0.0.0.0:%s", listen);
 
@@ -97,17 +101,21 @@ static bsk_engine *start_engine(const char *listen)
 	cfg.log_sip_trace = true;
 	cfg.extra_config = extra;
 	if (session_expires) {
-		cfg.session_expires = session_expires;
-		cfg.session_min_se =
-			getenv("BSK_TEST_SESSION_MIN_SE")
-				? (uint32_t)atoi(
-					  getenv("BSK_TEST_SESSION_MIN_SE"))
-				: 1;
+		min_se = getenv("BSK_TEST_SESSION_MIN_SE")
+				 ? (uint32_t)atoi(
+					   getenv("BSK_TEST_SESSION_MIN_SE"))
+				 : 1;
+		if (min_se >= 90) {
+			cfg.session_expires = session_expires;
+			cfg.session_min_se = min_se;
+		}
 	}
 	cfg.rtp_port_min = 0 == strcmp(listen, callee_port) ? 30000 : 40000;
 	cfg.rtp_port_max = cfg.rtp_port_min + 100;
 
 	CHECK_OK(bsk_engine_create(&cfg, on_event, NULL, &e, &err), &err);
+	if (session_expires && !cfg.session_expires)
+		CHECK(0 == bsk_test_session_timer(e, session_expires, min_se));
 	bsk_engine_set_log_handler(e, test_log, (void *)tag);
 	CHECK_OK(bsk_engine_start(e, &err), &err);
 	CHECK(wait_until(&w, running, 2000));
