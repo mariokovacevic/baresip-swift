@@ -74,7 +74,8 @@ engine.events.collect { event ->
 ```
 
 Every operation is a `suspend` function that runs on the engine's own thread; what happens
-afterwards arrives through `events`. Only one engine runs per process; close it with `close()`.
+afterwards arrives through `events`, a `Flow` that completes when the engine is closed. Only one
+engine runs per process; close it with `close()`.
 
 `storedInstanceUuid` is the `+sip.instance` identifier of the installation: create it once with
 `UUID.randomUUID()`, persist it (for example in `SharedPreferences`) and pass the stored value on
