@@ -16,7 +16,7 @@ extern "C" {
 #endif
 
 #define BSK_ABI_VERSION_MAJOR 0
-#define BSK_ABI_VERSION_MINOR 12
+#define BSK_ABI_VERSION_MINOR 13
 
 typedef struct bsk_engine bsk_engine;
 

@@ -366,7 +366,8 @@ Beta, not released yet. The SDK is in active development, and the API can still 
 
 - The TLS minimum version accepts only TLS 1.2 and 1.3 (`BSK_TLS_VERSION_1_2`,
   `BSK_TLS_VERSION_1_3`); other values, such as TLS 1.0, are rejected. The SDKs already offered
-  only these two.
+  only these two. C ABI 0.13, which also makes `bsk_engine_destroy` return a
+  `bsk_status`.
 - The core logs a warning when an account uses SDES-SRTP over UDP or TCP signaling, where the
   media keys can be read; `Docs/C-ABI.md` describes the encryption defaults.
 - `BaresipOSLog.handler` logs engine messages with private privacy by default, so Console shows
