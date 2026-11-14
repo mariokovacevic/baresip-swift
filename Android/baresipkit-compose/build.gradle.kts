@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
     alias(libs.plugins.android.library)
@@ -25,8 +26,11 @@ android {
 }
 
 kotlin {
+    coreLibrariesVersion = "2.1.21"
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+        apiVersion.set(KotlinVersion.KOTLIN_2_1)
+        languageVersion.set(KotlinVersion.KOTLIN_2_1)
     }
 }
 
@@ -47,10 +51,10 @@ tasks.withType<Test>().configureEach {
 dependencies {
     api(project(":baresipkit"))
     api(project(":baresipkit-video"))
-    implementation(platform(libs.compose.bom))
+    api(platform(libs.compose.bom))
     api(libs.compose.runtime)
-    implementation(libs.compose.ui)
-    implementation("androidx.compose.foundation:foundation")
+    api(libs.compose.ui)
+    implementation(libs.compose.foundation)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
 }

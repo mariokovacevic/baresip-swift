@@ -26,7 +26,11 @@ sealed interface BaresipDtmfReply {
     /** The expected digit arrived. */
     data object Confirmed : BaresipDtmfReply
 
-    /** Another digit arrived first. */
+    /**
+     * Another digit arrived first.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Other(
         val digit: Char,
     ) : BaresipDtmfReply
@@ -196,7 +200,7 @@ class BaresipPhoneCall internal constructor(
     /** Ends the call. */
     suspend fun hangUp() {
         val controller = controller
-        if (controller != null) controller.end(id) else engine.hangup(id)
+        if (controller != null) controller.end(id) else engine.hangUp(id)
     }
 
     /**
@@ -208,7 +212,7 @@ class BaresipPhoneCall internal constructor(
         if (controller != null) {
             controller.setMuted(muted, id)
         } else {
-            engine.setMicrophoneMuted(muted, id)
+            engine.setMicrophoneMuted(id, muted)
             applyMuted(muted)
         }
     }
@@ -228,7 +232,7 @@ class BaresipPhoneCall internal constructor(
         val previous = isSendingVideo
         isSendingVideo = enabled
         try {
-            engine.setVideoEnabled(enabled, id)
+            engine.setVideoEnabled(id, enabled)
         } catch (error: Throwable) {
             isSendingVideo = previous
             throw error
@@ -238,7 +242,7 @@ class BaresipPhoneCall internal constructor(
 
     /** Sends the front or back camera. */
     suspend fun setCamera(position: BaresipCameraPosition) {
-        engine.setCamera(position, id)
+        engine.setCamera(id, position)
         camera = position
     }
 
@@ -279,8 +283,7 @@ class BaresipPhoneCall internal constructor(
         }
     }
 
-    /** Reads the call's details from the engine again. A read that a newer one overtook is dropped. */
-    fun refresh() {
+    internal fun refresh() {
         val scope = phone?.scope ?: return
         val generation = ++refreshGeneration
         scope.launch {
@@ -358,8 +361,7 @@ class BaresipPhoneCall internal constructor(
         }
     }
 
-    companion object {
-        /** The user or number of a SIP URI, such as `alice` for `sip:alice@example.com;transport=tls`. */
+    internal companion object {
         fun userPart(uri: String): String {
             var value = uri
             for (scheme in listOf("sips:", "sip:", "tel:")) {
@@ -369,11 +371,6 @@ class BaresipPhoneCall internal constructor(
             return value.ifEmpty { uri }
         }
 
-        /**
-         * Whether two SIP addresses name the same party: the same user, compared without regard
-         * to case, and the same host when both name one. Display names, the scheme, the port, URI
-         * parameters and headers are ignored.
-         */
         fun samePeer(
             first: String,
             second: String,

@@ -85,6 +85,7 @@ class CertificatesTest {
         )
     }
 
+    @OptIn(BaresipInternalApi::class)
     @Test
     fun splitRoundTrips() {
         val identity = BaresipCertificates.clientIdentity("$certificatePem\n$unencryptedKeyPem\n".toByteArray())

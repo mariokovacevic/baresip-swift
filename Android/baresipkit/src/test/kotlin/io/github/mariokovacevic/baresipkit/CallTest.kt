@@ -30,24 +30,23 @@ class CallTest {
     private suspend fun <T> io(body: () -> T): T = withContext(Dispatchers.IO) { body() }
 
     private fun account(port: Int) =
-        BaresipAccountConfiguration(
-            aor = "sip:alice@$host:$port",
-            transport = BaresipTransport.UDP,
-            mediaEncryption = BaresipMediaEncryption.NONE,
-            audioCodecs = listOf("PCMU/8000/1"),
-            incomingHeaders = listOf("X-Device-ID"),
-        )
+        BaresipAccountConfiguration(aor = "sip:alice@$host:$port") {
+            transport = BaresipTransport.UDP
+            mediaEncryption = BaresipMediaEncryption.NONE
+            audioCodecs = listOf("PCMU/8000/1")
+            incomingHeaders = listOf("X-Device-ID")
+        }
 
     @Test
     fun incomingCallWithDtmfMessagesAndHangup() =
         runBlocking {
             val port = freePort()
             val configuration =
-                HostCore.configuration().copy(
-                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port",
-                    ipv6 = false,
-                    logSipTrace = true,
-                )
+                HostCore.configuration().copy {
+                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port"
+                    ipv6 = false
+                    logSipTrace = true
+                }
             val log = CopyOnWriteArrayList<BaresipLogEntry>()
             BaresipEngine(configuration).use { engine ->
                 engine.setLogHandler {
@@ -63,11 +62,11 @@ class CallTest {
                         io { peer.invite(listOf("X-Device-ID: door-7")) }
                         val incoming = recorder.await("incoming call") { it as? BaresipEvent.IncomingCall }
                         val call = incoming.info.id
-                        assertEquals(account, incoming.info.account)
+                        assertEquals(account, incoming.info.accountId)
                         assertTrue(incoming.info.remoteUri, incoming.info.remoteUri.startsWith("sip:bob@$host"))
                         assertEquals(BaresipCallState.INCOMING, incoming.info.state)
-                        assertEquals("door-7", engine.incomingHeader("X-Device-ID", call))
-                        assertNull(engine.incomingHeader("X-Other", call))
+                        assertEquals("door-7", engine.incomingHeader(call, "X-Device-ID"))
+                        assertNull(engine.incomingHeader(call, "X-Other"))
 
                         engine.answer(call)
                         val answer = io { peer.awaitFinal("INVITE") }
@@ -111,7 +110,7 @@ class CallTest {
                         assertEquals(call, engine.callStatistics(call).id)
 
                         val bye = async(Dispatchers.IO) { peer.answerRequest("BYE") }
-                        engine.hangup(call)
+                        engine.hangUp(call)
                         bye.await()
                         recorder.awaitCall(call, BaresipCallState.RELEASED)
                         assertEquals(emptyList<BaresipCallID>(), engine.activeCalls())

@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.net.DatagramSocket
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -29,25 +30,33 @@ class H264LoopbackTest {
         runBlocking {
             val port = DatagramSocket(0).use { it.localPort }
             val configuration =
-                BaresipConfiguration(
-                    modules = listOf("g711", "auconv", "auresamp", "ausine", "aufile", "fakevideo"),
-                    audio = BaresipAudioConfiguration(sourceModule = "ausine", playerModule = "aufile", playerDevice = "/dev/null"),
-                    video = BaresipVideoConfiguration(sourceModule = "fakevideo", width = 320, height = 240, framesPerSecond = 15),
-                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port",
-                    ipv6 = false,
-                )
+                BaresipConfiguration(UUID.fromString("00000000-0000-4000-8000-0000000264a1")) {
+                    modules = listOf("g711", "auconv", "auresamp", "ausine", "aufile", "fakevideo")
+                    audio {
+                        sourceModule = "ausine"
+                        playerModule = "aufile"
+                        playerDevice = "/dev/null"
+                    }
+                    video {
+                        sourceModule = "fakevideo"
+                        width = 320
+                        height = 240
+                        framesPerSecond = 15
+                    }
+                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port"
+                    ipv6 = false
+                }
             BaresipEngine(configuration).use { engine ->
                 engine.setLogHandler { println("${it.domain} ${it.message}") }
                 val recorder = EventRecorder.start(engine, this)
                 engine.start()
                 engine.addAccount(
-                    BaresipAccountConfiguration(
-                        aor = "sip:alice@$host:$port",
-                        transport = BaresipTransport.UDP,
-                        mediaEncryption = BaresipMediaEncryption.NONE,
-                        audioCodecs = listOf("PCMU/8000/1"),
-                        videoCodecs = listOf("H264"),
-                    ),
+                    BaresipAccountConfiguration(aor = "sip:alice@$host:$port") {
+                        transport = BaresipTransport.UDP
+                        mediaEncryption = BaresipMediaEncryption.NONE
+                        audioCodecs = listOf("PCMU/8000/1")
+                        videoCodecs = listOf("H264")
+                    },
                 )
                 SipPeer(host, port).use { peer ->
                     val answered = async(Dispatchers.IO) { peer.answerInvite(h264 = true) }
@@ -58,6 +67,7 @@ class H264LoopbackTest {
                     val frames = AtomicInteger()
                     val size = AtomicReference<Pair<Int, Int>>()
                     engine.setVideoRenderer(
+                        call,
                         object : BaresipVideoRenderer {
                             override fun render(frame: BaresipVideoFrame) {
                                 frames.incrementAndGet()
@@ -68,7 +78,6 @@ class H264LoopbackTest {
                                 height: Int,
                             ) = size.set(width to height)
                         },
-                        call,
                     )
                     recorder.awaitCall(call, BaresipCallState.CONNECTED)
                     repeat(300) {
@@ -79,7 +88,7 @@ class H264LoopbackTest {
                     assertEquals(320 to 240, size.get())
                     assertEquals("H264", engine.callInfo(call).videoCodec)
                     val bye = async(Dispatchers.IO) { peer.answerRequest("BYE") }
-                    engine.hangup(call)
+                    engine.hangUp(call)
                     bye.await()
                 }
                 engine.stop()

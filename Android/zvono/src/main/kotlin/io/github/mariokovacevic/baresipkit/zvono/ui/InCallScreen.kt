@@ -103,7 +103,7 @@ import io.github.mariokovacevic.baresipkit.zvono.model.currentDoorOpened
 import io.github.mariokovacevic.baresipkit.zvono.model.doorFor
 import io.github.mariokovacevic.baresipkit.zvono.model.endConsultation
 import io.github.mariokovacevic.baresipkit.zvono.model.endpointChoices
-import io.github.mariokovacevic.baresipkit.zvono.model.hangup
+import io.github.mariokovacevic.baresipkit.zvono.model.hangUp
 import io.github.mariokovacevic.baresipkit.zvono.model.heldRow
 import io.github.mariokovacevic.baresipkit.zvono.model.openCallChat
 import io.github.mariokovacevic.baresipkit.zvono.model.openCurrentDoor
@@ -396,7 +396,7 @@ private fun InCallControls(
                         .size(64.dp)
                         .clip(CircleShape)
                         .background(Palette.hangUp)
-                        .clickable(role = Role.Button) { model.act { hangup() } }
+                        .clickable(role = Role.Button) { model.act { hangUp() } }
                         .semantics { contentDescription = "Hang up" }
                         .testTag("call.hangup"),
                     contentAlignment = Alignment.Center,
@@ -412,7 +412,7 @@ private fun InCallControls(
                     height = 64.dp,
                     radius = 18.dp,
                     textStyle = Type.title,
-                ) { model.act { hangup() } }
+                ) { model.act { hangUp() } }
             }
         }
     }
@@ -789,7 +789,7 @@ fun CallsScreen(model: CallModel) {
                     val id = row.id
                     if (id != null) {
                         RoundIcon(Icons.Filled.Pause, if (row.isOnHold) "Resume" else "Hold", size = 40.dp) { model.act { toggleHold(id) } }
-                        RoundIcon(Icons.Filled.CallEnd, "Hang up", size = 40.dp) { model.act { hangup(id) } }
+                        RoundIcon(Icons.Filled.CallEnd, "Hang up", size = 40.dp) { model.act { hangUp(id) } }
                     }
                 }
             }

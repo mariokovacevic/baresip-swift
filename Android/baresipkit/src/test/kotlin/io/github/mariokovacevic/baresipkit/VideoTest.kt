@@ -36,8 +36,15 @@ class VideoTest {
     @Test
     fun thePreviewDeliversFramesToTheRendererUntilItStops() =
         runBlocking {
-            val base = HostCore.configuration()
-            val configuration = base.copy(video = base.video.copy(sourceModule = "fakevideo", width = 320, height = 240, framesPerSecond = 15))
+            val configuration =
+                HostCore.configuration().copy {
+                    video {
+                        sourceModule = "fakevideo"
+                        width = 320
+                        height = 240
+                        framesPerSecond = 15
+                    }
+                }
             BaresipEngine(configuration).use { engine ->
                 engine.start()
                 val renderer = Counter()
@@ -61,7 +68,7 @@ class VideoTest {
         runBlocking {
             BaresipEngine(HostCore.configuration()).use { engine ->
                 engine.start()
-                val error = runCatching { engine.setVideoRenderer(Counter(), BaresipCallID(4242)) }.exceptionOrNull()
+                val error = runCatching { engine.setVideoRenderer(BaresipCallID(4242), Counter()) }.exceptionOrNull()
                 assertEquals(BaresipError.Code.NOT_FOUND, (error as BaresipError).code)
                 engine.stop()
             }

@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
     alias(libs.plugins.android.library)
@@ -24,14 +25,17 @@ android {
 }
 
 kotlin {
+    coreLibrariesVersion = "2.1.21"
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+        apiVersion.set(KotlinVersion.KOTLIN_2_1)
+        languageVersion.set(KotlinVersion.KOTLIN_2_1)
     }
 }
 
 dependencies {
     api(project(":baresipkit"))
-    implementation(libs.core.telecom)
+    api(libs.core.telecom)
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
 }

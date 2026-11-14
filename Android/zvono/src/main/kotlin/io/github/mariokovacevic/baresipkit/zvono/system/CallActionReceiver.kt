@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import io.github.mariokovacevic.baresipkit.zvono.ZvonoApplication
-import io.github.mariokovacevic.baresipkit.zvono.model.hangup
+import io.github.mariokovacevic.baresipkit.zvono.model.hangUp
 import io.github.mariokovacevic.baresipkit.zvono.model.reject
 import kotlinx.coroutines.launch
 
@@ -16,7 +16,7 @@ class CallActionReceiver : BroadcastReceiver() {
         val model = (context.applicationContext as ZvonoApplication).model
         when (intent.action) {
             ACTION_DECLINE -> model.scope.launch { model.reject() }
-            ACTION_HANG_UP -> model.scope.launch { model.hangup() }
+            ACTION_HANG_UP -> model.scope.launch { model.hangUp() }
         }
     }
 

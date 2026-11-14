@@ -1,6 +1,11 @@
 package io.github.mariokovacevic.baresipkit
 
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
@@ -28,7 +33,10 @@ class EngineLifecycleTest {
                 assertTrue(engine.state == BaresipEngineState.READY || engine.state == BaresipEngineState.RUNNING)
                 val id =
                     engine.addAccount(
-                        BaresipAccountConfiguration(aor = "sip:alice@example.invalid", authUser = "alice", authPassword = "secret"),
+                        BaresipAccountConfiguration(aor = "sip:alice@example.invalid") {
+                            authUser = "alice"
+                            authPassword = "secret"
+                        },
                     )
                 assertEquals(BaresipRegistrationState.NONE, engine.registrationState(id))
                 assertEquals(mapOf(id to BaresipRegistrationState.NONE), engine.accounts())
@@ -49,13 +57,13 @@ class EngineLifecycleTest {
 
     @Test
     fun holdMusicFileIsReadWhenTheEngineIsCreated() {
-        val missing = HostCore.configuration().let { it.copy(audio = it.audio.copy(holdMusicFile = File("/nonexistent/hold.wav"))) }
+        val missing = HostCore.configuration().copy { audio { holdMusicFile = File("/nonexistent/hold.wav") } }
         assertThrows(BaresipError::class.java) { BaresipEngine(missing).close() }
 
         val file = File.createTempFile("hold", ".wav")
         try {
             file.writeText("not a wave file, only text")
-            val text = HostCore.configuration().let { it.copy(audio = it.audio.copy(holdMusicFile = file)) }
+            val text = HostCore.configuration().copy { audio { holdMusicFile = file } }
             assertThrows(BaresipError::class.java) { BaresipEngine(text).close() }
 
             file.writeBytes(wav(8000, 1))
@@ -70,9 +78,14 @@ class EngineLifecycleTest {
         val base = HostCore.configuration()
         assertEquals(1800.seconds, base.sessionTimer)
         assertEquals(90.seconds, base.minimumSessionTimer)
-        assertThrows(BaresipError::class.java) { BaresipEngine(base.copy(sessionTimer = 60.seconds)).close() }
-        BaresipEngine(base.copy(sessionTimer = 60.seconds, minimumSessionTimer = 60.seconds)).close()
-        BaresipEngine(base.copy(sessionTimer = null)).close()
+        assertThrows(BaresipError::class.java) { BaresipEngine(base.copy { sessionTimer = 60.seconds }).close() }
+        BaresipEngine(
+            base.copy {
+                sessionTimer = 60.seconds
+                minimumSessionTimer = 60.seconds
+            },
+        ).close()
+        BaresipEngine(base.copy { sessionTimer = null }).close()
     }
 
     @Test
@@ -86,16 +99,27 @@ class EngineLifecycleTest {
         }
 
     @Test
+    fun eventsCompleteWhenTheEngineIsClosed() =
+        runBlocking {
+            val engine = BaresipEngine(HostCore.configuration())
+            val collected = async(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) { engine.events.toList() }
+            engine.start()
+            engine.close()
+            withTimeout(5.seconds) { collected.await() }
+            assertEquals(emptyList<BaresipEvent>(), withTimeout(1.seconds) { engine.events.toList() })
+        }
+
+    @Test
     fun operationsOnUnknownCallsFailWithNotFound() =
         runBlocking {
             BaresipEngine(HostCore.configuration()).use { engine ->
                 engine.start()
                 val call = BaresipCallID(9999)
                 for (operation in listOf<suspend () -> Unit>(
-                    { engine.hangup(call) },
+                    { engine.hangUp(call) },
                     { engine.callInfo(call) },
                     { engine.callStatistics(call) },
-                    { engine.incomingHeader("X-Device-ID", call) },
+                    { engine.incomingHeader(call, "X-Device-ID") },
                 )) {
                     val error = runCatching { operation() }.exceptionOrNull()
                     assertEquals(BaresipError.Code.NOT_FOUND, (error as BaresipError).code)

@@ -1,7 +1,6 @@
 package io.github.mariokovacevic.baresipkit.compose
 
 import io.github.mariokovacevic.baresipkit.BaresipAccountID
-import io.github.mariokovacevic.baresipkit.BaresipAudioConfiguration
 import io.github.mariokovacevic.baresipkit.BaresipCallController
 import io.github.mariokovacevic.baresipkit.BaresipCallID
 import io.github.mariokovacevic.baresipkit.BaresipCallInfo
@@ -14,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 
@@ -21,11 +21,15 @@ fun requireHostCore() = assumeTrue(System.getProperty("baresipkit.hostCore") == 
 
 fun testEngine(): BaresipEngine =
     BaresipEngine(
-        BaresipConfiguration(
-            modules = listOf("g711"),
-            audio = BaresipAudioConfiguration(sourceModule = "ausine", playerModule = "aufile", playerDevice = "/dev/null"),
-            extraConfiguration = "sip_listen\t\t0.0.0.0:0",
-        ),
+        BaresipConfiguration(UUID.fromString("00000000-0000-4000-8000-00000000c0de")) {
+            modules = listOf("g711")
+            audio {
+                sourceModule = "ausine"
+                playerModule = "aufile"
+                playerDevice = "/dev/null"
+            }
+            extraConfiguration = "sip_listen\t\t0.0.0.0:0"
+        },
     )
 
 fun CoroutineScope.phone(controller: BaresipCallController? = null) = BaresipPhone(testEngine(), controller, this)

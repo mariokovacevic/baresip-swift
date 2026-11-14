@@ -29,20 +29,22 @@ class OutgoingCallTest {
         runBlocking {
             val port = DatagramSocket(0).use { it.localPort }
             val configuration =
-                HostCore.configuration().copy(extraConfiguration = "sip_listen\t\t0.0.0.0:$port", ipv6 = false)
+                HostCore.configuration().copy {
+                    extraConfiguration = "sip_listen\t\t0.0.0.0:$port"
+                    ipv6 = false
+                }
             BaresipEngine(configuration).use { engine ->
                 val recorder = EventRecorder.start(engine, this)
                 try {
                     engine.start()
                     engine.audioSessionDidActivate()
                     engine.addAccount(
-                        BaresipAccountConfiguration(
-                            aor = "sip:alice@$host:$port",
-                            transport = BaresipTransport.UDP,
-                            mediaEncryption = BaresipMediaEncryption.NONE,
-                            audioCodecs = listOf("PCMU/8000/1"),
-                            dtmfMode = BaresipDtmfMode.SIP_INFO,
-                        ),
+                        BaresipAccountConfiguration(aor = "sip:alice@$host:$port") {
+                            transport = BaresipTransport.UDP
+                            mediaEncryption = BaresipMediaEncryption.NONE
+                            audioCodecs = listOf("PCMU/8000/1")
+                            dtmfMode = BaresipDtmfMode.SIP_INFO
+                        },
                     )
                     body(engine, recorder, port).also { engine.stop() }
                 } finally {
@@ -65,9 +67,9 @@ class OutgoingCallTest {
                 assertTrue(info.isOutgoing)
                 assertEquals("PCMU", info.audioCodec)
 
-                engine.setMicrophoneMuted(true, call)
+                engine.setMicrophoneMuted(call, true)
                 assertTrue(engine.callInfo(call).isMicrophoneMuted)
-                engine.setMicrophoneMuted(false, call)
+                engine.setMicrophoneMuted(call, false)
 
                 val held = async(Dispatchers.IO) { peer.receive(10) { it.isRequest && it.method == "INVITE" } }
                 engine.hold(call)
@@ -97,7 +99,7 @@ class OutgoingCallTest {
                 assertTrue(digit.await().body.contains("Signal=7"))
 
                 val bye = async(Dispatchers.IO) { peer.answerRequest("BYE") }
-                engine.hangup(call)
+                engine.hangUp(call)
                 bye.await()
                 recorder.awaitCall(call, BaresipCallState.RELEASED)
             }

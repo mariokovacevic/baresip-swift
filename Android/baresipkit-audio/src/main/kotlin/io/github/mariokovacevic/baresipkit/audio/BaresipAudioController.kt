@@ -73,7 +73,7 @@ class BaresipAudioController(
     private val communicationDeviceListener: Any? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             AudioManager.OnCommunicationDeviceChangedListener { device ->
-                onRouteChange?.invoke(device?.let { BaresipAudioRoute.of(it.type) } ?: BaresipAudioRoute.Other(0))
+                onRouteChange?.invoke(device?.let { audioRouteOf(it.type) } ?: BaresipAudioRoute.Other(0))
             }
         } else {
             null
@@ -166,7 +166,7 @@ class BaresipAudioController(
 
     /** The current output route. */
     val currentRoute: BaresipAudioRoute
-        get() = currentDevice()?.let { BaresipAudioRoute.of(it.type) } ?: BaresipAudioRoute.Other(0)
+        get() = currentDevice()?.let { audioRouteOf(it.type) } ?: BaresipAudioRoute.Other(0)
 
     /**
      * The outputs the user can pick for call audio right now: the earpiece (unless headphones are
@@ -238,8 +238,8 @@ class BaresipAudioController(
                 when {
                     audioManager.isBluetoothScoOn -> AudioDeviceInfo.TYPE_BLUETOOTH_SCO
                     audioManager.isSpeakerphoneOn -> AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-                    outputs.any { BaresipAudioRoute.of(it.type) == BaresipAudioRoute.WiredHeadset } ->
-                        outputs.first { BaresipAudioRoute.of(it.type) == BaresipAudioRoute.WiredHeadset }.type
+                    outputs.any { audioRouteOf(it.type) == BaresipAudioRoute.WiredHeadset } ->
+                        outputs.first { audioRouteOf(it.type) == BaresipAudioRoute.WiredHeadset }.type
                     else -> AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
                 }
             outputs.firstOrNull { it.type == wanted }
@@ -267,7 +267,7 @@ class BaresipAudioController(
 
         fun restartsAudio(types: List<Int>): Boolean =
             types.any {
-                val route = BaresipAudioRoute.of(it)
+                val route = audioRouteOf(it)
                 route == BaresipAudioRoute.Bluetooth || route == BaresipAudioRoute.WiredHeadset
             }
     }

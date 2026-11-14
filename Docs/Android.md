@@ -27,7 +27,7 @@ the two platforms share the core and differ where they must is in [Platforms.md]
 ## Requirements
 
 - Android 9 (API 28) or later, on `arm64-v8a` or `x86_64`
-- Kotlin with coroutines; Jetpack Compose for `baresipkit-compose`
+- Kotlin 2.1 or later, with coroutines; Jetpack Compose for `baresipkit-compose`
 - To build from source: JDK 21, the Android SDK and NDK, see [Building from source](#building-from-source)
 
 ## Installation
@@ -59,10 +59,10 @@ dependencies {
 ## Quick start
 
 ```kotlin
-val engine = BaresipEngine(BaresipConfiguration(userAgent = "MyApp"))
+val engine = BaresipEngine(BaresipConfiguration(instanceUuid = storedInstanceUuid) { userAgent = "MyApp" })
 engine.setLogHandler(BaresipLogcat.handler())
 engine.start()
-val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com", authPassword = password))
+val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com") { authPassword = password })
 engine.register(account)
 engine.events.collect { event ->
     when (event) {
@@ -74,7 +74,16 @@ engine.events.collect { event ->
 ```
 
 Every operation is a `suspend` function that runs on the engine's own thread; what happens
-afterwards arrives through `events`. Only one engine runs per process; close it with `close()`.
+afterwards arrives through `events`, a `Flow` that completes when the engine is closed. Only one
+engine runs per process; close it with `close()`.
+
+`storedInstanceUuid` is the `+sip.instance` identifier of the installation: create it once with
+`UUID.randomUUID()`, persist it (for example in `SharedPreferences`) and pass the stored value on
+every launch, so the registrar replaces the device's `Contact` binding instead of adding one.
+
+The configuration types are built with a block and changed with `copy`:
+`BaresipAccountConfiguration(aor = "sip:alice@example.com") { transport = BaresipTransport.TLS }`,
+`account.copy { nat { mode = BaresipNatTraversal.ICE } }`.
 
 ## Setup recipes
 
@@ -121,7 +130,7 @@ focus for voice communication, sets `MODE_IN_COMMUNICATION` and tells the engine
 
 **Video.** Call `BaresipCamera.install(context)` once (the app needs the `CAMERA` permission),
 then show a call's video with `BaresipCallVideo(engine, call)` in Compose or a
-`BaresipVideoView` attached with `engine.setVideoRenderer(view.renderer, call)`. H.264 is coded
+`BaresipVideoView` attached with `engine.setVideoRenderer(call, view.renderer)`. H.264 is coded
 by MediaCodec and VP8 by libvpx.
 
 **Network and lifecycle.** `BaresipNetworkMonitor(context, engine).start()` tells the engine

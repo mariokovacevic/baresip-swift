@@ -47,7 +47,7 @@ class AppLifecycleTest {
         runBlocking {
             BaresipEngine(HostCore.configuration()).use { engine ->
                 engine.start()
-                val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@127.0.0.1:9", transport = BaresipTransport.UDP))
+                val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@127.0.0.1:9") { transport = BaresipTransport.UDP })
                 engine.register(account)
                 val lifecycle = BaresipAppLifecycle(engine)
                 lifecycle.backgroundBehavior = BaresipAppLifecycle.BackgroundBehavior.GO_OFFLINE

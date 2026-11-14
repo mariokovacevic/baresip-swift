@@ -98,7 +98,7 @@ class EventDecoderTest {
 
     @Test
     fun adaptiveBitrateDefaults() {
-        val configuration = BaresipConfiguration()
+        val configuration = BaresipConfiguration(HostCore.instanceUuid)
         assertTrue(configuration.videoAdaptiveBitrate)
         assertEquals(150_000, configuration.videoMinimumBitrate)
     }

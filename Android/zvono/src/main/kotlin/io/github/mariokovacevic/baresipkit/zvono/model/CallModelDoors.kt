@@ -143,7 +143,7 @@ suspend fun CallModel.finishDtmf(
     append("DTMF ${state.request.digits}: $result")
     if (!state.request.hangUp) return
     delay(DtmfRequest.hangUpDelay)
-    hangup(call)
+    hangUp(call)
 }
 
 suspend fun CallModel.sendDtmf(digits: String) {

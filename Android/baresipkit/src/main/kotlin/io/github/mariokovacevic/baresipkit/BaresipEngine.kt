@@ -11,9 +11,10 @@ import io.github.mariokovacevic.baresipkit.internal.values
 import io.github.mariokovacevic.baresipkit.internal.wholeMilliseconds
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.onSubscription
+import kotlinx.coroutines.flow.transformWhile
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.concurrent.ExecutorService
@@ -32,9 +33,9 @@ import kotlin.time.Duration.Companion.seconds
  * accepted them. What happens afterwards arrives through [events].
  *
  * ```kotlin
- * val engine = BaresipEngine(BaresipConfiguration())
+ * val engine = BaresipEngine(BaresipConfiguration(instanceUuid = storedInstanceUuid))
  * engine.start()
- * val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com", authPassword = password))
+ * val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com") { authPassword = password })
  * engine.register(account)
  * val call = engine.makeCall(destination = "sip:bob@example.com")
  * ```
@@ -46,7 +47,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class BaresipEngine(
     /** The configuration the engine was created with. */
-    val configuration: BaresipConfiguration = BaresipConfiguration(),
+    val configuration: BaresipConfiguration,
 ) : AutoCloseable {
     private val executor: ExecutorService =
         Executors.newSingleThreadExecutor { runnable ->
@@ -54,7 +55,9 @@ class BaresipEngine(
         }
     private val dispatcher: ExecutorCoroutineDispatcher = executor.asCoroutineDispatcher()
     private val closed = AtomicBoolean(false)
-    private val eventFlow = MutableSharedFlow<BaresipEvent>(extraBufferCapacity = Int.MAX_VALUE)
+    private val eventFlow = MutableSharedFlow<Any>(extraBufferCapacity = Int.MAX_VALUE)
+
+    @Volatile private var eventsEnded = false
 
     @Volatile private var logHandler: BaresipLogHandler? = null
     private val videoSinks = HashMap<VideoSinkKey, VideoSinkBox>()
@@ -71,10 +74,33 @@ class BaresipEngine(
     }
 
     /**
-     * Engine events. Every collector receives every event from the moment it subscribes; use
-     * `onSubscription` to act once the subscription is in place.
+     * Engine events.
+     *
+     * Every collector receives every event that happens after its collection started. A collection
+     * launched with `CoroutineStart.UNDISPATCHED` has started when `launch` returns, so an operation
+     * made after it cannot be missed:
+     *
+     * ```kotlin
+     * scope.launch(start = CoroutineStart.UNDISPATCHED) { engine.events.collect { handle(it) } }
+     * engine.start()
+     * ```
+     *
+     * The flow completes when the engine is closed with [close], after the last event of the engine;
+     * collecting the events of a closed engine completes at once. Collectors such as a `collect` loop
+     * therefore end with the engine instead of waiting forever.
+     *
+     * The events are buffered without limit, so the core never waits for a slow collector and no
+     * event is dropped, periodic [BaresipEvent.Statistics] included. A collector that stops reading
+     * without ending its collection keeps every later event in memory; cancel a collection that is no
+     * longer needed.
      */
-    val events: SharedFlow<BaresipEvent> = eventFlow.asSharedFlow()
+    val events: Flow<BaresipEvent> =
+        eventFlow
+            .onSubscription { if (eventsEnded) emit(EndOfEvents) }
+            .transformWhile { item ->
+                if (item is BaresipEvent) emit(item)
+                item is BaresipEvent
+            }
 
     /** Sets the handler that receives engine log output, or removes it with `null`. */
     fun setLogHandler(handler: BaresipLogHandler?) {
@@ -85,8 +111,7 @@ class BaresipEngine(
     val state: BaresipEngineState
         get() = if (closed.get()) BaresipEngineState.STOPPED else BaresipEngineState.of(Native.engineState(handle))
 
-    /** `true` when called on the engine's internal thread, for example from a log handler. */
-    val isEngineThread: Boolean
+    internal val isEngineThread: Boolean
         get() = !closed.get() && Native.engineIsEngineThread(handle)
 
     /**
@@ -273,7 +298,7 @@ class BaresipEngine(
     ) = onEngine { Native.callProgress(handle, call.rawValue, earlyAudio, earlyVideo) }
 
     /**
-     * Rejects an incoming call that is still ringing. End an answered call with [hangup].
+     * Rejects an incoming call that is still ringing. End an answered call with [hangUp].
      *
      * @param statusCode The SIP response code, 486 Busy Here by default.
      * @param reason The reason phrase, or `null` for the standard phrase.
@@ -285,7 +310,7 @@ class BaresipEngine(
     ) = onEngine { Native.callReject(handle, call.rawValue, statusCode.coerceIn(0, MAXIMUM_SIP_STATUS), reason.cStringOrNull()) }
 
     /** Hangs up a call in any state. */
-    suspend fun hangup(call: BaresipCallID) = onEngine { Native.callHangup(handle, call.rawValue) }
+    suspend fun hangUp(call: BaresipCallID) = onEngine { Native.callHangup(handle, call.rawValue) }
 
     /**
      * Puts a call on hold. When the other side rejects the hold, the call returns to its previous
@@ -344,8 +369,8 @@ class BaresipEngine(
      * @return The header value, or `null` when the INVITE had no such header.
      */
     suspend fun incomingHeader(
-        name: String,
         call: BaresipCallID,
+        name: String,
     ): String? = onEngine { Native.callHeader(handle, call.rawValue, name.cString()) }
 
     /** The identifiers of all calls that are not released, oldest first. */
@@ -361,20 +386,20 @@ class BaresipEngine(
 
     /** Mutes or unmutes the microphone for a call. */
     suspend fun setMicrophoneMuted(
-        muted: Boolean,
         call: BaresipCallID,
+        muted: Boolean,
     ) = onEngine { Native.callSetMicrophoneMuted(handle, call.rawValue, muted) }
 
     /** Changes the audio direction of a call with a re-INVITE. */
     suspend fun setAudioDirection(
-        direction: BaresipMediaDirection,
         call: BaresipCallID,
+        direction: BaresipMediaDirection,
     ) = onEngine { Native.callSetAudioDirection(handle, call.rawValue, direction.ordinal) }
 
     /** Changes the video direction of a call with a re-INVITE. */
     suspend fun setVideoDirection(
-        direction: BaresipMediaDirection,
         call: BaresipCallID,
+        direction: BaresipMediaDirection,
     ) = onEngine { Native.callSetVideoDirection(handle, call.rawValue, direction.ordinal) }
 
     /**
@@ -382,14 +407,14 @@ class BaresipEngine(
      * direction becomes receive-only, so you keep seeing the other side.
      */
     suspend fun setVideoEnabled(
-        enabled: Boolean,
         call: BaresipCallID,
-    ) = setVideoDirection(if (enabled) BaresipMediaDirection.SEND_RECEIVE else BaresipMediaDirection.RECEIVE_ONLY, call)
+        enabled: Boolean,
+    ) = setVideoDirection(call, if (enabled) BaresipMediaDirection.SEND_RECEIVE else BaresipMediaDirection.RECEIVE_ONLY)
 
     /** Switches the camera used for a call to a device from [videoDevices]. */
     suspend fun setCamera(
-        device: String,
         call: BaresipCallID,
+        device: String,
     ) = onEngine { Native.callSetCamera(handle, call.rawValue, device.cString()) }
 
     /** Asks the encoder to send a keyframe. */
@@ -397,8 +422,8 @@ class BaresipEngine(
 
     /** Caps the video bitrate of a call below the engine's configured bitrate, or removes the cap with `null`. */
     suspend fun setVideoMaxBitrate(
-        bitsPerSecond: Int?,
         call: BaresipCallID,
+        bitsPerSecond: Int?,
     ) = onEngine { Native.callSetVideoMaxBitrate(handle, call.rawValue, (bitsPerSecond ?: 0).coerceAtLeast(0)) }
 
     /** Restarts ICE for a call, for example after the network changed. */
@@ -441,8 +466,8 @@ class BaresipEngine(
      * @param local `true` for the camera image sent to the peer, `false` for the remote video.
      */
     suspend fun setVideoRenderer(
-        renderer: BaresipVideoRenderer?,
         call: BaresipCallID,
+        renderer: BaresipVideoRenderer?,
         local: Boolean = false,
     ) = replaceSink(VideoSinkKey(call, local), renderer?.let(::VideoSinkBox)) { box ->
         Native.callSetVideoSink(handle, call.rawValue, local, box?.pointer ?: 0)
@@ -468,9 +493,9 @@ class BaresipEngine(
 
     /** Switches the camera used for a call to the front or back camera. */
     suspend fun setCamera(
-        position: BaresipCameraPosition,
         call: BaresipCallID,
-    ) = setCamera(position.deviceName, call)
+        position: BaresipCameraPosition,
+    ) = setCamera(call, position.deviceName)
 
     private suspend fun replaceSink(
         key: VideoSinkKey,
@@ -497,13 +522,15 @@ class BaresipEngine(
 
     /**
      * Stops and frees the engine. Pending operations fail with [BaresipError.Code.INVALID_STATE];
-     * [events] receives nothing more.
+     * [events] delivers the engine's last events and then completes.
      */
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         executor.execute {
             Native.engineDestroy(handle)
             synchronized(videoSinks) { videoSinks.values.toList().also { videoSinks.clear() } }.forEach { it.release() }
+            eventsEnded = true
+            eventFlow.tryEmit(EndOfEvents)
         }
         executor.shutdown()
         if (Thread.currentThread().name != THREAD_NAME) {
@@ -532,17 +559,17 @@ class BaresipEngine(
         }
     }
 
+    private object EndOfEvents
+
     companion object {
         private const val THREAD_NAME = "baresipkit.engine"
         private const val CLOSE_TIMEOUT_SECONDS = 10L
         private const val MAXIMUM_SIP_STATUS = 699
 
-        /** The C ABI version of the linked core. */
-        val abiVersion: AbiVersion
+        internal val abiVersion: AbiVersion
             get() = Native.abiVersion().let { AbiVersion(it ushr 16, it and 0xffff) }
 
-        /** Feature flags of the linked core, for example `reg.contact-params`. */
-        val capabilities: List<String>
+        internal val capabilities: List<String>
             get() = Native.capabilities().split(' ').filter { it.isNotEmpty() }
 
         /** The version string of the linked core. */
@@ -559,8 +586,7 @@ class BaresipEngine(
         fun encodeContactParameters(parameters: List<BaresipContactParameter>): String = Native.encodeContactParameters(parameters.names(), parameters.values())
     }
 
-    /** The C ABI version of the core, as a major and a minor number. */
-    data class AbiVersion(
+    internal data class AbiVersion(
         val major: Int,
         val minor: Int,
     )

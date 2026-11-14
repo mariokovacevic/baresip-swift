@@ -87,8 +87,9 @@ class BaresipPhone(
         get() = callList.firstOrNull { it.isRinging }
 
     /**
-     * Applies the engine's events until the calling coroutine is cancelled. Each run first brings
-     * [calls] in line with the engine, so running it again after a cancellation is safe.
+     * Applies the engine's events until the calling coroutine is cancelled, and returns when the
+     * engine is closed. Each run first brings [calls] in line with the engine, so running it again
+     * after a cancellation is safe.
      */
     suspend fun run() {
         synchronize()

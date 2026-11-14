@@ -17,11 +17,11 @@ class AudioControllerTest {
 
     @Test
     fun routesFollowTheDeviceType() {
-        assertEquals(BaresipAudioRoute.Earpiece, BaresipAudioRoute.of(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE))
-        assertEquals(BaresipAudioRoute.Speaker, BaresipAudioRoute.of(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER))
-        assertEquals(BaresipAudioRoute.Bluetooth, BaresipAudioRoute.of(AudioDeviceInfo.TYPE_BLE_HEADSET))
-        assertEquals(BaresipAudioRoute.WiredHeadset, BaresipAudioRoute.of(AudioDeviceInfo.TYPE_USB_HEADSET))
-        assertEquals(BaresipAudioRoute.Other(AudioDeviceInfo.TYPE_HDMI), BaresipAudioRoute.of(AudioDeviceInfo.TYPE_HDMI))
+        assertEquals(BaresipAudioRoute.Earpiece, audioRouteOf(AudioDeviceInfo.TYPE_BUILTIN_EARPIECE))
+        assertEquals(BaresipAudioRoute.Speaker, audioRouteOf(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER))
+        assertEquals(BaresipAudioRoute.Bluetooth, audioRouteOf(AudioDeviceInfo.TYPE_BLE_HEADSET))
+        assertEquals(BaresipAudioRoute.WiredHeadset, audioRouteOf(AudioDeviceInfo.TYPE_USB_HEADSET))
+        assertEquals(BaresipAudioRoute.Other(AudioDeviceInfo.TYPE_HDMI), audioRouteOf(AudioDeviceInfo.TYPE_HDMI))
     }
 
     @Test
