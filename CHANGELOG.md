@@ -276,6 +276,29 @@ Beta, not released yet. The SDK is in active development, and the API can still 
     `BaresipNetworkEvent.init`, and `BaresipPhoneCall.refresh()`, `userPart(of:)` and
     `samePeer`.
   - `BaresipCallController` is documented as implemented by the SDK's adapters only.
+- Kotlin API, before the 1.0 freeze (BREAKING):
+  - The configuration types (`BaresipConfiguration`, `BaresipAudioConfiguration`,
+    `BaresipVideoConfiguration`, `BaresipTlsConfiguration`, `BaresipAccountConfiguration`,
+    `BaresipNatConfiguration`, `BaresipTurnServer` and `BaresipTelecomConfiguration`) are no longer
+    data classes. Create them with a factory and a builder block, for example
+    `BaresipConfiguration(instanceUuid) { userAgent = "MyApp" }`, and change them with
+    `copy { … }`. New settings can then be added without breaking binary compatibility. Their
+    `toString` hides passwords, the client certificate and key, and push tokens.
+  - `BaresipConfiguration.instanceUuid` is required and `BaresipEngine` has no default
+    configuration, as in Swift.
+  - `BaresipEngine.hangup(call)` is `hangUp(call)`, and the call is the first argument of
+    `setMicrophoneMuted`, `setAudioDirection`, `setVideoDirection`, `setVideoEnabled`,
+    `setCamera`, `setVideoMaxBitrate`, `incomingHeader` and `setVideoRenderer`.
+  - `BaresipCallInfo.account` and `BaresipMessage.account` are `accountId`.
+  - `BaresipEngine.events` is a `Flow` that completes after the engine's last event once
+    `close()` freed the core, instead of a `SharedFlow` that never completed.
+  - Plumbing is internal: `BaresipEngine.isEngineThread`, `abiVersion`, `capabilities` and
+    `AbiVersion`, `BaresipAudioRoute.of(int)`, `BaresipPhoneCall.refresh()`, `userPart` and
+    `samePeer`, and `BaresipCamera`'s `start`, `stop` and `switchDevice`. `BaresipCameraSource`,
+    `BaresipCameraHost` and `BaresipCertificates.split` need `@OptIn(BaresipInternalApi::class)`.
+  - `baresipkit-telecom` exposes core-telecom and `baresipkit-compose` exposes Compose UI and the
+    Compose BOM as `api` dependencies, because their public API uses them.
+  - The libraries can be used from Kotlin 2.1 projects (`apiVersion` and `languageVersion` 2.1).
 - The version comes from the `VERSION` file: the core reports it in `bsk_version_string()` and in
   the default `User-Agent` (`BaresipKit/<version>` instead of `BaresipKit/beta`).
 - Releases: `Package.swift` uses a local `Build/out` XCFramework only on the default branch, where
