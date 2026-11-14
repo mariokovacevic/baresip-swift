@@ -33,6 +33,8 @@ import java.net.URLDecoder
  * what [BaresipTelecomAdapter] gives Telecom with [io.github.mariokovacevic.baresipkit.BaresipHandleStyle.PHONE_NUMBER_WHEN_NUMERIC].
  * Whether the Phone app sends a tap in its call log to the app depends on the device; links and
  * contacts always use these intents.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
 data class BaresipRedialRequest(
     /** The SIP URI or number to call. */

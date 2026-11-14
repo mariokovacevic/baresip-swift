@@ -11,7 +11,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
-/** A summary of one network update, for logging or display. */
+/**
+ * A summary of one network update, for logging or display.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipNetworkPath(
     /** The transports and addresses of the default network, for example `"wifi 192.0.2.7"`. */
     val interfaceSummary: String,

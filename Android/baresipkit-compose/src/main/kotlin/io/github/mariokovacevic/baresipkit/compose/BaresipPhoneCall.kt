@@ -26,7 +26,11 @@ sealed interface BaresipDtmfReply {
     /** The expected digit arrived. */
     data object Confirmed : BaresipDtmfReply
 
-    /** Another digit arrived first. */
+    /**
+     * Another digit arrived first.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Other(
         val digit: Char,
     ) : BaresipDtmfReply

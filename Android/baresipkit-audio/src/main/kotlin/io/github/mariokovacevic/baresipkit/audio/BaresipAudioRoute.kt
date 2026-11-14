@@ -16,7 +16,11 @@ sealed interface BaresipAudioRoute {
     /** Wired or USB headphones. */
     data object WiredHeadset : BaresipAudioRoute
 
-    /** Another output, with its `AudioDeviceInfo` type. */
+    /**
+     * Another output, with its `AudioDeviceInfo` type.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Other(
         val type: Int,
     ) : BaresipAudioRoute
@@ -39,7 +43,11 @@ sealed interface BaresipAudioRoute {
     }
 }
 
-/** An output the user can choose for call audio. */
+/**
+ * An output the user can choose for call audio.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipAudioOutput(
     /** A stable identifier: the device id, or a fixed value for the earpiece and loudspeaker. */
     val id: String,

@@ -26,6 +26,8 @@ enum class BaresipPixelFormat {
  *
  * The planes point at the engine's memory and are valid only during
  * [BaresipVideoRenderer.render]; copy what you need before returning.
+ *
+ * The constructor of this type is not covered by Semantic Versioning; read its properties.
  */
 class BaresipVideoFrame(
     /** The pixel layout. */

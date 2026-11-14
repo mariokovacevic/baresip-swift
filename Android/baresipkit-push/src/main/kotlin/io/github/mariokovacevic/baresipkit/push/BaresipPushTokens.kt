@@ -8,6 +8,8 @@ import io.github.mariokovacevic.baresipkit.BaresipContactParameter
  * The parameters follow the format push-capable SIP servers and Kamailio's push module use: `app-id`, `pn-type`, `pn-tok`, `pn-silent`, `pn-timeout` and an optional
  * `pn-channel`, the same names as on iOS with the Firebase token in `pn-tok`. [toString] shows
  * the token as `***`.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
  */
 data class BaresipPushTokens(
     /** The app's package name, sent as `app-id`. */
@@ -45,7 +47,11 @@ data class BaresipPushTokens(
     }
 }
 
-/** A call announced by a push message: the payload keys `from`, `name`, `video` and `uuid`. */
+/**
+ * A call announced by a push message: the payload keys `from`, `name`, `video` and `uuid`.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipPushCall(
     /** The caller's SIP URI, if the push names one. */
     val remoteUri: String?,

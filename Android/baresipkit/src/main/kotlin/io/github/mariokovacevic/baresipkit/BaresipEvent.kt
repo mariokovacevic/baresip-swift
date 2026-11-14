@@ -19,13 +19,21 @@ import kotlin.time.Duration
  * [Stability](https://github.com/mariokovacevic/baresipkit/blob/main/Docs/STABILITY.md).
  */
 sealed interface BaresipEvent {
-    /** The engine changed state, with the error that caused a failure. */
+    /**
+     * The engine changed state, with the error that caused a failure.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Engine(
         val state: BaresipEngineState,
         val error: BaresipError?,
     ) : BaresipEvent
 
-    /** An account's registration changed; [expires] is the granted lifetime when registered. */
+    /**
+     * An account's registration changed; [expires] is the granted lifetime when registered.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Registration(
         val account: BaresipAccountID,
         val state: BaresipRegistrationState,
@@ -33,7 +41,11 @@ sealed interface BaresipEvent {
         val error: BaresipError?,
     ) : BaresipEvent
 
-    /** A call is ringing; [earlyVideo] is `true` when the caller offers video before answering. */
+    /**
+     * A call is ringing; [earlyVideo] is `true` when the caller offers video before answering.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class IncomingCall(
         val info: BaresipCallInfo,
         val earlyVideo: Boolean,
@@ -43,6 +55,8 @@ sealed interface BaresipEvent {
      * A call changed state. The error is set for [BaresipCallState.FAILED], and when the other
      * side rejected a hold, resume or direction change and the call returned to its previous
      * state.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
      */
     data class Call(
         val call: BaresipCallID,
@@ -50,58 +64,98 @@ sealed interface BaresipEvent {
         val error: BaresipError?,
     ) : BaresipEvent
 
-    /** A call's media changed. */
+    /**
+     * A call's media changed.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Media(
         val call: BaresipCallID,
         val info: BaresipMediaEventInfo,
     ) : BaresipEvent
 
-    /** A DTMF digit arrived. */
+    /**
+     * A DTMF digit arrived.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Dtmf(
         val call: BaresipCallID,
         val dtmf: BaresipDtmfEvent,
     ) : BaresipEvent
 
-    /** A transfer made progress. */
+    /**
+     * A transfer made progress.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Transfer(
         val call: BaresipCallID,
         val transfer: BaresipTransferEvent,
     ) : BaresipEvent
 
-    /** Periodic media statistics for a call. */
+    /**
+     * Periodic media statistics for a call.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Statistics(
         val call: BaresipCallID,
         val statistics: BaresipCallStatistics,
     ) : BaresipEvent
 
-    /** A call's ICE state changed. */
+    /**
+     * A call's ICE state changed.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Ice(
         val call: BaresipCallID,
         val ice: BaresipIceEvent,
     ) : BaresipEvent
 
-    /** The engine handled a network change. */
+    /**
+     * The engine handled a network change.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Network(
         val network: BaresipNetworkEvent,
     ) : BaresipEvent
 
-    /** Audio input or output started or stopped, for a call or for the engine. */
+    /**
+     * Audio input or output started or stopped, for a call or for the engine.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Audio(
         val call: BaresipCallID?,
         val audio: BaresipAudioEvent,
     ) : BaresipEvent
 
-    /** A diagnostic condition outside a call. */
+    /**
+     * A diagnostic condition outside a call.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Diagnostic(
         val diagnostic: BaresipDiagnosticEvent,
     ) : BaresipEvent
 
-    /** A SIP MESSAGE arrived. */
+    /**
+     * A SIP MESSAGE arrived.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class Message(
         val message: BaresipMessage,
     ) : BaresipEvent
 
-    /** A sent SIP MESSAGE was answered or failed. */
+    /**
+     * A sent SIP MESSAGE was answered or failed.
+     *
+     * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+     */
     data class MessageStatus(
         val status: BaresipMessageStatus,
     ) : BaresipEvent
@@ -146,7 +200,11 @@ enum class BaresipMediaEvent(
     }
 }
 
-/** A media change with the negotiated directions at that moment. */
+/**
+ * A media change with the negotiated directions at that moment.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipMediaEventInfo(
     /** What changed, or `null` for a change this version does not know. */
     val event: BaresipMediaEvent?,
@@ -158,7 +216,11 @@ data class BaresipMediaEventInfo(
     val detail: String,
 )
 
-/** A DTMF digit received in a call. */
+/**
+ * A DTMF digit received in a call.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipDtmfEvent(
     /** The digit: `0`–`9`, `*`, `#` or `A`–`D`. */
     val digit: Char,
@@ -168,7 +230,11 @@ data class BaresipDtmfEvent(
     val viaSipInfo: Boolean,
 )
 
-/** Progress of a transfer. */
+/**
+ * Progress of a transfer.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipTransferEvent(
     /** `true` when the transfer failed. */
     val failed: Boolean,
@@ -178,7 +244,11 @@ data class BaresipTransferEvent(
     val targetUri: String,
 )
 
-/** The ICE state of a call with the selected candidates. */
+/**
+ * The ICE state of a call with the selected candidates.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipIceEvent(
     /** The ICE state. */
     val state: BaresipIceState,
@@ -192,7 +262,11 @@ data class BaresipIceEvent(
     val remoteAddress: String,
 )
 
-/** The engine handled a network change. */
+/**
+ * The engine handled a network change.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipNetworkEvent(
     /** `true` when the SIP transports were opened again. */
     val transportsReset: Boolean,
@@ -200,7 +274,11 @@ data class BaresipNetworkEvent(
     val localAddress: String,
 )
 
-/** Audio input or output started or stopped. */
+/**
+ * Audio input or output started or stopped.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipAudioEvent(
     /** Whether the microphone is running. */
     val inputRunning: Boolean,
@@ -210,7 +288,11 @@ data class BaresipAudioEvent(
     val error: BaresipError?,
 )
 
-/** A diagnostic condition outside a call. */
+/**
+ * A diagnostic condition outside a call.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipDiagnosticEvent(
     /** The severity. */
     val level: BaresipLogLevel,
@@ -218,7 +300,11 @@ data class BaresipDiagnosticEvent(
     val message: String,
 )
 
-/** An incoming SIP MESSAGE (RFC 3428). */
+/**
+ * An incoming SIP MESSAGE (RFC 3428).
+ *
+ * The constructor of this type is not covered by Semantic Versioning; read its properties.
+ */
 class BaresipMessage(
     /** The account that received the message, if known. */
     val account: BaresipAccountID?,
@@ -251,7 +337,11 @@ class BaresipMessage(
     override fun toString(): String = "BaresipMessage(from=$from, contentType=$contentType, ${body.size} bytes)"
 }
 
-/** The outcome of a message sent with [BaresipEngine.sendMessage]. */
+/**
+ * The outcome of a message sent with [BaresipEngine.sendMessage].
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipMessageStatus(
     /** The message. */
     val id: BaresipMessageID,

@@ -37,7 +37,11 @@ enum class BaresipLogDomain {
     }
 }
 
-/** One line of engine log output, passed to the handler set with [BaresipEngine.setLogHandler]. */
+/**
+ * One line of engine log output, passed to the handler set with [BaresipEngine.setLogHandler].
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipLogEntry(
     /** The severity. */
     val level: BaresipLogLevel,

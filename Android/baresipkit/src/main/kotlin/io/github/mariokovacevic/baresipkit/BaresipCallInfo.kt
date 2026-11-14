@@ -2,7 +2,11 @@ package io.github.mariokovacevic.baresipkit
 
 import kotlin.time.Duration
 
-/** A snapshot of a call, returned by [BaresipEngine.callInfo] and carried by [BaresipEvent.IncomingCall]. */
+/**
+ * A snapshot of a call, returned by [BaresipEngine.callInfo] and carried by [BaresipEvent.IncomingCall].
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipCallInfo(
     /** The call. */
     val id: BaresipCallID,
@@ -46,7 +50,11 @@ data class BaresipCallInfo(
     val replacesCallId: BaresipCallID? = null,
 )
 
-/** RTP statistics for one stream of a call. */
+/**
+ * RTP statistics for one stream of a call.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipStreamStatistics(
     /** RTP packets sent. */
     val transmittedPackets: Long,
@@ -74,7 +82,11 @@ data class BaresipStreamStatistics(
     val isSecure: Boolean,
 )
 
-/** Media statistics of a call. */
+/**
+ * Media statistics of a call.
+ *
+ * Constructors, `copy` and component functions of this type are not covered by Semantic Versioning; read its properties.
+ */
 data class BaresipCallStatistics(
     /** The call. */
     val id: BaresipCallID,

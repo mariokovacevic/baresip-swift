@@ -13,6 +13,8 @@ package io.github.mariokovacevic.baresipkit
  *     if (error.code == BaresipError.Code.NOT_FOUND) println("The call has already ended")
  * }
  * ```
+ *
+ * The constructor of this type is not covered by Semantic Versioning; read its properties.
  */
 class BaresipError(
     /** The category of the failure. */
