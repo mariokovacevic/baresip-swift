@@ -14,7 +14,7 @@ class ConfigurationBuilderTest {
 
     @Test
     fun theBuilderStartsFromTheDefaults() {
-        val configuration = BaresipConfiguration { instanceUuid = instance }
+        val configuration = BaresipConfiguration(instance)
         assertEquals("BaresipKit", configuration.userAgent)
         assertEquals(BaresipConfiguration.DEFAULT_MODULES, configuration.modules)
         assertEquals(10000..20000, configuration.rtpPortRange)
@@ -23,6 +23,8 @@ class ConfigurationBuilderTest {
         assertEquals(BaresipAudioConfiguration.DEFAULT_CODECS, configuration.audio.codecs)
         assertEquals("bskcamera", configuration.video.sourceModule)
         assertEquals(BaresipTlsConfiguration.TlsVersion.TLS_1_2, configuration.tls.minimumVersion)
+        assertEquals(instance, configuration.instanceUuid)
+        assertEquals(instance, configuration.copy { userAgent = "Other" }.instanceUuid)
         val account = BaresipAccountConfiguration(aor = "sip:alice@example.com")
         assertNull(account.registrar)
         assertEquals(600.seconds, account.registerExpires)
@@ -33,8 +35,7 @@ class ConfigurationBuilderTest {
     @Test
     fun copyChangesOnlyWhatTheBlockSets() {
         val configuration =
-            BaresipConfiguration {
-                instanceUuid = instance
+            BaresipConfiguration(instance) {
                 userAgent = "Test/1.0"
                 audio { sourceModule = "ausine" }
             }
@@ -83,7 +84,7 @@ class ConfigurationBuilderTest {
 
         val tls = BaresipTlsConfiguration { clientCertificatePem = "PRIVATE KEY".toByteArray() }
         assertFalse(tls.toString().contains("PRIVATE KEY"))
-        assertTrue(BaresipConfiguration { this.tls = tls }.toString().contains("clientCertificatePem=***"))
+        assertTrue(BaresipConfiguration(instance) { this.tls = tls }.toString().contains("clientCertificatePem=***"))
     }
 
     @Test

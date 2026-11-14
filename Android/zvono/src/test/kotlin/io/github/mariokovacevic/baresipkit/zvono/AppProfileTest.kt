@@ -7,11 +7,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
+import java.util.UUID
 
 class AppProfileTest {
     @Test
     fun defaultProfileChangesNothing() {
-        val configuration = BaresipConfiguration { userAgent = "Zvono/1.0" }
+        val configuration = BaresipConfiguration(UUID.fromString("00000000-0000-4000-8000-000000020f00")) { userAgent = "Zvono/1.0" }
         assertSame(configuration, DefaultAppProfile.configure(configuration))
         assertNull(DefaultAppProfile.accountSection())
     }

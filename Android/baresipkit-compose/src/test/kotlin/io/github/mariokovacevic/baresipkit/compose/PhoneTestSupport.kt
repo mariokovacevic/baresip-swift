@@ -13,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
+import java.util.UUID
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 
@@ -20,7 +21,7 @@ fun requireHostCore() = assumeTrue(System.getProperty("baresipkit.hostCore") == 
 
 fun testEngine(): BaresipEngine =
     BaresipEngine(
-        BaresipConfiguration {
+        BaresipConfiguration(UUID.fromString("00000000-0000-4000-8000-00000000c0de")) {
             modules = listOf("g711")
             audio {
                 sourceModule = "ausine"

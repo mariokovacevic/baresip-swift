@@ -33,9 +33,8 @@ suspend fun CallModel.startEngine() {
         val tls = savedTls()
         val options = settings.engine
         val configuration =
-            BaresipConfiguration {
+            BaresipConfiguration(instanceUuid = store.instanceUuid) {
                 userAgent = "Zvono/1.0"
-                instanceUuid = store.instanceUuid
                 logLevel = BaresipLogLevel.INFO
                 logSipTrace = logsSipMessages
                 audio { holdMusicFile = holdMusicFile() }

@@ -59,7 +59,7 @@ dependencies {
 ## Quick start
 
 ```kotlin
-val engine = BaresipEngine(BaresipConfiguration { userAgent = "MyApp" })
+val engine = BaresipEngine(BaresipConfiguration(instanceUuid = storedInstanceUuid) { userAgent = "MyApp" })
 engine.setLogHandler(BaresipLogcat.handler())
 engine.start()
 val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com") { authPassword = password })
@@ -75,6 +75,14 @@ engine.events.collect { event ->
 
 Every operation is a `suspend` function that runs on the engine's own thread; what happens
 afterwards arrives through `events`. Only one engine runs per process; close it with `close()`.
+
+`storedInstanceUuid` is the `+sip.instance` identifier of the installation: create it once with
+`UUID.randomUUID()`, persist it (for example in `SharedPreferences`) and pass the stored value on
+every launch, so the registrar replaces the device's `Contact` binding instead of adding one.
+
+The configuration types are built with a block and changed with `copy`:
+`BaresipAccountConfiguration(aor = "sip:alice@example.com") { transport = BaresipTransport.TLS }`,
+`account.copy { nat { mode = BaresipNatTraversal.ICE } }`.
 
 ## Setup recipes
 

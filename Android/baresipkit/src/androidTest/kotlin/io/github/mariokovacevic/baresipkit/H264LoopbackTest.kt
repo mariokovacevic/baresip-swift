@@ -10,6 +10,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.net.DatagramSocket
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 
@@ -29,7 +30,7 @@ class H264LoopbackTest {
         runBlocking {
             val port = DatagramSocket(0).use { it.localPort }
             val configuration =
-                BaresipConfiguration {
+                BaresipConfiguration(UUID.fromString("00000000-0000-4000-8000-0000000264a1")) {
                     modules = listOf("g711", "auconv", "auresamp", "ausine", "aufile", "fakevideo")
                     audio {
                         sourceModule = "ausine"

@@ -32,7 +32,7 @@ import kotlin.time.Duration.Companion.seconds
  * accepted them. What happens afterwards arrives through [events].
  *
  * ```kotlin
- * val engine = BaresipEngine(BaresipConfiguration())
+ * val engine = BaresipEngine(BaresipConfiguration(instanceUuid = storedInstanceUuid))
  * engine.start()
  * val account = engine.addAccount(BaresipAccountConfiguration(aor = "sip:alice@example.com") { authPassword = password })
  * engine.register(account)
@@ -46,7 +46,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class BaresipEngine(
     /** The configuration the engine was created with. */
-    val configuration: BaresipConfiguration = BaresipConfiguration(),
+    val configuration: BaresipConfiguration,
 ) : AutoCloseable {
     private val executor: ExecutorService =
         Executors.newSingleThreadExecutor { runnable ->

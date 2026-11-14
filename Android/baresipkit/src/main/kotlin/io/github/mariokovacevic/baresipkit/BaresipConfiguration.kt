@@ -12,11 +12,12 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * Engine-wide settings, passed to [BaresipEngine].
  *
- * Create the settings with the [BaresipConfiguration] function and change a copy with [copy]:
+ * Create the settings with the [BaresipConfiguration] function and change a copy with [copy]. The
+ * only required value is the [instanceUuid] the app stored for this installation:
  *
  * ```kotlin
  * val configuration =
- *     BaresipConfiguration {
+ *     BaresipConfiguration(instanceUuid = settings.instanceUuid) {
  *         userAgent = "MyApp/1.0"
  *         tls { caCertificatesPem = caBundle }
  *     }
@@ -32,7 +33,15 @@ class BaresipConfiguration private constructor(
     /** The `User-Agent` header value. */
     val userAgent: String = builder.userAgent
 
-    /** The instance identifier sent as `+sip.instance` (RFC 5626). Keep it stable per install. */
+    /**
+     * The instance identifier sent as `+sip.instance` (RFC 5626). The registrar uses it to tell
+     * that a REGISTER comes from the same device as before and replaces that device's `Contact`
+     * binding instead of adding one.
+     *
+     * The app creates it once per installation, for example with `UUID.randomUUID()`, persists it
+     * and passes the stored value on every launch. A new value on each launch leaves a stale binding
+     * on the registrar for every earlier launch until it expires.
+     */
     val instanceUuid: UUID = builder.instanceUuid
 
     /** The network interface to bind to, or `null` for all interfaces. */
@@ -144,12 +153,12 @@ class BaresipConfiguration private constructor(
 
     /** Collects the settings of a [BaresipConfiguration]; see the [BaresipConfiguration] function. */
     @BaresipConfigurationDsl
-    class Builder() {
+    class Builder(
+        /** The persisted instance identifier of this installation; see [BaresipConfiguration.instanceUuid]. */
+        var instanceUuid: UUID,
+    ) {
         /** The `User-Agent` header value. */
         var userAgent: String = "BaresipKit"
-
-        /** The instance identifier sent as `+sip.instance` (RFC 5626). Keep it stable per install. */
-        var instanceUuid: UUID = UUID.randomUUID()
 
         /** The network interface to bind to, or `null` for all interfaces. */
         var networkInterface: String? = null
@@ -200,9 +209,8 @@ class BaresipConfiguration private constructor(
         var minimumSessionTimer: Duration = 90.seconds
 
         /** Starts from the settings of [configuration]. */
-        constructor(configuration: BaresipConfiguration) : this() {
+        constructor(configuration: BaresipConfiguration) : this(configuration.instanceUuid) {
             userAgent = configuration.userAgent
-            instanceUuid = configuration.instanceUuid
             networkInterface = configuration.networkInterface
             modules = configuration.modules
             extraConfiguration = configuration.extraConfiguration
@@ -264,8 +272,16 @@ class BaresipConfiguration private constructor(
     }
 }
 
-/** Creates engine-wide settings: the defaults, changed by [block]. */
-fun BaresipConfiguration(block: BaresipConfiguration.Builder.() -> Unit = {}): BaresipConfiguration = BaresipConfiguration.Builder().apply(block).build()
+/**
+ * Creates engine-wide settings: the defaults, changed by [block].
+ *
+ * @param instanceUuid The instance identifier the app persisted for this installation; see
+ *   [BaresipConfiguration.instanceUuid].
+ */
+fun BaresipConfiguration(
+    instanceUuid: UUID,
+    block: BaresipConfiguration.Builder.() -> Unit = {},
+): BaresipConfiguration = BaresipConfiguration.Builder(instanceUuid).apply(block).build()
 
 /**
  * Audio settings for the engine, part of [BaresipConfiguration].
