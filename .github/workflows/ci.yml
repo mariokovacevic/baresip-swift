@@ -104,7 +104,7 @@ jobs:
         working-directory: Android
         run: |
           export JAVA_HOME="$JAVA_HOME_21_X64"
-          ./gradlew --no-daemon assembleDebug testDebugUnitTest
+          ./gradlew --no-daemon assembleDebug testDebugUnitTest checkKotlinAbi
       - name: Check Kotlin style with ktlint
         working-directory: Android
         run: |

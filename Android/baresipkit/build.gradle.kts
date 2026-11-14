@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import java.time.Duration as JavaDuration
 
 plugins {
@@ -46,6 +47,8 @@ android {
 kotlin {
     coreLibrariesVersion = "2.1.21"
     explicitApi()
+    @OptIn(ExperimentalAbiValidation::class)
+    abiValidation()
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
         apiVersion.set(KotlinVersion.KOTLIN_2_1)

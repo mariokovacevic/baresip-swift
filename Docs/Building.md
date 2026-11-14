@@ -39,6 +39,21 @@ The script clones each pinned source (`Build/versions.env`), verifies the commit
 Apps add a checkout as a local package (`.package(path: "../baresipkit")`), or a released version
 by URL. See [Releasing.md](Releasing.md#how-swiftpm-resolves-the-core).
 
+## Public API baselines
+
+CI fails when the public Kotlin API of a library changes without its baseline. The baselines are
+the ABI dumps in `Android/<library>/api/<library>.api`, written by the Kotlin Gradle plugin's ABI
+validation. They cover binary compatibility, so a changed signature, a removed overload or a new
+constructor parameter all show up. In `Android/`:
+
+```bash
+./gradlew checkKotlinAbi
+./gradlew updateKotlinAbi
+```
+
+`checkKotlinAbi` compares the compiled libraries with the dumps; `updateKotlinAbi` rewrites them.
+Commit the dumps together with the API change, and describe the change in `CHANGELOG.md`.
+
 ## Releasing
 
 Cutting a release, version numbering and recovering from a failed release run are covered in

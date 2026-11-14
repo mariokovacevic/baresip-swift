@@ -1,0 +1,106 @@
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipRedialRequest {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/telecom/BaresipRedialRequest$Companion;
+	public fun <init> (Ljava/lang/String;ZZ)V
+	public synthetic fun <init> (Ljava/lang/String;ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun copy (Ljava/lang/String;ZZ)Lio/github/mariokovacevic/baresipkit/telecom/BaresipRedialRequest;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/telecom/BaresipRedialRequest;Ljava/lang/String;ZZILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/telecom/BaresipRedialRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCallsNow ()Z
+	public final fun getDestination ()Ljava/lang/String;
+	public final fun getVideo ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipRedialRequest$Companion {
+	public final fun from (Landroid/content/Intent;)Lio/github/mariokovacevic/baresipkit/telecom/BaresipRedialRequest;
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipTelecomAdapter : io/github/mariokovacevic/baresipkit/BaresipCallController {
+	public fun <init> (Landroid/content/Context;Lio/github/mariokovacevic/baresipkit/BaresipEngine;Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Landroid/content/Context;Lio/github/mariokovacevic/baresipkit/BaresipEngine;Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun addMuteObserver (Lkotlin/jvm/functions/Function2;)V
+	public fun answer--zJ10-c (JZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun close ()V
+	public fun controls-_toeIIk (J)Z
+	public fun end-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getConfiguration ()Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;
+	public final fun getEngine ()Lio/github/mariokovacevic/baresipkit/BaresipEngine;
+	public fun placeCall-mNv01Hg (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun reportIncomingCallFromPush (Ljava/util/UUID;Ljava/lang/String;Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setMuted-7qpkdfE (ZJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun setOnHold-7qpkdfE (ZJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun telecomCall-_toeIIk (J)Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomCall;
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipTelecomCall {
+	public final fun getAvailableEndpoints ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getCall ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getCurrentEndpoint ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun getDisplayName ()Ljava/lang/String;
+	public final fun getHasVideo ()Z
+	public final fun getRemoteUri ()Ljava/lang/String;
+	public final fun getUuid ()Ljava/util/UUID;
+	public final fun isMuted ()Lkotlinx/coroutines/flow/StateFlow;
+	public final fun isOutgoing ()Z
+	public final fun requestEndpoint (Landroidx/core/telecom/CallEndpointCompat;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration {
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getActionTimeout-UwyO8pc ()J
+	public final fun getCallUuidHeader ()Ljava/lang/String;
+	public final fun getHandleStyle ()Lio/github/mariokovacevic/baresipkit/BaresipHandleStyle;
+	public final fun getMatchesPushWithoutCaller ()Z
+	public final fun getPushInviteTimeout-UwyO8pc ()J
+	public final fun getSendsCameraOnAnswer ()Z
+	public final fun getSupportsVideo ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration$Builder {
+	public fun <init> ()V
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;
+	public final fun getActionTimeout-UwyO8pc ()J
+	public final fun getCallUuidHeader ()Ljava/lang/String;
+	public final fun getHandleStyle ()Lio/github/mariokovacevic/baresipkit/BaresipHandleStyle;
+	public final fun getMatchesPushWithoutCaller ()Z
+	public final fun getPushInviteTimeout-UwyO8pc ()J
+	public final fun getSendsCameraOnAnswer ()Z
+	public final fun getSupportsVideo ()Z
+	public final fun setActionTimeout-LRDsOJo (J)V
+	public final fun setCallUuidHeader (Ljava/lang/String;)V
+	public final fun setHandleStyle (Lio/github/mariokovacevic/baresipkit/BaresipHandleStyle;)V
+	public final fun setMatchesPushWithoutCaller (Z)V
+	public final fun setPushInviteTimeout-LRDsOJo (J)V
+	public final fun setSendsCameraOnAnswer (Z)V
+	public final fun setSupportsVideo (Z)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfigurationKt {
+	public static final fun BaresipTelecomConfiguration (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;
+	public static synthetic fun BaresipTelecomConfiguration$default (Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomConfiguration;
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException : java/lang/Exception {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason;Ljava/lang/String;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason;Ljava/lang/String;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getAction ()Ljava/lang/String;
+	public final fun getErrorCode ()Ljava/lang/Integer;
+	public final fun getReason ()Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason;
+}
+
+public final class io/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason : java/lang/Enum {
+	public static final field ACTION_TIMED_OUT Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason;
+	public static final field REFUSED Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/telecom/BaresipTelecomException$Reason;
+}
+

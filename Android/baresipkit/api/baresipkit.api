@@ -1,0 +1,1289 @@
+public final class io/github/mariokovacevic/baresipkit/BaresipAccountConfiguration {
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipAccountConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAcceptTransfers ()Z
+	public final fun getAnswerEarlyMedia ()Z
+	public final fun getAor ()Ljava/lang/String;
+	public final fun getAudioCodecs ()Ljava/util/List;
+	public final fun getAuthPassword ()Ljava/lang/String;
+	public final fun getAuthUser ()Ljava/lang/String;
+	public final fun getContactParameters ()Ljava/util/List;
+	public final fun getDisplayName ()Ljava/lang/String;
+	public final fun getDtmfMode ()Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;
+	public final fun getIncomingHeaders ()Ljava/util/List;
+	public final fun getMediaEncryption ()Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+	public final fun getNat ()Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;
+	public final fun getOutboundProxy ()Ljava/lang/String;
+	public final fun getPictureUpdateOverSipInfo ()Z
+	public final fun getRegisterExpires-UwyO8pc ()J
+	public final fun getRegistrar ()Ljava/lang/String;
+	public final fun getSipOutbound ()Z
+	public final fun getTransport ()Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+	public final fun getVideoCodecs ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+	public final fun validate ()V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAccountConfiguration$Builder {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipAccountConfiguration;)V
+	public fun <init> (Ljava/lang/String;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/BaresipAccountConfiguration;
+	public final fun getAcceptTransfers ()Z
+	public final fun getAnswerEarlyMedia ()Z
+	public final fun getAor ()Ljava/lang/String;
+	public final fun getAudioCodecs ()Ljava/util/List;
+	public final fun getAuthPassword ()Ljava/lang/String;
+	public final fun getAuthUser ()Ljava/lang/String;
+	public final fun getContactParameters ()Ljava/util/List;
+	public final fun getDisplayName ()Ljava/lang/String;
+	public final fun getDtmfMode ()Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;
+	public final fun getIncomingHeaders ()Ljava/util/List;
+	public final fun getMediaEncryption ()Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+	public final fun getNat ()Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;
+	public final fun getOutboundProxy ()Ljava/lang/String;
+	public final fun getPictureUpdateOverSipInfo ()Z
+	public final fun getRegisterExpires-UwyO8pc ()J
+	public final fun getRegistrar ()Ljava/lang/String;
+	public final fun getSipOutbound ()Z
+	public final fun getTransport ()Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+	public final fun getVideoCodecs ()Ljava/util/List;
+	public final fun nat (Lkotlin/jvm/functions/Function1;)V
+	public final fun setAcceptTransfers (Z)V
+	public final fun setAnswerEarlyMedia (Z)V
+	public final fun setAor (Ljava/lang/String;)V
+	public final fun setAudioCodecs (Ljava/util/List;)V
+	public final fun setAuthPassword (Ljava/lang/String;)V
+	public final fun setAuthUser (Ljava/lang/String;)V
+	public final fun setContactParameters (Ljava/util/List;)V
+	public final fun setDisplayName (Ljava/lang/String;)V
+	public final fun setDtmfMode (Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;)V
+	public final fun setIncomingHeaders (Ljava/util/List;)V
+	public final fun setMediaEncryption (Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;)V
+	public final fun setNat (Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;)V
+	public final fun setOutboundProxy (Ljava/lang/String;)V
+	public final fun setPictureUpdateOverSipInfo (Z)V
+	public final fun setRegisterExpires-LRDsOJo (J)V
+	public final fun setRegistrar (Ljava/lang/String;)V
+	public final fun setSipOutbound (Z)V
+	public final fun setTransport (Lio/github/mariokovacevic/baresipkit/BaresipTransport;)V
+	public final fun setVideoCodecs (Ljava/util/List;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAccountConfigurationKt {
+	public static final fun BaresipAccountConfiguration (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipAccountConfiguration;
+	public static synthetic fun BaresipAccountConfiguration$default (Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipAccountConfiguration;
+	public static final fun BaresipNatConfiguration (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;
+	public static synthetic fun BaresipNatConfiguration$default (Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;
+	public static final fun BaresipTurnServer (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipTurnServer;
+	public static synthetic fun BaresipTurnServer$default (Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipTurnServer;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAccountID {
+	public static final synthetic fun box-impl (J)Lio/github/mariokovacevic/baresipkit/BaresipAccountID;
+	public static fun constructor-impl (J)J
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (JLjava/lang/Object;)Z
+	public static final fun equals-impl0 (JJ)Z
+	public final fun getRawValue ()J
+	public fun hashCode ()I
+	public static fun hashCode-impl (J)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (J)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()J
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAppLifecycle {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipEngine;)V
+	public final fun getBackgroundBehavior ()Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior;
+	public final fun getEngine ()Lio/github/mariokovacevic/baresipkit/BaresipEngine;
+	public final fun getUnregisterTimeout-UwyO8pc ()J
+	public final fun isAway ()Z
+	public final fun setBackgroundBehavior (Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior;)V
+	public final fun setChangeHandler (Lkotlin/jvm/functions/Function1;)V
+	public final fun setUnregisterTimeout-LRDsOJo (J)V
+	public final fun start ()V
+	public final fun stop ()V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior : java/lang/Enum {
+	public static final field GO_OFFLINE Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior;
+	public static final field STAY_ONLINE Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior;
+	public static final field SUSPEND Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$BackgroundBehavior;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAppLifecycle$Change : java/lang/Enum {
+	public static final field BACK_ONLINE Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$Change;
+	public static final field SUSPENDED Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$Change;
+	public static final field WENT_OFFLINE Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$Change;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$Change;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipAppLifecycle$Change;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAudioConfiguration {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration$Companion;
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAdaptiveJitterBuffer ()Z
+	public final fun getChannels ()Ljava/lang/Integer;
+	public final fun getCodecs ()Ljava/util/List;
+	public final fun getHoldMusicFile ()Ljava/io/File;
+	public final fun getJitterBufferRange ()Lkotlin/ranges/IntRange;
+	public final fun getPacketTime-UwyO8pc ()J
+	public final fun getPlayerDevice ()Ljava/lang/String;
+	public final fun getPlayerModule ()Ljava/lang/String;
+	public final fun getSampleRate ()Ljava/lang/Integer;
+	public final fun getSourceDevice ()Ljava/lang/String;
+	public final fun getSourceModule ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAudioConfiguration$Builder {
+	public fun <init> ()V
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;
+	public final fun getAdaptiveJitterBuffer ()Z
+	public final fun getChannels ()Ljava/lang/Integer;
+	public final fun getCodecs ()Ljava/util/List;
+	public final fun getHoldMusicFile ()Ljava/io/File;
+	public final fun getJitterBufferRange ()Lkotlin/ranges/IntRange;
+	public final fun getPacketTime-UwyO8pc ()J
+	public final fun getPlayerDevice ()Ljava/lang/String;
+	public final fun getPlayerModule ()Ljava/lang/String;
+	public final fun getSampleRate ()Ljava/lang/Integer;
+	public final fun getSourceDevice ()Ljava/lang/String;
+	public final fun getSourceModule ()Ljava/lang/String;
+	public final fun setAdaptiveJitterBuffer (Z)V
+	public final fun setChannels (Ljava/lang/Integer;)V
+	public final fun setCodecs (Ljava/util/List;)V
+	public final fun setHoldMusicFile (Ljava/io/File;)V
+	public final fun setJitterBufferRange (Lkotlin/ranges/IntRange;)V
+	public final fun setPacketTime-LRDsOJo (J)V
+	public final fun setPlayerDevice (Ljava/lang/String;)V
+	public final fun setPlayerModule (Ljava/lang/String;)V
+	public final fun setSampleRate (Ljava/lang/Integer;)V
+	public final fun setSourceDevice (Ljava/lang/String;)V
+	public final fun setSourceModule (Ljava/lang/String;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAudioConfiguration$Companion {
+	public final fun getDEFAULT_CODECS ()Ljava/util/List;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipAudioEvent {
+	public fun <init> (ZZLio/github/mariokovacevic/baresipkit/BaresipError;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Z
+	public final fun component3 ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun copy (ZZLio/github/mariokovacevic/baresipkit/BaresipError;)Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;ZZLio/github/mariokovacevic/baresipkit/BaresipError;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getError ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun getInputRunning ()Z
+	public final fun getOutputRunning ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/github/mariokovacevic/baresipkit/BaresipCallController {
+	public abstract fun addMuteObserver (Lkotlin/jvm/functions/Function2;)V
+	public abstract fun answer--zJ10-c (JZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun controls-_toeIIk (J)Z
+	public abstract fun end-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun placeCall-mNv01Hg (Ljava/lang/String;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setMuted-7qpkdfE (ZJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun setOnHold-7qpkdfE (ZJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCallEndReason : java/lang/Enum {
+	public static final field ANSWERED_ELSEWHERE Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;
+	public static final field DECLINED_ELSEWHERE Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;
+	public static final field REPLACED Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCallID {
+	public static final synthetic fun box-impl (J)Lio/github/mariokovacevic/baresipkit/BaresipCallID;
+	public static fun constructor-impl (J)J
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (JLjava/lang/Object;)Z
+	public static final fun equals-impl0 (JJ)Z
+	public final fun getRawValue ()J
+	public fun hashCode ()I
+	public static fun hashCode-impl (J)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (J)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()J
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCallInfo {
+	public synthetic fun <init> (JJLio/github/mariokovacevic/baresipkit/BaresipCallState;ZZLio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJZLio/github/mariokovacevic/baresipkit/BaresipCallID;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (JJLio/github/mariokovacevic/baresipkit/BaresipCallState;ZZLio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJZLio/github/mariokovacevic/baresipkit/BaresipCallID;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()Ljava/lang/String;
+	public final fun component12 ()Ljava/lang/String;
+	public final fun component13-UwyO8pc ()J
+	public final fun component14-UwyO8pc ()J
+	public final fun component15 ()Z
+	public final fun component16-iuPYccg ()Lio/github/mariokovacevic/baresipkit/BaresipCallID;
+	public final fun component2-NTKvxsQ ()J
+	public final fun component3 ()Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public final fun component4 ()Z
+	public final fun component5 ()Z
+	public final fun component6 ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public final fun component7 ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy-RriaAsE (JJLio/github/mariokovacevic/baresipkit/BaresipCallState;ZZLio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJZLio/github/mariokovacevic/baresipkit/BaresipCallID;)Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;
+	public static synthetic fun copy-RriaAsE$default (Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;JJLio/github/mariokovacevic/baresipkit/BaresipCallState;ZZLio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JJZLio/github/mariokovacevic/baresipkit/BaresipCallID;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccountId-NTKvxsQ ()J
+	public final fun getAudioCodec ()Ljava/lang/String;
+	public final fun getAudioDirection ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public final fun getDuration-UwyO8pc ()J
+	public final fun getHasVideo ()Z
+	public final fun getId--jmX5X0 ()J
+	public final fun getRemoteDisplayName ()Ljava/lang/String;
+	public final fun getRemoteUri ()Ljava/lang/String;
+	public final fun getReplacesCallId-iuPYccg ()Lio/github/mariokovacevic/baresipkit/BaresipCallID;
+	public final fun getSetupTime-UwyO8pc ()J
+	public final fun getSipCallId ()Ljava/lang/String;
+	public final fun getState ()Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public final fun getVideoCodec ()Ljava/lang/String;
+	public final fun getVideoDirection ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public fun hashCode ()I
+	public final fun isMicrophoneMuted ()Z
+	public final fun isOutgoing ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCallState : java/lang/Enum {
+	public static final field CONNECTED Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field EARLY_MEDIA Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field ENDED Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field FAILED Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field INCOMING Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field OUTGOING_INIT Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field OUTGOING_RINGING Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field PAUSED Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field PAUSED_BY_REMOTE Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field PAUSING Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field RELEASED Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field RESUMING Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field STREAMS_RUNNING Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static final field UPDATING Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun isTerminal ()Z
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCallStatistics {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;Lio/github/mariokovacevic/baresipkit/BaresipIceState;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Ljava/lang/String;Ljava/lang/String;DILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component10 ()I
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;
+	public final fun component3 ()Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;
+	public final fun component4 ()Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public final fun component5 ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun component6 ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun component9 ()D
+	public final fun copy-DsFoHIQ (JLio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;Lio/github/mariokovacevic/baresipkit/BaresipIceState;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Ljava/lang/String;Ljava/lang/String;DI)Lio/github/mariokovacevic/baresipkit/BaresipCallStatistics;
+	public static synthetic fun copy-DsFoHIQ$default (Lio/github/mariokovacevic/baresipkit/BaresipCallStatistics;JLio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;Lio/github/mariokovacevic/baresipkit/BaresipIceState;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Ljava/lang/String;Ljava/lang/String;DIILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipCallStatistics;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAudio ()Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;
+	public final fun getIceState ()Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public final fun getId--jmX5X0 ()J
+	public final fun getLocalAddress ()Ljava/lang/String;
+	public final fun getLocalCandidate ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun getMosEstimate ()D
+	public final fun getRemoteAddress ()Ljava/lang/String;
+	public final fun getRemoteCandidate ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun getVideo ()Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;
+	public final fun getVideoTargetBitrate ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/github/mariokovacevic/baresipkit/BaresipCameraHost {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/BaresipCameraHost$Companion;
+	public abstract fun start (Lio/github/mariokovacevic/baresipkit/BaresipCameraSource;Ljava/lang/String;III)Z
+	public abstract fun stop (Lio/github/mariokovacevic/baresipkit/BaresipCameraSource;)V
+	public abstract fun switchDevice (Lio/github/mariokovacevic/baresipkit/BaresipCameraSource;Ljava/lang/String;)Z
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCameraHost$Companion {
+	public final fun install (Lio/github/mariokovacevic/baresipkit/BaresipCameraHost;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCameraPosition : java/lang/Enum {
+	public static final field BACK Lio/github/mariokovacevic/baresipkit/BaresipCameraPosition;
+	public static final field FRONT Lio/github/mariokovacevic/baresipkit/BaresipCameraPosition;
+	public final fun getDeviceName ()Ljava/lang/String;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getToggled ()Lio/github/mariokovacevic/baresipkit/BaresipCameraPosition;
+	public final fun isMirroredInPreview ()Z
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipCameraPosition;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipCameraPosition;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCameraSource {
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public final fun push-HOM7YUo (IILjava/nio/ByteBuffer;Ljava/nio/ByteBuffer;Ljava/nio/ByteBuffer;IIIJI)Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCandidateType : java/lang/Enum {
+	public static final field HOST Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public static final field PEER_REFLEXIVE Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public static final field RELAY Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public static final field SERVER_REFLEXIVE Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCertificateException : java/lang/Exception {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;)V
+	public final fun getReason ()Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason : java/lang/Enum {
+	public static final field ENCRYPTED_KEY Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+	public static final field INVALID_CERTIFICATE Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+	public static final field NO_CERTIFICATE Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+	public static final field NO_PRIVATE_KEY Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+	public static final field UNREADABLE Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipCertificateException$Reason;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipCertificates {
+	public static final field INSTANCE Lio/github/mariokovacevic/baresipkit/BaresipCertificates;
+	public final fun caBundle ([B)[B
+	public final fun clientIdentity ([B)[B
+	public final fun split ([B)Lkotlin/Pair;
+	public final fun summaries ([B)Ljava/util/List;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipConfiguration {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/BaresipConfiguration$Companion;
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAudio ()Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;
+	public final fun getExtraConfiguration ()Ljava/lang/String;
+	public final fun getIceRelayOnly ()Z
+	public final fun getInstanceUuid ()Ljava/util/UUID;
+	public final fun getIpv6 ()Z
+	public final fun getLogLevel ()Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public final fun getLogSipTrace ()Z
+	public final fun getMaxCalls ()I
+	public final fun getMinimumSessionTimer-UwyO8pc ()J
+	public final fun getModules ()Ljava/util/List;
+	public final fun getNetworkInterface ()Ljava/lang/String;
+	public final fun getRtpPortRange ()Lkotlin/ranges/IntRange;
+	public final fun getSessionTimer-FghU774 ()Lkotlin/time/Duration;
+	public final fun getTls ()Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;
+	public final fun getUserAgent ()Ljava/lang/String;
+	public final fun getVideo ()Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;
+	public final fun getVideoAdaptiveBitrate ()Z
+	public final fun getVideoMinimumBitrate ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipConfiguration$Builder {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipConfiguration;)V
+	public fun <init> (Ljava/util/UUID;)V
+	public final fun audio (Lkotlin/jvm/functions/Function1;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/BaresipConfiguration;
+	public final fun getAudio ()Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;
+	public final fun getExtraConfiguration ()Ljava/lang/String;
+	public final fun getIceRelayOnly ()Z
+	public final fun getInstanceUuid ()Ljava/util/UUID;
+	public final fun getIpv6 ()Z
+	public final fun getLogLevel ()Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public final fun getLogSipTrace ()Z
+	public final fun getMaxCalls ()I
+	public final fun getMinimumSessionTimer-UwyO8pc ()J
+	public final fun getModules ()Ljava/util/List;
+	public final fun getNetworkInterface ()Ljava/lang/String;
+	public final fun getRtpPortRange ()Lkotlin/ranges/IntRange;
+	public final fun getSessionTimer-FghU774 ()Lkotlin/time/Duration;
+	public final fun getTls ()Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;
+	public final fun getUserAgent ()Ljava/lang/String;
+	public final fun getVideo ()Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;
+	public final fun getVideoAdaptiveBitrate ()Z
+	public final fun getVideoMinimumBitrate ()I
+	public final fun setAudio (Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;)V
+	public final fun setExtraConfiguration (Ljava/lang/String;)V
+	public final fun setIceRelayOnly (Z)V
+	public final fun setInstanceUuid (Ljava/util/UUID;)V
+	public final fun setIpv6 (Z)V
+	public final fun setLogLevel (Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;)V
+	public final fun setLogSipTrace (Z)V
+	public final fun setMaxCalls (I)V
+	public final fun setMinimumSessionTimer-LRDsOJo (J)V
+	public final fun setModules (Ljava/util/List;)V
+	public final fun setNetworkInterface (Ljava/lang/String;)V
+	public final fun setRtpPortRange (Lkotlin/ranges/IntRange;)V
+	public final fun setSessionTimer-BwNAW2A (Lkotlin/time/Duration;)V
+	public final fun setTls (Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;)V
+	public final fun setUserAgent (Ljava/lang/String;)V
+	public final fun setVideo (Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;)V
+	public final fun setVideoAdaptiveBitrate (Z)V
+	public final fun setVideoMinimumBitrate (I)V
+	public final fun tls (Lkotlin/jvm/functions/Function1;)V
+	public final fun video (Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipConfiguration$Companion {
+	public final fun getDEFAULT_MODULES ()Ljava/util/List;
+}
+
+public abstract interface annotation class io/github/mariokovacevic/baresipkit/BaresipConfigurationDsl : java/lang/annotation/Annotation {
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipConfigurationKt {
+	public static final fun BaresipAudioConfiguration (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;
+	public static synthetic fun BaresipAudioConfiguration$default (Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipAudioConfiguration;
+	public static final fun BaresipConfiguration (Ljava/util/UUID;Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipConfiguration;
+	public static synthetic fun BaresipConfiguration$default (Ljava/util/UUID;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipConfiguration;
+	public static final fun BaresipTlsConfiguration (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;
+	public static synthetic fun BaresipTlsConfiguration$default (Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;
+	public static final fun BaresipVideoConfiguration (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;
+	public static synthetic fun BaresipVideoConfiguration$default (Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipContactParameter {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipContactParameter;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipContactParameter;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipContactParameter;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;Ljava/lang/String;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;Ljava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLevel ()Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipDtmfEvent {
+	public fun <init> (CZZ)V
+	public final fun component1 ()C
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun copy (CZZ)Lio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;CZZILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDigit ()C
+	public final fun getViaSipInfo ()Z
+	public fun hashCode ()I
+	public final fun isEnd ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipDtmfMode : java/lang/Enum {
+	public static final field AUTO Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;
+	public static final field RTP_EVENT Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;
+	public static final field SIP_INFO Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipDtmfMode;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEngine : java/lang/AutoCloseable {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/BaresipEngine$Companion;
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipConfiguration;)V
+	public final fun accounts (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun activeCalls (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun addAccount-PxoUvx4 (Lio/github/mariokovacevic/baresipkit/BaresipAccountConfiguration;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun answer-XRL4cpc (JZZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun answer-XRL4cpc$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;JZZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun attendedTransfer-u4tiay8 (JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun audioInterruption (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun audioRouteDidChange (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun audioSessionDidActivate (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun audioSessionDidDeactivate (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun blindTransfer--zJ10-c (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun callInfo-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun callStatistics-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun close ()V
+	public final fun getConfiguration ()Lio/github/mariokovacevic/baresipkit/BaresipConfiguration;
+	public final fun getEvents ()Lkotlinx/coroutines/flow/Flow;
+	public final fun getState ()Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public final fun hangUp-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun hold-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun incomingHeader--zJ10-c (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun makeCall-TV35inQ (Lio/github/mariokovacevic/baresipkit/BaresipAccountID;Ljava/lang/String;ZZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun makeCall-TV35inQ$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;Lio/github/mariokovacevic/baresipkit/BaresipAccountID;Ljava/lang/String;ZZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun networkDidChange (ZZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun networkDidChange$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;ZZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun prepareForPushWakeUp (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun register--DcK9hs (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun registrationState-HziJOBc (J)Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public final fun reject-XRL4cpc (JILjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun reject-XRL4cpc$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;JILjava/lang/String;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun removeAccount--DcK9hs (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun requestKeyframe-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun restartIce-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun resume-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun resumeFromBackground (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun sendDtmf-Wb1nNi8 (JLjava/lang/String;JJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun sendDtmf-Wb1nNi8$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;JLjava/lang/String;JJLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun sendMessage-1EnMdYU (Ljava/lang/String;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipAccountID;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun sendMessage-1EnMdYU$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;Ljava/lang/String;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipAccountID;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun sendProgress-XRL4cpc (JZZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun sendProgress-XRL4cpc$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;JZZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun setActiveCall-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setAudioDirection--zJ10-c (JLio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setCamera--zJ10-c (JLio/github/mariokovacevic/baresipkit/BaresipCameraPosition;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setCamera--zJ10-c (JLjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setDefaultAccount--DcK9hs (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setLogHandler (Lio/github/mariokovacevic/baresipkit/BaresipLogHandler;)V
+	public final fun setMicrophoneMuted--zJ10-c (JZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setVideoDirection--zJ10-c (JLio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setVideoEnabled--zJ10-c (JZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setVideoMaxBitrate--zJ10-c (JLjava/lang/Integer;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setVideoRenderer-XRL4cpc (JLio/github/mariokovacevic/baresipkit/BaresipVideoRenderer;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun setVideoRenderer-XRL4cpc$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;JLio/github/mariokovacevic/baresipkit/BaresipVideoRenderer;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun start (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun startRecording--zJ10-c (JLjava/io/File;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun startVideoPreview (Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipVideoRenderer;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun startVideoPreview$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipVideoRenderer;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun stop-VtjQ1oo (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun stop-VtjQ1oo$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;JLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun stopRecording-I9_ACD0 (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun stopVideoPreview (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun suspend (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun unregister--DcK9hs (JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun updateContactParameters-COfQSTc (JLjava/util/List;ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun updateContactParameters-COfQSTc$default (Lio/github/mariokovacevic/baresipkit/BaresipEngine;JLjava/util/List;ZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun updateCredentials-COfQSTc (JLjava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun videoDevices (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEngine$Companion {
+	public final fun encodeContactParameters (Ljava/util/List;)Ljava/lang/String;
+	public final fun getCoreVersion ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEngineState : java/lang/Enum {
+	public static final field FAILED Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static final field IDLE Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static final field READY Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static final field RUNNING Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static final field STARTING Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static final field STOPPED Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static final field STOPPING Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipError : java/lang/Exception {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipError$Code;ILjava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;)V
+	public synthetic fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipError$Code;ILjava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getEndReason ()Lio/github/mariokovacevic/baresipkit/BaresipCallEndReason;
+	public fun getMessage ()Ljava/lang/String;
+	public final fun getSipReason ()Ljava/lang/String;
+	public final fun getSipStatus ()Ljava/lang/Integer;
+	public final fun getSystemErrno ()I
+	public fun hashCode ()I
+	public final fun isFailure ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipError$Code : java/lang/Enum {
+	public static final field AUTHENTICATION Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field BUFFER_TOO_SMALL Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field BUSY Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field INTERNAL_ERROR Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field INVALID_ARGUMENT Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field INVALID_STATE Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field MEDIA Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field NETWORK Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field NOT_FOUND Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field NO_MEMORY Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field OK Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field SIP Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field TIMEOUT Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field TLS Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static final field UNSUPPORTED Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipError$Code;
+}
+
+public abstract interface class io/github/mariokovacevic/baresipkit/BaresipEvent {
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Audio : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipCallID;Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-iuPYccg ()Lio/github/mariokovacevic/baresipkit/BaresipCallID;
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;
+	public final fun copy-UjIxOUY (Lio/github/mariokovacevic/baresipkit/BaresipCallID;Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Audio;
+	public static synthetic fun copy-UjIxOUY$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Audio;Lio/github/mariokovacevic/baresipkit/BaresipCallID;Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Audio;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAudio ()Lio/github/mariokovacevic/baresipkit/BaresipAudioEvent;
+	public final fun getCall-iuPYccg ()Lio/github/mariokovacevic/baresipkit/BaresipCallID;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Call : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipCallState;Lio/github/mariokovacevic/baresipkit/BaresipError;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public final fun component3 ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun copy--zJ10-c (JLio/github/mariokovacevic/baresipkit/BaresipCallState;Lio/github/mariokovacevic/baresipkit/BaresipError;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Call;
+	public static synthetic fun copy--zJ10-c$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Call;JLio/github/mariokovacevic/baresipkit/BaresipCallState;Lio/github/mariokovacevic/baresipkit/BaresipError;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Call;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCall--jmX5X0 ()J
+	public final fun getError ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun getState ()Lio/github/mariokovacevic/baresipkit/BaresipCallState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Diagnostic : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Diagnostic;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Diagnostic;Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Diagnostic;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDiagnostic ()Lio/github/mariokovacevic/baresipkit/BaresipDiagnosticEvent;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Dtmf : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;
+	public final fun copy-I9_ACD0 (JLio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Dtmf;
+	public static synthetic fun copy-I9_ACD0$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Dtmf;JLio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Dtmf;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCall--jmX5X0 ()J
+	public final fun getDtmf ()Lio/github/mariokovacevic/baresipkit/BaresipDtmfEvent;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Engine : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipEngineState;Lio/github/mariokovacevic/baresipkit/BaresipError;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipEngineState;Lio/github/mariokovacevic/baresipkit/BaresipError;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Engine;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Engine;Lio/github/mariokovacevic/baresipkit/BaresipEngineState;Lio/github/mariokovacevic/baresipkit/BaresipError;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Engine;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getError ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun getState ()Lio/github/mariokovacevic/baresipkit/BaresipEngineState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Ice : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipIceEvent;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipIceEvent;
+	public final fun copy-I9_ACD0 (JLio/github/mariokovacevic/baresipkit/BaresipIceEvent;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Ice;
+	public static synthetic fun copy-I9_ACD0$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Ice;JLio/github/mariokovacevic/baresipkit/BaresipIceEvent;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Ice;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCall--jmX5X0 ()J
+	public final fun getIce ()Lio/github/mariokovacevic/baresipkit/BaresipIceEvent;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$IncomingCall : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;Z)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;
+	public final fun component2 ()Z
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;Z)Lio/github/mariokovacevic/baresipkit/BaresipEvent$IncomingCall;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$IncomingCall;Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;ZILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$IncomingCall;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEarlyVideo ()Z
+	public final fun getInfo ()Lio/github/mariokovacevic/baresipkit/BaresipCallInfo;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Media : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;
+	public final fun copy-I9_ACD0 (JLio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Media;
+	public static synthetic fun copy-I9_ACD0$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Media;JLio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Media;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCall--jmX5X0 ()J
+	public final fun getInfo ()Lio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Message : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipMessage;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipMessage;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipMessage;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Message;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Message;Lio/github/mariokovacevic/baresipkit/BaresipMessage;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Message;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMessage ()Lio/github/mariokovacevic/baresipkit/BaresipMessage;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$MessageStatus : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$MessageStatus;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$MessageStatus;Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$MessageStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getStatus ()Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Network : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Network;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Network;Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Network;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getNetwork ()Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Registration : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipRegistrationState;Lkotlin/time/Duration;Lio/github/mariokovacevic/baresipkit/BaresipError;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-NTKvxsQ ()J
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public final fun component3-FghU774 ()Lkotlin/time/Duration;
+	public final fun component4 ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun copy-ni6nxVA (JLio/github/mariokovacevic/baresipkit/BaresipRegistrationState;Lkotlin/time/Duration;Lio/github/mariokovacevic/baresipkit/BaresipError;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Registration;
+	public static synthetic fun copy-ni6nxVA$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Registration;JLio/github/mariokovacevic/baresipkit/BaresipRegistrationState;Lkotlin/time/Duration;Lio/github/mariokovacevic/baresipkit/BaresipError;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Registration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccount-NTKvxsQ ()J
+	public final fun getError ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun getExpires-FghU774 ()Lkotlin/time/Duration;
+	public final fun getState ()Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Statistics : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipCallStatistics;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipCallStatistics;
+	public final fun copy-I9_ACD0 (JLio/github/mariokovacevic/baresipkit/BaresipCallStatistics;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Statistics;
+	public static synthetic fun copy-I9_ACD0$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Statistics;JLio/github/mariokovacevic/baresipkit/BaresipCallStatistics;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Statistics;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCall--jmX5X0 ()J
+	public final fun getStatistics ()Lio/github/mariokovacevic/baresipkit/BaresipCallStatistics;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipEvent$Transfer : io/github/mariokovacevic/baresipkit/BaresipEvent {
+	public synthetic fun <init> (JLio/github/mariokovacevic/baresipkit/BaresipTransferEvent;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1--jmX5X0 ()J
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipTransferEvent;
+	public final fun copy-I9_ACD0 (JLio/github/mariokovacevic/baresipkit/BaresipTransferEvent;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Transfer;
+	public static synthetic fun copy-I9_ACD0$default (Lio/github/mariokovacevic/baresipkit/BaresipEvent$Transfer;JLio/github/mariokovacevic/baresipkit/BaresipTransferEvent;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipEvent$Transfer;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCall--jmX5X0 ()J
+	public final fun getTransfer ()Lio/github/mariokovacevic/baresipkit/BaresipTransferEvent;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipFileLog {
+	public fun <init> (Ljava/io/File;JI)V
+	public synthetic fun <init> (Ljava/io/File;JIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun files ()Ljava/util/List;
+	public final fun getDirectory ()Ljava/io/File;
+	public final fun handler (Lio/github/mariokovacevic/baresipkit/BaresipLogHandler;)Lio/github/mariokovacevic/baresipkit/BaresipLogHandler;
+	public static synthetic fun handler$default (Lio/github/mariokovacevic/baresipkit/BaresipFileLog;Lio/github/mariokovacevic/baresipkit/BaresipLogHandler;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipLogHandler;
+	public final fun write (Ljava/lang/String;Ljava/lang/String;)V
+	public static synthetic fun write$default (Lio/github/mariokovacevic/baresipkit/BaresipFileLog;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipHandleStyle : java/lang/Enum {
+	public static final field PHONE_NUMBER_WHEN_NUMERIC Lio/github/mariokovacevic/baresipkit/BaresipHandleStyle;
+	public static final field SIP_URI Lio/github/mariokovacevic/baresipkit/BaresipHandleStyle;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipHandleStyle;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipHandleStyle;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipIceEvent {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipIceState;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun component3 ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipIceState;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Ljava/lang/String;Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipIceEvent;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipIceEvent;Lio/github/mariokovacevic/baresipkit/BaresipIceState;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipIceEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLocalAddress ()Ljava/lang/String;
+	public final fun getLocalCandidate ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun getRemoteAddress ()Ljava/lang/String;
+	public final fun getRemoteCandidate ()Lio/github/mariokovacevic/baresipkit/BaresipCandidateType;
+	public final fun getState ()Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipIceState : java/lang/Enum {
+	public static final field CHECKING Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public static final field CONNECTED Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public static final field FAILED Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public static final field GATHERING Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public static final field NONE Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipIceState;
+}
+
+public abstract interface annotation class io/github/mariokovacevic/baresipkit/BaresipInternalApi : java/lang/annotation/Annotation {
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipLogDomain : java/lang/Enum {
+	public static final field CORE Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;
+	public static final field MEDIA Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;
+	public static final field SIP Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipLogEntry {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;Ljava/lang/String;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipLogEntry;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipLogEntry;Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;Ljava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipLogEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDomain ()Lio/github/mariokovacevic/baresipkit/BaresipLogDomain;
+	public final fun getLevel ()Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public final fun getMessage ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class io/github/mariokovacevic/baresipkit/BaresipLogHandler {
+	public abstract fun log (Lio/github/mariokovacevic/baresipkit/BaresipLogEntry;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipLogLevel : java/lang/Enum {
+	public static final field DEBUG Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public static final field ERROR Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public static final field INFO Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public static final field WARNING Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipLogLevel;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipLogcat {
+	public static final field INSTANCE Lio/github/mariokovacevic/baresipkit/BaresipLogcat;
+	public final fun handler (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipLogHandler;
+	public static synthetic fun handler$default (Lio/github/mariokovacevic/baresipkit/BaresipLogcat;Ljava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipLogHandler;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipMediaDirection : java/lang/Enum {
+	public static final field INACTIVE Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public static final field RECEIVE_ONLY Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public static final field SEND_ONLY Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public static final field SEND_RECEIVE Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipMediaEncryption : java/lang/Enum {
+	public static final field DTLS_SRTP Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+	public static final field NONE Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+	public static final field SRTP_MANDATORY Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+	public static final field SRTP_OPTIONAL Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipMediaEncryption;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipMediaEvent : java/lang/Enum {
+	public static final field AUDIO_STARTED Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static final field EARLY_VIDEO_AVAILABLE Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static final field ENCRYPTION_ESTABLISHED Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static final field KEYFRAME_REQUESTED Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static final field RECORDING_STARTED Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static final field RECORDING_STOPPED Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static final field REMOTE_HOLD Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static final field REMOTE_RESUME Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipMediaEventInfo {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Ljava/lang/String;)V
+	public final fun component1 ()Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public final fun component2 ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public final fun component3 ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;Ljava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipMediaEventInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAudioDirection ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getEvent ()Lio/github/mariokovacevic/baresipkit/BaresipMediaEvent;
+	public final fun getVideoDirection ()Lio/github/mariokovacevic/baresipkit/BaresipMediaDirection;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipMessage {
+	public synthetic fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipAccountID;Ljava/lang/String;Ljava/lang/String;[BLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAccountId-5AIbMXY ()Lio/github/mariokovacevic/baresipkit/BaresipAccountID;
+	public final fun getBody ()[B
+	public final fun getContentType ()Ljava/lang/String;
+	public final fun getFrom ()Ljava/lang/String;
+	public final fun getText ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipMessageID {
+	public static final synthetic fun box-impl (J)Lio/github/mariokovacevic/baresipkit/BaresipMessageID;
+	public static fun constructor-impl (J)J
+	public fun equals (Ljava/lang/Object;)Z
+	public static fun equals-impl (JLjava/lang/Object;)Z
+	public static final fun equals-impl0 (JJ)Z
+	public final fun getRawValue ()J
+	public fun hashCode ()I
+	public static fun hashCode-impl (J)I
+	public fun toString ()Ljava/lang/String;
+	public static fun toString-impl (J)Ljava/lang/String;
+	public final synthetic fun unbox-impl ()J
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipMessageStatus {
+	public synthetic fun <init> (JZLjava/lang/Integer;Lio/github/mariokovacevic/baresipkit/BaresipError;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-vUuD4mQ ()J
+	public final fun component2 ()Z
+	public final fun component3 ()Ljava/lang/Integer;
+	public final fun component4 ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun copy-eRk59Xc (JZLjava/lang/Integer;Lio/github/mariokovacevic/baresipkit/BaresipError;)Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;
+	public static synthetic fun copy-eRk59Xc$default (Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;JZLjava/lang/Integer;Lio/github/mariokovacevic/baresipkit/BaresipError;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipMessageStatus;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDelivered ()Z
+	public final fun getError ()Lio/github/mariokovacevic/baresipkit/BaresipError;
+	public final fun getId-vUuD4mQ ()J
+	public final fun getSipStatus ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipNatConfiguration {
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMode ()Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;
+	public final fun getPinhole ()Z
+	public final fun getRtcpMultiplexing ()Z
+	public final fun getRtpTimeout-UwyO8pc ()J
+	public final fun getStunUri ()Ljava/lang/String;
+	public final fun getTurnServers ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipNatConfiguration$Builder {
+	public fun <init> ()V
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/BaresipNatConfiguration;
+	public final fun getMode ()Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;
+	public final fun getPinhole ()Z
+	public final fun getRtcpMultiplexing ()Z
+	public final fun getRtpTimeout-UwyO8pc ()J
+	public final fun getStunUri ()Ljava/lang/String;
+	public final fun getTurnServers ()Ljava/util/List;
+	public final fun setMode (Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;)V
+	public final fun setPinhole (Z)V
+	public final fun setRtcpMultiplexing (Z)V
+	public final fun setRtpTimeout-LRDsOJo (J)V
+	public final fun setStunUri (Ljava/lang/String;)V
+	public final fun setTurnServers (Ljava/util/List;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipNatTraversal : java/lang/Enum {
+	public static final field ICE Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;
+	public static final field NONE Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;
+	public static final field STUN Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipNatTraversal;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipNetworkEvent {
+	public fun <init> (ZLjava/lang/String;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;ZLjava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipNetworkEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLocalAddress ()Ljava/lang/String;
+	public final fun getTransportsReset ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipNetworkMonitor {
+	public fun <init> (Landroid/content/Context;Lio/github/mariokovacevic/baresipkit/BaresipEngine;ZZ)V
+	public synthetic fun <init> (Landroid/content/Context;Lio/github/mariokovacevic/baresipkit/BaresipEngine;ZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun setChangeHandler (Lkotlin/jvm/functions/Function1;)V
+	public final fun start ()V
+	public final fun stop ()V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipNetworkPath {
+	public fun <init> (Ljava/lang/String;Z)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Z
+	public final fun copy (Ljava/lang/String;Z)Lio/github/mariokovacevic/baresipkit/BaresipNetworkPath;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipNetworkPath;Ljava/lang/String;ZILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipNetworkPath;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInterfaceSummary ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isSatisfied ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipPixelFormat : java/lang/Enum {
+	public static final field BGRA Lio/github/mariokovacevic/baresipkit/BaresipPixelFormat;
+	public static final field I420 Lio/github/mariokovacevic/baresipkit/BaresipPixelFormat;
+	public static final field NV12 Lio/github/mariokovacevic/baresipkit/BaresipPixelFormat;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipPixelFormat;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipPixelFormat;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipRegistrationState : java/lang/Enum {
+	public static final field FAILED Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public static final field NONE Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public static final field REGISTERED Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public static final field REGISTERING Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public static final field UNREGISTERING Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipRegistrationState;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipStreamStatistics {
+	public synthetic fun <init> (JJJJIIJJJJJZLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()J
+	public final fun component10 ()J
+	public final fun component11-UwyO8pc ()J
+	public final fun component12 ()Z
+	public final fun component2 ()J
+	public final fun component3 ()J
+	public final fun component4 ()J
+	public final fun component5 ()I
+	public final fun component6 ()I
+	public final fun component7-UwyO8pc ()J
+	public final fun component8-UwyO8pc ()J
+	public final fun component9 ()J
+	public final fun copy-glMb-gM (JJJJIIJJJJJZ)Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;
+	public static synthetic fun copy-glMb-gM$default (Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;JJJJIIJJJJJZILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipStreamStatistics;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getJitterBufferDelay-UwyO8pc ()J
+	public final fun getReceiveBitrate ()J
+	public final fun getReceivedBytes ()J
+	public final fun getReceivedFractionLostPermille ()I
+	public final fun getReceivedJitter-UwyO8pc ()J
+	public final fun getReceivedLost ()I
+	public final fun getReceivedPackets ()J
+	public final fun getRoundTripTime-UwyO8pc ()J
+	public final fun getTransmitBitrate ()J
+	public final fun getTransmittedBytes ()J
+	public final fun getTransmittedPackets ()J
+	public fun hashCode ()I
+	public final fun isSecure ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipTlsConfiguration {
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCaCertificatesPem ()[B
+	public final fun getCipherList ()Ljava/lang/String;
+	public final fun getClientCertificatePem ()[B
+	public final fun getMinimumVersion ()Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion;
+	public final fun getPinnedSpkiSha256 ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$Builder {
+	public fun <init> ()V
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration;
+	public final fun getCaCertificatesPem ()[B
+	public final fun getCipherList ()Ljava/lang/String;
+	public final fun getClientCertificatePem ()[B
+	public final fun getMinimumVersion ()Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion;
+	public final fun getPinnedSpkiSha256 ()Ljava/util/List;
+	public final fun setCaCertificatesPem ([B)V
+	public final fun setCipherList (Ljava/lang/String;)V
+	public final fun setClientCertificatePem ([B)V
+	public final fun setMinimumVersion (Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion;)V
+	public final fun setPinnedSpkiSha256 (Ljava/util/List;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion : java/lang/Enum {
+	public static final field TLS_1_2 Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion;
+	public static final field TLS_1_3 Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipTlsConfiguration$TlsVersion;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipTransferEvent {
+	public fun <init> (ZLjava/lang/Integer;Ljava/lang/String;)V
+	public final fun component1 ()Z
+	public final fun component2 ()Ljava/lang/Integer;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (ZLjava/lang/Integer;Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipTransferEvent;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/BaresipTransferEvent;ZLjava/lang/Integer;Ljava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/BaresipTransferEvent;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailed ()Z
+	public final fun getSipStatus ()Ljava/lang/Integer;
+	public final fun getTargetUri ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipTransport : java/lang/Enum {
+	public static final field TCP Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+	public static final field TLS Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+	public static final field UDP Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+	public static final field WSS Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/BaresipTransport;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipTurnServer {
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipTurnServer;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getUri ()Ljava/lang/String;
+	public final fun getUsername ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipTurnServer$Builder {
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipTurnServer;)V
+	public fun <init> (Ljava/lang/String;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/BaresipTurnServer;
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getUri ()Ljava/lang/String;
+	public final fun getUsername ()Ljava/lang/String;
+	public final fun setPassword (Ljava/lang/String;)V
+	public final fun setUri (Ljava/lang/String;)V
+	public final fun setUsername (Ljava/lang/String;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipVideoConfiguration {
+	public final fun copy (Lkotlin/jvm/functions/Function1;)Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBitrate ()I
+	public final fun getCodecs ()Ljava/util/List;
+	public final fun getFramesPerSecond ()I
+	public final fun getHeight ()I
+	public final fun getSourceDevice ()Ljava/lang/String;
+	public final fun getSourceModule ()Ljava/lang/String;
+	public final fun getWidth ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipVideoConfiguration$Builder {
+	public fun <init> ()V
+	public fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;)V
+	public final fun build ()Lio/github/mariokovacevic/baresipkit/BaresipVideoConfiguration;
+	public final fun getBitrate ()I
+	public final fun getCodecs ()Ljava/util/List;
+	public final fun getFramesPerSecond ()I
+	public final fun getHeight ()I
+	public final fun getSourceDevice ()Ljava/lang/String;
+	public final fun getSourceModule ()Ljava/lang/String;
+	public final fun getWidth ()I
+	public final fun setBitrate (I)V
+	public final fun setCodecs (Ljava/util/List;)V
+	public final fun setFramesPerSecond (I)V
+	public final fun setHeight (I)V
+	public final fun setSourceDevice (Ljava/lang/String;)V
+	public final fun setSourceModule (Ljava/lang/String;)V
+	public final fun setWidth (I)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/BaresipVideoFrame {
+	public synthetic fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipPixelFormat;IILjava/util/List;Ljava/util/List;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getFormat ()Lio/github/mariokovacevic/baresipkit/BaresipPixelFormat;
+	public final fun getHeight ()I
+	public final fun getPlanes ()Ljava/util/List;
+	public final fun getRotationDegrees ()I
+	public final fun getStrides ()Ljava/util/List;
+	public final fun getTimestamp-UwyO8pc ()J
+	public final fun getWidth ()I
+}
+
+public abstract interface class io/github/mariokovacevic/baresipkit/BaresipVideoRenderer {
+	public abstract fun didChangeSize (II)V
+	public abstract fun render (Lio/github/mariokovacevic/baresipkit/BaresipVideoFrame;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/SipIdentity {
+	public fun <init> (Ljava/lang/String;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getHost ()Ljava/lang/String;
+	public final fun getPhoneNumber ()Ljava/lang/String;
+	public final fun getUser ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isEmpty ()Z
+	public fun toString ()Ljava/lang/String;
+}
+

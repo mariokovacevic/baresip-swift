@@ -1,0 +1,66 @@
+public final class io/github/mariokovacevic/baresipkit/push/BaresipPushAdapter {
+	public synthetic fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipEngine;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipAccountID;Ljava/util/List;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lio/github/mariokovacevic/baresipkit/BaresipEngine;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/BaresipAccountID;Ljava/util/List;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun bind-HziJOBc (J)V
+	public final fun getCurrentTokens ()Lio/github/mariokovacevic/baresipkit/push/BaresipPushTokens;
+	public final fun handle (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun setErrorHandler (Lkotlin/jvm/functions/Function2;)V
+	public final fun updateAdditionalContactParameters (Ljava/util/List;)V
+	public final fun updateAppId (Ljava/lang/String;)V
+	public final fun updateToken (Ljava/lang/String;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/push/BaresipPushAdapter$Step : java/lang/Enum {
+	public static final field CONTACT_PARAMETERS Lio/github/mariokovacevic/baresipkit/push/BaresipPushAdapter$Step;
+	public static final field ENGINE_WAKE_UP Lio/github/mariokovacevic/baresipkit/push/BaresipPushAdapter$Step;
+	public static final field INCOMING_PUSH Lio/github/mariokovacevic/baresipkit/push/BaresipPushAdapter$Step;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/push/BaresipPushAdapter$Step;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/push/BaresipPushAdapter$Step;
+}
+
+public final class io/github/mariokovacevic/baresipkit/push/BaresipPushCall {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/push/BaresipPushCall$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;ZLjava/util/UUID;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun component4 ()Ljava/util/UUID;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;ZLjava/util/UUID;)Lio/github/mariokovacevic/baresipkit/push/BaresipPushCall;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/push/BaresipPushCall;Ljava/lang/String;Ljava/lang/String;ZLjava/util/UUID;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/push/BaresipPushCall;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDisplayName ()Ljava/lang/String;
+	public final fun getHasVideo ()Z
+	public final fun getRemoteUri ()Ljava/lang/String;
+	public final fun getUuid ()Ljava/util/UUID;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/push/BaresipPushCall$Companion {
+	public final fun from (Ljava/util/Map;)Lio/github/mariokovacevic/baresipkit/push/BaresipPushCall;
+}
+
+public final class io/github/mariokovacevic/baresipkit/push/BaresipPushTokens {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun component5 ()I
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;)Lio/github/mariokovacevic/baresipkit/push/BaresipPushTokens;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/push/BaresipPushTokens;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/String;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/push/BaresipPushTokens;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAppId ()Ljava/lang/String;
+	public final fun getChannel ()Ljava/lang/String;
+	public final fun getContactParameters ()Ljava/util/List;
+	public final fun getPlatform ()Ljava/lang/String;
+	public final fun getSilent ()Z
+	public final fun getTimeout ()I
+	public final fun getToken ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+

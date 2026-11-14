@@ -1,0 +1,80 @@
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioController {
+	public fun <init> (Landroid/content/Context;Lio/github/mariokovacevic/baresipkit/BaresipEngine;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Landroid/content/Context;Lio/github/mariokovacevic/baresipkit/BaresipEngine;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun activate (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun configureForVoip (Z)V
+	public static synthetic fun configureForVoip$default (Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioController;ZILjava/lang/Object;)V
+	public final fun deactivate (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun didActivateFromTelecom (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun didDeactivateFromTelecom (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun getAvailableOutputs ()Ljava/util/List;
+	public final fun getCurrentOutput ()Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput;
+	public final fun getCurrentRoute ()Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute;
+	public final fun release ()V
+	public final fun selectOutput (Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput;)V
+	public final fun setSpeakerEnabled (Z)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute;)Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput;Ljava/lang/String;Ljava/lang/String;Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute;ILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getId ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRoute ()Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput$Companion {
+	public final fun getEARPIECE ()Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput;
+	public final fun getSPEAKER ()Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioOutput;
+}
+
+public abstract interface class io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute {
+}
+
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Bluetooth : io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute {
+	public static final field INSTANCE Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Bluetooth;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Earpiece : io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute {
+	public static final field INSTANCE Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Earpiece;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Other : io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Other;
+	public static synthetic fun copy$default (Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Other;IILjava/lang/Object;)Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Other;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getType ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Speaker : io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute {
+	public static final field INSTANCE Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$Speaker;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$WiredHeadset : io/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute {
+	public static final field INSTANCE Lio/github/mariokovacevic/baresipkit/audio/BaresipAudioRoute$WiredHeadset;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+

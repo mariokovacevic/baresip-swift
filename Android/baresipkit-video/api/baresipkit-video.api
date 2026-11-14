@@ -1,0 +1,39 @@
+public final class io/github/mariokovacevic/baresipkit/video/BaresipCamera {
+	public static final field Companion Lio/github/mariokovacevic/baresipkit/video/BaresipCamera$Companion;
+	public final fun deviceNames ()Ljava/util/List;
+}
+
+public final class io/github/mariokovacevic/baresipkit/video/BaresipCamera$Companion {
+	public final fun install (Landroid/content/Context;)Lio/github/mariokovacevic/baresipkit/video/BaresipCamera;
+}
+
+public final class io/github/mariokovacevic/baresipkit/video/BaresipVideoFrameRelay : io/github/mariokovacevic/baresipkit/BaresipVideoRenderer {
+	public fun <init> ()V
+	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun didChangeSize (II)V
+	public fun render (Lio/github/mariokovacevic/baresipkit/BaresipVideoFrame;)V
+	public final fun setHandlers (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function2;)V
+}
+
+public final class io/github/mariokovacevic/baresipkit/video/BaresipVideoView : android/opengl/GLSurfaceView {
+	public fun <init> (Landroid/content/Context;)V
+	public fun <init> (Landroid/content/Context;Landroid/util/AttributeSet;)V
+	public synthetic fun <init> (Landroid/content/Context;Landroid/util/AttributeSet;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun flush ()V
+	public final fun getRenderer ()Lio/github/mariokovacevic/baresipkit/BaresipVideoRenderer;
+	public final fun getScaleMode ()Lio/github/mariokovacevic/baresipkit/video/BaresipVideoView$ScaleMode;
+	public final fun isMirrored ()Z
+	public final fun setMirrored (Z)V
+	public final fun setScaleMode (Lio/github/mariokovacevic/baresipkit/video/BaresipVideoView$ScaleMode;)V
+	public final fun snapshot ()Landroid/graphics/Bitmap;
+}
+
+public final class io/github/mariokovacevic/baresipkit/video/BaresipVideoView$ScaleMode : java/lang/Enum {
+	public static final field FILL Lio/github/mariokovacevic/baresipkit/video/BaresipVideoView$ScaleMode;
+	public static final field FIT Lio/github/mariokovacevic/baresipkit/video/BaresipVideoView$ScaleMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lio/github/mariokovacevic/baresipkit/video/BaresipVideoView$ScaleMode;
+	public static fun values ()[Lio/github/mariokovacevic/baresipkit/video/BaresipVideoView$ScaleMode;
+}
+
