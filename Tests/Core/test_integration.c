@@ -32,6 +32,14 @@ static const char *turn_transport = "udp";
 static const char *unusable_turn_uri;
 static const char *turn_password = "bsk";
 
+static bsk_media_encryption account_media_encryption =
+	BSK_MEDIA_ENC_SRTP_OPTIONAL;
+
+static int registration_failed(struct waiter *x)
+{
+	return x->reg_state == BSK_REG_FAILED;
+}
+
 static bsk_account_id add_account(bsk_engine *e, const char *host,
 				  const char *user, const char *pass,
 				  bool ice_turn, bsk_dtmf_mode dtmf)
@@ -60,7 +68,7 @@ static bsk_account_id add_account(bsk_engine *e, const char *host,
 	ac.auth_user = user;
 	ac.auth_password = pass;
 	ac.register_expires = 60;
-	ac.media_encryption = BSK_MEDIA_ENC_SRTP_OPTIONAL;
+	ac.media_encryption = account_media_encryption;
 	ac.dtmf_mode = dtmf;
 	if (ice_turn) {
 		turns[0].uri = turn;
@@ -284,7 +292,7 @@ int main(int argc, char **argv)
 	bsk_engine_config cfg;
 	bsk_engine *e = NULL;
 	bsk_error err;
-	bsk_account_id alice, bob;
+	bsk_account_id alice, bob, carol;
 	bsk_call_id call = BSK_ID_NONE, call2 = BSK_ID_NONE;
 	bsk_call_statistics st;
 	char dest[128];
@@ -436,6 +444,38 @@ int main(int argc, char **argv)
 	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
 	sleep(2);
 	CHECK(bsk_call_list(e, NULL, 0) <= 1);
+
+	printf("9. registration with a wrong password fails, then succeeds\n");
+	carol = add_account(e, host, "carol", "wrongpass", false,
+			    BSK_DTMF_AUTO);
+	pthread_mutex_lock(&w.mtx);
+	w.reg_state = -1;
+	pthread_mutex_unlock(&w.mtx);
+	CHECK_OK(bsk_account_register(e, carol, &err), &err);
+	CHECK(wait_until(&w, registration_failed, 15000));
+	CHECK_OK(bsk_account_remove(e, carol, &err), &err);
+	account_media_encryption = BSK_MEDIA_ENC_SRTP_MANDATORY;
+	carol = add_account(e, host, "carol", "carolpass", false,
+			    BSK_DTMF_AUTO);
+	pthread_mutex_lock(&w.mtx);
+	w.reg_state = -1;
+	pthread_mutex_unlock(&w.mtx);
+	CHECK_OK(bsk_account_register(e, carol, &err), &err);
+	CHECK(wait_until(&w, registered, 10000));
+
+	printf("10. SRTP with SDES over TLS\n");
+	reset_call_state();
+	snprintf(dest, sizeof(dest), "sip:echo@%s", host);
+	CHECK_OK(bsk_call_make(e, carol, dest, false, &call, &err), &err);
+	CHECK(wait_until(&w, streams, 15000));
+	sleep(2);
+	CHECK(BSK_OK == bsk_call_get_statistics(e, call, &st));
+	printf("   tx=%u rx=%u secure=%d\n", st.audio.tx_packets,
+	       st.audio.rx_packets, st.audio.secure);
+	CHECK(st.audio.secure);
+	CHECK(st.audio.tx_packets > 0 && st.audio.rx_packets > 0);
+	CHECK_OK(bsk_call_hangup(e, call, &err), &err);
+	CHECK(wait_until(&w, released, 10000));
 
 	CHECK_OK(bsk_engine_stop(e, 3000, &err), &err);
 	bsk_engine_destroy(e);
