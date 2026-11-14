@@ -134,8 +134,12 @@ jobs:
           path: Android/*/build/reports/tests
 
   android-emulator:
-    name: Android instrumented tests on an emulator
+    name: Android instrumented tests on an emulator (API ${{ matrix.api-level }})
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [28, 34]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Enable KVM
@@ -197,7 +201,7 @@ jobs:
       - name: Run the instrumented tests
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
-          api-level: 34
+          api-level: ${{ matrix.api-level }}
           arch: x86_64
           target: google_apis
           disable-animations: true
@@ -226,7 +230,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: android-instrumented-reports
+          name: android-instrumented-reports-api${{ matrix.api-level }}
           path: |
             Android/*/build/reports/androidTests
             Android/screenshot-test.txt
@@ -234,7 +238,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: android-sample-screenshots
+          name: android-sample-screenshots-api${{ matrix.api-level }}
           path: |
             Android/build/screenshots
             Android/build/registration
