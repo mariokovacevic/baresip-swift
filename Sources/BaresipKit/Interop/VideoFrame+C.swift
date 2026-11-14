@@ -76,7 +76,6 @@ extension BaresipVideoFrame {
         let destination = base.assumingMemoryBound(to: UInt8.self)
         let destinationStride = CVPixelBufferGetBytesPerRowOfPlane(buffer, 1)
         let rows = CVPixelBufferGetHeightOfPlane(buffer, 1)
-        // The chroma plane holds width / 2 pairs per row; never read past a source row.
         let pairs = min(CVPixelBufferGetWidthOfPlane(buffer, 1), Int(blue.stride), Int(red.stride))
         // SAFETY: the I420 chroma planes have `rows` rows of their stride, and each destination row
         // has room for `pairs` two-byte pairs.

@@ -127,9 +127,8 @@ public final class BaresipPhone: ObservableObject {
         }
         let placed = trackedCall(id, state: .outgoingInit)
         placed.markOutgoing(to: destination, video: video)
-        if let active = activeCall, active !== placed, !active.isOnHold, active.isConnected {
-            // Keep showing the established call; the app decides when to switch.
-        } else {
+        let keepsEstablishedCall = activeCall.map { $0 !== placed && !$0.isOnHold && $0.isConnected } ?? false
+        if !keepsEstablishedCall {
             activeCall = placed
         }
         placed.refresh()
@@ -210,8 +209,8 @@ public final class BaresipPhone: ObservableObject {
         let current = trackedCall(id, state: state)
         let wasRinging = current.isRinging
         current.update(state: state, error: error)
-        // A call answered elsewhere, such as on the system call screen, is the one to show.
-        if wasRinging, current.isConnected {
+        let answeredElsewhere = wasRinging && current.isConnected
+        if answeredElsewhere {
             activeCall = current
         }
         current.refresh()

@@ -295,8 +295,6 @@ public final class BaresipPhoneCall: ObservableObject, Identifiable {
         videoDirection = info.videoDirection
         audioCodec = info.audioCodec
         videoCodec = info.videoCodec
-        // Before the answer the direction says nothing about the camera, and on hold it is
-        // reduced for a while; keep the last known value then.
         if isConnected {
             isSendingVideo = info.videoDirection == .sendOnly || info.videoDirection == .sendReceive
         }
