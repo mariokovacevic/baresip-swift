@@ -3,6 +3,8 @@
 
 #include "bsk_internal.h"
 
+enum { BSK_SESSION_TIMER_MIN = 90 };
+
 int bsk_engine_copy_config(bsk_engine *e, const bsk_engine_config *c);
 uint32_t bsk_session_min_se(const bsk_engine_config *c);
 const char *bsk_extra_config_tls_key(const char *extra);

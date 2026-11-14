@@ -20,7 +20,8 @@
 #   ANDROID_NDK_HOME  the NDK of ANDROID_NDK_VERSION   (android only)
 #   DEPS_DIR       where pinned sources are cloned    (default: Build/.deps)
 #   OUT_DIR        build output                       (default: Build/out)
-#   SANITIZE       address,undefined (host only)
+#   SANITIZE       address,undefined or thread (host only; thread uses
+#                  pthreads instead of C11 threads, which TSan does not see)
 #   JOBS           parallel jobs                      (default: nproc / sysctl)
 #
 set -euo pipefail
@@ -150,6 +151,9 @@ cmake_common() {
   elif [[ -n "$SANITIZE" ]]; then
     args+=(-DCMAKE_C_FLAGS="-fsanitize=$SANITIZE -fno-omit-frame-pointer"
            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=$SANITIZE")
+    if [[ ",$SANITIZE," == *,thread,* ]]; then
+      args+=(-DHAVE_THREADS_FUN=OFF -DBSK_HAVE_THREADS_FUN=OFF)
+    fi
   fi
   printf '%s\n' "${args[@]}"
 }

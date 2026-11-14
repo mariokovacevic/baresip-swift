@@ -98,3 +98,36 @@ uint32_t bsk_rate_update(struct bsk_rate *r, uint32_t sent, int32_t lost,
 
 	return r->current;
 }
+
+
+uint32_t bsk_loss_permille(uint32_t received, int32_t lost)
+{
+	uint64_t total;
+
+	if (lost <= 0)
+		return 0;
+
+	total = (uint64_t)received + (uint64_t)lost;
+	return (uint32_t)((uint64_t)lost * 1000 / total);
+}
+
+
+float bsk_mos_estimate(uint32_t loss_permille, uint32_t rtt_ms,
+		       uint32_t jitter_buffer_ms)
+{
+	double loss = (loss_permille > 1000 ? 1000 : loss_permille) / 10.0;
+	double delay = rtt_ms / 2.0 + jitter_buffer_ms + 20.0;
+	double r = 93.2;
+
+	if (delay > 160.0)
+		r -= 0.024 * delay + 0.11 * (delay - 177.3);
+	else
+		r -= 0.024 * delay;
+	r -= 11.0 + 40.0 * loss / (loss + 10.0);
+	if (r < 0)
+		r = 0;
+	if (r > 100)
+		r = 100;
+
+	return (float)(1.0 + 0.035 * r + r * (r - 60.0) * (100.0 - r) * 7.0e-6);
+}

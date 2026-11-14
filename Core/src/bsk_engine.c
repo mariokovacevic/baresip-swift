@@ -6,8 +6,9 @@
 #include "bsk_engine_internal.h"
 
 
-static bsk_engine *g_engine;
+static _Atomic(bsk_engine *) g_engine;
 static _Atomic(bsk_engine *) g_owner;
+static _Thread_local const bsk_engine *current_engine;
 
 
 static bool claim_owner(bsk_engine *engine)
@@ -29,16 +30,13 @@ static void release_owner(bsk_engine *engine)
 
 bsk_engine *bsk_global_engine(void)
 {
-	return g_engine;
+	return atomic_load(&g_engine);
 }
 
 
 bool bsk_on_engine_thread(const bsk_engine *engine)
 {
-	if (!engine || !engine->thread_valid)
-		return false;
-
-	return thrd_equal(thrd_current(), engine->thread);
+	return engine && current_engine == engine;
 }
 
 
@@ -139,7 +137,7 @@ int bsk_run(bsk_engine *engine, bsk_op_fn *fn, void *arg)
 		return EINVAL;
 
 	if (bsk_on_engine_thread(engine))
-		return fn(engine, arg);
+		return engine->mq_open ? fn(engine, arg) : EALREADY;
 
 	memset(&op, 0, sizeof(op));
 	op.fn = fn;
@@ -266,11 +264,12 @@ static int engine_thread(void *arg)
 	size_t i;
 	int err;
 
+	current_engine = e;
 	err = libre_init();
 	if (err)
 		goto fail;
 
-	g_engine = e;
+	atomic_store(&g_engine, e);
 	e->emit_depth = 0;
 	e->replace_pending = false;
 	e->replace_confirmed = false;
@@ -387,9 +386,10 @@ static int engine_thread(void *arg)
 	mod_close();
 	bsk_log_close(e);
 	mem_deref(mb);
-	g_engine = NULL;
+	atomic_store(&g_engine, NULL);
 	libre_close();
 	set_state(e, BSK_ENGINE_STOPPED, NULL);
+	current_engine = NULL;
 
 	mtx_lock(&e->mtx);
 	e->stop_done = true;
@@ -412,9 +412,10 @@ fail:
 	mod_close();
 	bsk_log_close(e);
 	mem_deref(mb);
-	g_engine = NULL;
+	atomic_store(&g_engine, NULL);
 	libre_close();
 	e->state = BSK_ENGINE_FAILED;
+	current_engine = NULL;
 	signal_start(e, err);
 	return err;
 }
@@ -447,6 +448,8 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 	list_init(&e->calls);
 	mtx_init(&e->mtx, mtx_plain);
 	mtx_init(&e->cb_mtx, mtx_recursive);
+	mtx_init(&e->log_mtx, mtx_plain);
+	cnd_init(&e->log_cnd);
 	mtx_init(&e->video_mtx, mtx_plain);
 	mtx_init(&e->life_mtx, mtx_plain);
 	cnd_init(&e->cnd);
@@ -470,6 +473,15 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 				"built with BSK_ALLOW_INSECURE_TLS");
 		}
 #endif
+		if (local.tls.min_version &&
+		    local.tls.min_version != BSK_TLS_VERSION_1_2 &&
+		    local.tls.min_version != BSK_TLS_VERSION_1_3) {
+			bsk_engine_destroy(e);
+			return bsk_error_set(
+				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
+				"tls.min_version 0x%04x is not TLS 1.2 or 1.3",
+				(unsigned)local.tls.min_version);
+		}
 		if (str_isset(local.extra_config) &&
 		    bsk_extra_config_tls_key(local.extra_config)) {
 			const char *key =
@@ -479,6 +491,15 @@ bsk_status bsk_engine_create(const bsk_engine_config *config,
 			return bsk_error_set(
 				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
 				"extra_config may not set %s", key);
+		}
+		if (local.session_min_se &&
+		    local.session_min_se < BSK_SESSION_TIMER_MIN) {
+			bsk_engine_destroy(e);
+			return bsk_error_set(
+				err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0, NULL,
+				"session_min_se %u s is below "
+				"the RFC 4028 minimum of %u s",
+				local.session_min_se, BSK_SESSION_TIMER_MIN);
 		}
 		if (local.session_expires &&
 		    bsk_session_min_se(&local) > local.session_expires) {
@@ -509,10 +530,7 @@ void bsk_engine_set_log_handler(bsk_engine *engine, bsk_log_handler handler,
 	if (!engine)
 		return;
 
-	mtx_lock(&engine->cb_mtx);
-	engine->logh = handler;
-	engine->log_user = user;
-	mtx_unlock(&engine->cb_mtx);
+	bsk_log_set_handler(engine, handler, user);
 }
 
 
@@ -672,15 +690,17 @@ bsk_status bsk_engine_stop(bsk_engine *engine, uint32_t timeout_ms,
 }
 
 
-void bsk_engine_destroy(bsk_engine *engine)
+bsk_status bsk_engine_destroy(bsk_engine *engine)
 {
 	size_t i;
 
 	if (!engine)
-		return;
+		return BSK_OK;
 
-	if (engine->thread_valid)
-		(void)bsk_engine_stop(engine, 3000, NULL);
+	if (bsk_on_engine_thread(engine))
+		return BSK_ERR_INVALID_STATE;
+
+	(void)bsk_engine_stop(engine, 3000, NULL);
 
 	for (i = 0; i < engine->module_count; i++)
 		mem_deref(engine->modules[i]);
@@ -699,13 +719,35 @@ void bsk_engine_destroy(bsk_engine *engine)
 		mem_deref(engine->client_cert_pem);
 	}
 	cnd_destroy(&engine->video_cnd);
+	cnd_destroy(&engine->log_cnd);
 	cnd_destroy(&engine->cnd);
 	mtx_destroy(&engine->life_mtx);
 	mtx_destroy(&engine->video_mtx);
+	mtx_destroy(&engine->log_mtx);
 	mtx_destroy(&engine->cb_mtx);
 	mtx_destroy(&engine->mtx);
 	free(engine);
+
+	return BSK_OK;
 }
+
+
+#ifdef BSK_TEST_HOOKS
+int bsk_test_session_timer(bsk_engine *engine, uint32_t expires,
+			   uint32_t min_se);
+
+
+int bsk_test_session_timer(bsk_engine *engine, uint32_t expires,
+			   uint32_t min_se)
+{
+	if (!engine || engine->thread_valid || min_se > expires)
+		return EINVAL;
+
+	engine->session_expires = expires;
+	engine->session_min_se = min_se;
+	return 0;
+}
+#endif
 
 
 bsk_engine_state bsk_engine_get_state(const bsk_engine *engine)

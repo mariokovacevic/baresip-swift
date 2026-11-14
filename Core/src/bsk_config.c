@@ -24,7 +24,7 @@ static int join_list(char *buf, size_t len, const char *const *v, size_t n)
 		if (!str_isset(v[i]) || !bsk_name_safe(v[i], "-./"))
 			return EINVAL;
 		if (used + need + 1 > len)
-			return EOVERFLOW;
+			return EINVAL;
 		(void)re_snprintf(buf + used, len - used, "%s%s",
 				  used ? "," : "", v[i]);
 		used += need;
@@ -262,7 +262,7 @@ const char *bsk_extra_config_tls_key(const char *extra)
 
 uint32_t bsk_session_min_se(const bsk_engine_config *c)
 {
-	return c->session_min_se ? c->session_min_se : 90;
+	return c->session_min_se ? c->session_min_se : BSK_SESSION_TIMER_MIN;
 }
 
 

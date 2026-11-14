@@ -72,6 +72,7 @@ static void deliver(bsk_engine *e, bsk_call_id call, bool local,
 	struct bsk_video_sink sink;
 	bsk_video_frame frame;
 	bool have = false;
+	bool tracked;
 
 	if (!to_bsk_frame(vf, timestamp, &frame))
 		return;
@@ -94,6 +95,9 @@ static void deliver(bsk_engine *e, bsk_call_id call, bool local,
 	if (!have)
 		return;
 
+	tracked = bsk_on_engine_thread(e);
+	if (tracked)
+		e->emit_depth++;
 	delivering++;
 	if (sink.on_size &&
 	    (*last_w != frame.width || *last_h != frame.height)) {
@@ -105,6 +109,8 @@ static void deliver(bsk_engine *e, bsk_call_id call, bool local,
 
 	sink.on_frame(e, call, local, &frame, sink.user);
 	delivering--;
+	if (tracked)
+		e->emit_depth--;
 
 	mtx_lock(&e->video_mtx);
 	e->video_inflight--;

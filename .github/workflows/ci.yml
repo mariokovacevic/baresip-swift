@@ -488,3 +488,33 @@ jobs:
           echo "HOSTIP=$HOSTIP"
           PREFIX=Build/out/host/prefix HOSTIP=$HOSTIP Tests/Integration/run_integration.sh
 
+  linux-core-tsan:
+    name: Linux host build, ThreadSanitizer, core tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libssl-dev zlib1g-dev yasm python3
+      - name: Keep mmap randomisation within the range ThreadSanitizer supports
+        run: sudo sysctl -w vm.mmap_rnd_bits=28
+      - name: Cache pinned sources and built prefix
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            Build/.deps
+            Build/out/host/prefix
+          key: linux-tsan-${{ hashFiles('Build/versions.env', 'Build/module-sets.env', 'Build/build-xcframework.sh', 'Build/cmake/**', 'Patches/*.patch') }}
+      - name: Build host prefix (full module set, libre and baresip under TSan)
+        run: PLATFORM=host MODULE_SET=full SANITIZE=thread JOBS=4 Build/build-xcframework.sh
+      - name: Run core test suite under TSan
+        env:
+          TSAN_OPTIONS: halt_on_error=1 second_deadlock_stack=1
+        run: SANITIZE=thread HOSTIP=$(hostname -I | awk '{print $1}') PREFIX=Build/out/host/prefix Tests/Core/run_tests.sh
+      - name: Upload traces
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: linux-core-tsan-logs
+          path: Build/out/host/core-tests/*.txt

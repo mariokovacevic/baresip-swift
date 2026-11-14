@@ -125,14 +125,29 @@ size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len)
 }
 
 
+static _Thread_local unsigned log_depth;
+
+
 void bsk_log_emit(bsk_engine *engine, bsk_log_level level,
 		  bsk_log_domain domain, const char *line, size_t len)
 {
 	static _Thread_local char buf[BSK_LOG_LINE_MAX];
+	bsk_log_handler handler;
+	void *user;
 	bool tracked;
 	size_t n;
 
 	if (!engine || level < engine->log_level)
+		return;
+
+	mtx_lock(&engine->log_mtx);
+	handler = engine->logh;
+	user = engine->log_user;
+	if (handler)
+		engine->log_inflight++;
+	mtx_unlock(&engine->log_mtx);
+
+	if (!handler)
 		return;
 
 	while (len && (line[len - 1] == '\n' || line[len - 1] == '\r'))
@@ -141,14 +156,44 @@ void bsk_log_emit(bsk_engine *engine, bsk_log_level level,
 	n = bsk_redact(line, len, buf, sizeof(buf));
 	tracked = bsk_on_engine_thread(engine);
 
-	mtx_lock(&engine->cb_mtx);
 	if (tracked)
 		engine->emit_depth++;
-	if (engine->logh)
-		engine->logh(level, domain, buf, n, engine->log_user);
+	log_depth++;
+	handler(level, domain, buf, n, user);
+	log_depth--;
 	if (tracked)
 		engine->emit_depth--;
-	mtx_unlock(&engine->cb_mtx);
+
+	mtx_lock(&engine->log_mtx);
+	if (--engine->log_inflight == 0)
+		cnd_broadcast(&engine->log_cnd);
+	mtx_unlock(&engine->log_mtx);
+}
+
+
+void bsk_log_set_handler(bsk_engine *engine, bsk_log_handler handler,
+			 void *user)
+{
+	bool wait = !bsk_on_engine_thread(engine);
+
+	mtx_lock(&engine->log_mtx);
+	engine->logh = handler;
+	engine->log_user = user;
+	while (wait && engine->log_inflight > log_depth)
+		cnd_wait(&engine->log_cnd, &engine->log_mtx);
+	mtx_unlock(&engine->log_mtx);
+}
+
+
+bool bsk_log_has_handler(bsk_engine *engine)
+{
+	bool has;
+
+	mtx_lock(&engine->log_mtx);
+	has = engine->logh != NULL;
+	mtx_unlock(&engine->log_mtx);
+
+	return has;
 }
 
 
@@ -220,7 +265,7 @@ void bsk_sip_trace_handler(bool tx, enum sip_transp tp, const struct sa *src,
 	int n;
 	(void)arg;
 
-	if (!engine || !engine->logh)
+	if (!engine || !bsk_log_has_handler(engine))
 		return;
 
 	n = re_snprintf(head, sizeof(head), "%s %s %J -> %J (%zu bytes)\n",

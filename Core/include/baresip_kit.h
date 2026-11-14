@@ -163,6 +163,9 @@ typedef enum bsk_pixel_format {
 	BSK_PIX_BGRA = 2
 } bsk_pixel_format;
 
+#define BSK_TLS_VERSION_1_2 0x0303
+#define BSK_TLS_VERSION_1_3 0x0304
+
 typedef struct bsk_tls_config {
 	const char *ca_pem;
 	size_t ca_pem_len;
@@ -171,6 +174,9 @@ typedef struct bsk_tls_config {
 	const char *const *pinned_spki_sha256_base64;
 	size_t pinned_count;
 	const char *cipher_list;
+	/* The lowest TLS version accepted: BSK_TLS_VERSION_1_2 or
+	 * BSK_TLS_VERSION_1_3, the version numbers of the TLS wire format.
+	 * 0 means TLS 1.2. bsk_engine_create rejects any other value. */
 	int min_version;
 	bool insecure_skip_verify;
 } bsk_tls_config;
@@ -244,8 +250,10 @@ typedef struct bsk_engine_config {
 	 * other side hangs up with BYE when it is not renewed. 0 keeps
 	 * session timers off. */
 	uint32_t session_expires;
-	/* The smallest session interval accepted in seconds, at most
-	 * session_expires; 0 means 90. */
+	/* The smallest session interval accepted in seconds: at least 90,
+	 * the minimum of RFC 4028, and at most session_expires; 0 means 90.
+	 * bsk_engine_create rejects other values, so session_expires is
+	 * 0 or at least 90 too. */
 	uint32_t session_min_se;
 } bsk_engine_config;
 
@@ -311,6 +319,9 @@ typedef struct bsk_stream_statistics {
 	uint32_t rx_packets;
 	uint64_t tx_bytes;
 	uint64_t rx_bytes;
+	/* Packets lost since the stream started, never negative: the
+	 * cumulative loss of RTCP (RFC 3550) counts duplicates against
+	 * losses and can drop below zero, which is reported as 0. */
 	int32_t rx_lost;
 	uint32_t rx_fraction_lost_permille;
 	uint32_t rx_jitter_ms;
@@ -346,6 +357,7 @@ typedef enum bsk_event_type {
 	BSK_EVENT_ICE = 8,
 	BSK_EVENT_NETWORK = 9,
 	BSK_EVENT_AUDIO = 10,
+	/* Reserved for diagnostics; this revision never emits it. */
 	BSK_EVENT_DIAGNOSTIC = 11,
 	BSK_EVENT_MESSAGE = 12,
 	BSK_EVENT_MESSAGE_STATUS = 13
@@ -488,7 +500,10 @@ BSK_EXPORT bsk_status bsk_engine_create(const bsk_engine_config *config,
 					bsk_event_handler handler, void *user,
 					bsk_engine **out_engine,
 					bsk_error *err);
-BSK_EXPORT void bsk_engine_destroy(bsk_engine *engine);
+/* Stops the engine if needed and frees it. On the engine thread (from an
+ * event, log or remote video frame callback) it does nothing and returns
+ * BSK_ERR_INVALID_STATE. See Docs/C-ABI.md for the threading rules. */
+BSK_EXPORT bsk_status bsk_engine_destroy(bsk_engine *engine);
 BSK_EXPORT void bsk_engine_set_log_handler(bsk_engine *engine,
 					   bsk_log_handler handler, void *user);
 BSK_EXPORT void bsk_engine_set_event_handler(bsk_engine *engine,
@@ -501,6 +516,9 @@ BSK_EXPORT bsk_engine_state bsk_engine_get_state(const bsk_engine *engine);
 BSK_EXPORT bool bsk_engine_is_engine_thread(const bsk_engine *engine);
 BSK_EXPORT bsk_status bsk_engine_prepare_for_push_wakeup(bsk_engine *engine,
 							 bsk_error *err);
+/* Has no effect in this revision and returns BSK_OK: transports,
+ * registrations and calls stay as they are. bsk_engine_resume resets the
+ * transports and re-registers whether or not suspend was called. */
 BSK_EXPORT bsk_status bsk_engine_suspend(bsk_engine *engine, bsk_error *err);
 BSK_EXPORT bsk_status bsk_engine_resume(bsk_engine *engine, bsk_error *err);
 BSK_EXPORT bsk_status bsk_engine_network_changed(bsk_engine *engine,

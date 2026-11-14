@@ -323,6 +323,31 @@ static uint8_t *rotated_i420(const uint8_t *py, const uint8_t *pu,
 	return copy;
 }
 
+static bool plane_fits(JNIEnv *env, jobject buffer, size_t rows, size_t stride,
+		       size_t row_bytes)
+{
+	jlong capacity = (*env)->GetDirectBufferCapacity(env, buffer);
+	if (capacity < 0 || !rows || !row_bytes || stride < row_bytes)
+		return false;
+	return (uint64_t)(rows - 1) * stride + row_bytes <= (uint64_t)capacity;
+}
+
+static bool camera_planes_fit(JNIEnv *env, jobject y, jobject u, jobject v,
+			      jint width, jint height, jint y_stride,
+			      jint uv_stride, jint uv_pixel_stride)
+{
+	if (width <= 0 || height <= 0 || y_stride <= 0 || uv_stride <= 0 ||
+	    uv_pixel_stride < 1)
+		return false;
+	const size_t cw = ((size_t)width + 1) / 2;
+	const size_t ch = ((size_t)height + 1) / 2;
+	const size_t chroma_row = (cw - 1) * (size_t)uv_pixel_stride + 1;
+	return plane_fits(env, y, (size_t)height, (size_t)y_stride,
+			  (size_t)width) &&
+	       plane_fits(env, u, ch, (size_t)uv_stride, chroma_row) &&
+	       plane_fits(env, v, ch, (size_t)uv_stride, chroma_row);
+}
+
 JNIEXPORT jboolean JNICALL JNI_FN(cameraPush)(
 	JNIEnv *env, jclass cls, jlong source, jint width, jint height,
 	jobject y, jobject u, jobject v, jint y_stride, jint uv_stride,
@@ -336,8 +361,9 @@ JNIEXPORT jboolean JNICALL JNI_FN(cameraPush)(
 	uint8_t *copy = NULL;
 	jboolean delivered;
 
-	if (!py || !pu || !pv || width <= 0 || height <= 0 ||
-	    uv_pixel_stride < 1)
+	if (!py || !pu || !pv ||
+	    !camera_planes_fit(env, y, u, v, width, height, y_stride, uv_stride,
+			       uv_pixel_stride))
 		return JNI_FALSE;
 
 	memset(&frame, 0, sizeof(frame));

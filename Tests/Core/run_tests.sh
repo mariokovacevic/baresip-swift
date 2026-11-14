@@ -18,8 +18,12 @@ if [[ -f "$PREFIX/lib/libvpx.a" ]]; then
   EXTRA="$PREFIX/lib/libvpx.a;$EXTRA"
 fi
 FLAGS=""
+THREADS=()
 if [[ -n "$SANITIZE" ]]; then
   FLAGS="-fsanitize=$SANITIZE -fno-omit-frame-pointer"
+fi
+if [[ ",$SANITIZE," == *,thread,* ]]; then
+  THREADS=(-DBSK_HAVE_THREADS_FUN=OFF)
 fi
 
 cmake -S "$ROOT/Core" -B "$BUILD" -DCMAKE_BUILD_TYPE=Debug \
@@ -27,7 +31,7 @@ cmake -S "$ROOT/Core" -B "$BUILD" -DCMAKE_BUILD_TYPE=Debug \
   -DBARESIP_INCLUDE_DIR="$PREFIX/include/baresip" \
   -DBARESIP_LIBRARY="$PREFIX/lib/libbaresip.a" \
   -DBARESIPKIT_EXTRA_LIBS="$EXTRA" \
-  -DBARESIPKIT_BUILD_TESTS=ON \
+  -DBARESIPKIT_BUILD_TESTS=ON ${THREADS[@]+"${THREADS[@]}"} \
   -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_EXE_LINKER_FLAGS="$FLAGS" >/dev/null
 cmake --build "$BUILD" -j"$(nproc 2>/dev/null || sysctl -n hw.ncpu)" >/dev/null
 

@@ -143,23 +143,41 @@ void bsk_jni_arena_init(struct bsk_jni_arena *arena, JNIEnv *env)
 	arena->env = env;
 }
 
-const char *bsk_jni_bytes(struct bsk_jni_arena *arena, jbyteArray array,
-			  size_t *out_len)
+static const char *pin_bytes(struct bsk_jni_arena *arena, jbyteArray array,
+			     size_t *out_len, bool owned)
 {
+	JNIEnv *env = arena->env;
 	if (out_len)
 		*out_len = 0;
-	if (!array || arena->pinned_count >= BSK_JNI_ARENA_PINS)
+	if (!array || arena->pinned_count >= BSK_JNI_ARENA_PINS ||
+	    (*env)->ExceptionCheck(env))
 		return NULL;
-	JNIEnv *env = arena->env;
+	jsize len = (*env)->GetArrayLength(env, array);
 	jbyte *bytes = (*env)->GetByteArrayElements(env, array, NULL);
 	if (!bytes)
 		return NULL;
 	arena->pinned[arena->pinned_count].array = array;
 	arena->pinned[arena->pinned_count].bytes = bytes;
+	arena->pinned[arena->pinned_count].owned = owned;
 	arena->pinned_count++;
 	if (out_len)
-		*out_len = (size_t)(*env)->GetArrayLength(env, array);
+		*out_len = (size_t)len;
 	return (const char *)bytes;
+}
+
+const char *bsk_jni_bytes(struct bsk_jni_arena *arena, jbyteArray array,
+			  size_t *out_len)
+{
+	return pin_bytes(arena, array, out_len, false);
+}
+
+const char *bsk_jni_take_bytes(struct bsk_jni_arena *arena, jbyteArray array,
+			       size_t *out_len)
+{
+	const char *bytes = pin_bytes(arena, array, out_len, true);
+	if (!bytes && array)
+		(*arena->env)->DeleteLocalRef(arena->env, array);
+	return bytes;
 }
 
 void *bsk_jni_alloc(struct bsk_jni_arena *arena, size_t size)
@@ -176,16 +194,21 @@ const char *const *bsk_jni_strings(struct bsk_jni_arena *arena,
 				   jobjectArray array, size_t *out_count)
 {
 	*out_count = 0;
-	if (!array)
-		return NULL;
 	JNIEnv *env = arena->env;
+	if (!array || (*env)->ExceptionCheck(env))
+		return NULL;
 	jsize count = (*env)->GetArrayLength(env, array);
-	const char **list = bsk_jni_alloc(arena, sizeof(char *) * (count + 1));
+	if (count < 0)
+		return NULL;
+	const char **list =
+		bsk_jni_alloc(arena, sizeof(char *) * ((size_t)count + 1));
 	if (!list)
 		return NULL;
 	for (jsize i = 0; i < count; i++) {
 		jbyteArray item = (*env)->GetObjectArrayElement(env, array, i);
-		list[i] = bsk_jni_bytes(arena, item, NULL);
+		if ((*env)->ExceptionCheck(env))
+			return NULL;
+		list[i] = bsk_jni_take_bytes(arena, item, NULL);
 	}
 	*out_count = (size_t)count;
 	return list;
@@ -198,6 +221,8 @@ void bsk_jni_arena_release(struct bsk_jni_arena *arena)
 		(*env)->ReleaseByteArrayElements(env, arena->pinned[i].array,
 						 arena->pinned[i].bytes,
 						 JNI_ABORT);
+		if (arena->pinned[i].owned)
+			(*env)->DeleteLocalRef(env, arena->pinned[i].array);
 	}
 	for (size_t i = 0; i < arena->block_count; i++)
 		free(arena->blocks[i]);

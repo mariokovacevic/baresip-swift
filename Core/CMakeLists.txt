@@ -35,6 +35,7 @@ set(BSK_SOURCES
   src/bsk_hold.c
   src/bsk_g722.c
   src/bsk_h264.c
+  src/bsk_frame.c
   third_party/g722/g722_encode.c
   third_party/g722/g722_decode.c
 )
@@ -100,6 +101,7 @@ if(BARESIPKIT_EXTRA_LIBS)
 endif()
 
 if(BARESIPKIT_BUILD_TESTS)
+  target_compile_definitions(baresipkitcore PRIVATE BSK_TEST_HOOKS=1)
   enable_testing()
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Tests/Core ${CMAKE_CURRENT_BINARY_DIR}/tests)
 endif()

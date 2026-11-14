@@ -1,11 +1,17 @@
+#include <errno.h>
 #include <stddef.h>
 #include <unistd.h>
 #include "test_common.h"
 #include "../../Core/src/bsk_rate.h"
 #include "../../Core/src/bsk_h264.h"
 #include "../../Core/src/bsk_reason.h"
+#include "../../Core/src/bsk_frame.h"
+#include <baresip.h>
 
 size_t bsk_redact(const char *in, size_t len, char *out, size_t out_len);
+bsk_status bsk_status_from_errno(int err);
+void bsk_log_emit(bsk_engine *engine, bsk_log_level level,
+		  bsk_log_domain domain, const char *line, size_t len);
 
 
 static void test_contact_params(void)
@@ -139,7 +145,6 @@ static void test_capabilities(void)
 	static const char *implemented[] = {
 		"ice.restart",
 		"tls.pinning",
-		"video.h264.videotoolbox",
 		"nat.turn-tcp",
 		"nat.turn-tls",
 		"message.sip",
@@ -160,11 +165,28 @@ static void test_capabilities(void)
 	for (i = 0; i < sizeof(implemented) / sizeof(implemented[0]); i++)
 		CHECK(has_capability(caps, implemented[i]));
 	CHECK(!has_capability(caps, "ice.restart:unsupported"));
+#if defined(__APPLE__)
+	CHECK(has_capability(caps, "video.h264.videotoolbox"));
+#else
+	CHECK(!has_capability(caps, "video.h264.videotoolbox"));
+#endif
+	CHECK(!has_capability(caps, "video.h264.mediacodec"));
+}
+
+
+static void test_errno_mapping(void)
+{
+	CHECK(bsk_status_from_errno(0) == BSK_OK);
+	CHECK(bsk_status_from_errno(EALREADY) == BSK_ERR_INVALID_STATE);
+	CHECK(bsk_status_from_errno(ECANCELED) == BSK_ERR_INVALID_STATE);
+	CHECK(bsk_status_from_errno(EOVERFLOW) == BSK_ERR_BUFFER_TOO_SMALL);
+	CHECK(bsk_status_from_errno(EPROTO) == BSK_ERR_INTERNAL);
 }
 
 
 static void test_status_strings(void)
 {
+	test_errno_mapping();
 	CHECK(0 == strcmp(bsk_status_string(BSK_OK), "ok"));
 	CHECK(0 ==
 	      strcmp(bsk_status_string(BSK_ERR_AUTH), "authentication failed"));
@@ -384,6 +406,94 @@ static void test_rate_control(void)
 }
 
 
+static void test_loss_and_mos(void)
+{
+	float clean = bsk_mos_estimate(0, 0, 0);
+
+	CHECK(bsk_loss_permille(0, 0) == 0);
+	CHECK(bsk_loss_permille(1000, 0) == 0);
+	CHECK(bsk_loss_permille(90, 10) == 100);
+	CHECK(bsk_loss_permille(0, 25) == 1000);
+	CHECK(bsk_loss_permille(100, -5) == 0);
+	CHECK(bsk_loss_permille(5, -100) == 0);
+	CHECK(bsk_loss_permille(0, -1) == 0);
+	CHECK(bsk_loss_permille(UINT32_MAX, INT32_MAX) == 333);
+
+	CHECK(clean > 4.0f && clean < 4.5f);
+	CHECK(bsk_mos_estimate(100, 0, 0) < clean);
+	CHECK(bsk_mos_estimate(1000, 0, 0) >= 1.0f);
+	CHECK(bsk_mos_estimate(UINT32_MAX, UINT32_MAX, UINT32_MAX) >= 1.0f);
+	CHECK(bsk_mos_estimate(UINT32_MAX, 0, 0) ==
+	      bsk_mos_estimate(1000, 0, 0));
+	CHECK(bsk_mos_estimate(0, 300, 200) < clean);
+}
+
+
+static void test_frame_bounds(void)
+{
+	static uint8_t plane[16];
+	bsk_video_frame f;
+
+	memset(&f, 0, sizeof(f));
+	f.format = BSK_PIX_I420;
+	f.width = 5;
+	f.height = 3;
+	f.planes[0] = f.planes[1] = f.planes[2] = plane;
+	f.strides[0] = 5;
+	f.strides[1] = f.strides[2] = 3;
+	CHECK(bsk_frame_strides_ok(&f));
+	f.strides[1] = 2;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[1] = 3;
+	f.strides[0] = 4;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[0] = 65536;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[0] = 65535;
+	CHECK(bsk_frame_strides_ok(&f));
+	f.planes[2] = NULL;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.format = BSK_PIX_NV12;
+	f.strides[1] = 5;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.strides[1] = 6;
+	CHECK(bsk_frame_strides_ok(&f));
+	f.width = 0;
+	CHECK(!bsk_frame_strides_ok(&f));
+	f.width = 5;
+	f.format = BSK_PIX_BGRA;
+	CHECK(!bsk_frame_strides_ok(&f));
+
+	CHECK(bsk_crop_valid(640, 480, 0, 0, 639, 479));
+	CHECK(bsk_crop_valid(640, 480, 10, 20, 10, 20));
+	CHECK(!bsk_crop_valid(640, 480, 0, 0, 640, 479));
+	CHECK(!bsk_crop_valid(640, 480, 0, 0, 639, 480));
+	CHECK(!bsk_crop_valid(640, 480, -1, 0, 639, 479));
+	CHECK(!bsk_crop_valid(640, 480, 0, -1, 639, 479));
+	CHECK(!bsk_crop_valid(640, 480, 100, 0, 99, 479));
+	CHECK(!bsk_crop_valid(0, 480, 0, 0, -1, 479));
+	CHECK(!bsk_crop_valid(640, -5, 0, 0, 639, 0));
+
+	CHECK(bsk_yuv420_extent(640, 480, true, 0, 0, 640, 480) ==
+	      640 * 480 * 3 / 2);
+	CHECK(bsk_yuv420_extent(640, 480, false, 0, 0, 640, 480) ==
+	      640 * 480 * 3 / 2);
+	CHECK(bsk_yuv420_extent(640, 480, false, 0, 0, 641, 480) == 0);
+	CHECK(bsk_yuv420_extent(640, 480, false, 0, 1, 640, 480) == 0);
+	CHECK(bsk_yuv420_extent(640, 480, true, 0, 0, 0, 480) == 0);
+	CHECK(bsk_yuv420_extent(5, 3, false, 0, 0, 5, 3) == 15 + 5 + 6);
+	CHECK(bsk_yuv420_extent(5, 3, true, 0, 0, 5, 3) == 15 + 2 + 2 + 3);
+	CHECK(bsk_yuv420_extent(704, 576, false, 32, 16, 640, 544) <=
+	      704 * 576 * 3 / 2);
+	CHECK(bsk_yuv420_extent(UINT32_MAX, UINT32_MAX, true, 0, 0, UINT32_MAX,
+				UINT32_MAX) > UINT32_MAX);
+
+	CHECK(bsk_yuv420_packed_size(640, 480) == 640 * 480 * 3 / 2);
+	CHECK(bsk_yuv420_packed_size(1, 3) == 3 + 2 * 1 * 2);
+	CHECK(bsk_yuv420_packed_size(5, 3) == 15 + 2 * 3 * 2);
+}
+
+
 static void base_config(bsk_engine_config *cfg)
 {
 	memset(cfg, 0, sizeof(*cfg));
@@ -485,7 +595,7 @@ static void test_config_validation(void)
 		long_codecs[i] = "opus/48000/2";
 	cfg.audio.codecs = long_codecs;
 	cfg.audio.codec_count = 40;
-	CHECK(BSK_OK != create_status(&cfg));
+	CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
 
 	base_config(&cfg);
 	cfg.user_agent = "Agent\r\nX-Injected: 1";
@@ -514,6 +624,31 @@ static void test_config_validation(void)
 		CHECK(BSK_OK == create_status(&cfg));
 	}
 
+	{
+		static const int rejected[] = {
+			0x0300, 0x0301, 0x0302, 0x0305, 1, 2, -1, 0x7fff
+		};
+		bsk_engine *e = NULL;
+		bsk_error err;
+
+		CHECK(BSK_TLS_VERSION_1_2 == 0x0303);
+		CHECK(BSK_TLS_VERSION_1_3 == 0x0304);
+		base_config(&cfg);
+		cfg.tls.min_version = BSK_TLS_VERSION_1_2;
+		CHECK(BSK_OK == create_status(&cfg));
+		cfg.tls.min_version = BSK_TLS_VERSION_1_3;
+		CHECK(BSK_OK == create_status(&cfg));
+		for (i = 0; i < sizeof(rejected) / sizeof(rejected[0]); i++) {
+			cfg.tls.min_version = rejected[i];
+			CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+		}
+		cfg.tls.min_version = 0x0301;
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_engine_create(&cfg, NULL, NULL, &e, &err));
+		CHECK(e == NULL);
+		CHECK(strstr(err.message, "0x0301") != NULL);
+	}
+
 	base_config(&cfg);
 	cfg.rtp_port_min = 20000;
 	cfg.rtp_port_max = 10000;
@@ -531,6 +666,22 @@ static void test_config_validation(void)
 		CHECK(strstr(err.message, "session_min_se 90 s") != NULL);
 		CHECK(strstr(err.message, "session_expires 60 s") != NULL);
 		cfg.session_min_se = 60;
+		CHECK(BSK_ERR_INVALID_ARGUMENT ==
+		      bsk_engine_create(&cfg, NULL, NULL, &e, &err));
+		CHECK(e == NULL);
+		CHECK(strstr(err.message, "session_min_se 60 s") != NULL);
+		CHECK(strstr(err.message, "RFC 4028") != NULL);
+		cfg.session_min_se = 89;
+		cfg.session_expires = 1800;
+		CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+		cfg.session_min_se = 90;
+		cfg.session_expires = 90;
+		CHECK(BSK_OK == create_status(&cfg));
+		cfg.session_min_se = 0;
+		cfg.session_expires = 89;
+		CHECK(BSK_ERR_INVALID_ARGUMENT == create_status(&cfg));
+		cfg.session_min_se = 120;
+		cfg.session_expires = 1800;
 		CHECK(BSK_OK == create_status(&cfg));
 		cfg.session_expires = 0;
 		cfg.session_min_se = 0;
@@ -677,6 +828,83 @@ static void test_text_validation(void)
 }
 
 
+static void test_sip_transports(void)
+{
+	const uint32_t want = (1u << SIP_TRANSP_UDP) | (1u << SIP_TRANSP_TCP) |
+			      (1u << SIP_TRANSP_TLS) | (1u << SIP_TRANSP_WSS);
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+
+	base_config(&cfg);
+	cfg.extra_config = "sip_listen\t\t0.0.0.0:0\n"
+			   "sip_transports\t\tudp,tcp,tls,ws,wss";
+	CHECK_OK(bsk_engine_create(&cfg, NULL, NULL, &e, &err), &err);
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+	CHECK(conf_config()->sip.transports == want);
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	bsk_engine_destroy(e);
+}
+
+
+static int sdes_warnings;
+
+
+static void sdes_log(bsk_log_level level, bsk_log_domain domain,
+		     const char *line, size_t len, void *user)
+{
+	(void)domain;
+	(void)len;
+	(void)user;
+
+	if (level == BSK_LOG_WARNING && strstr(line, "SDES-SRTP"))
+		__atomic_add_fetch(&sdes_warnings, 1, __ATOMIC_SEQ_CST);
+}
+
+
+static int sdes_warnings_for(bsk_engine *e, bsk_transport transport,
+			     bsk_media_encryption enc)
+{
+	bsk_account_config ac = BSK_ACCOUNT_CONFIG_INIT;
+
+	ac.aor = "sip:alice@example.invalid";
+	ac.transport = transport;
+	ac.media_encryption = enc;
+	__atomic_store_n(&sdes_warnings, 0, __ATOMIC_SEQ_CST);
+	CHECK(BSK_OK == add_status(e, &ac));
+	return __atomic_load_n(&sdes_warnings, __ATOMIC_SEQ_CST);
+}
+
+
+static void test_sdes_warning(void)
+{
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+
+	base_config(&cfg);
+	cfg.log_level = BSK_LOG_WARNING;
+	CHECK_OK(bsk_engine_create(&cfg, NULL, NULL, &e, &err), &err);
+	bsk_engine_set_log_handler(e, sdes_log, NULL);
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+
+	CHECK(1 == sdes_warnings_for(e, BSK_TRANSPORT_UDP,
+				     BSK_MEDIA_ENC_SRTP_OPTIONAL));
+	CHECK(1 == sdes_warnings_for(e, BSK_TRANSPORT_TCP,
+				     BSK_MEDIA_ENC_SRTP_MANDATORY));
+	CHECK(0 == sdes_warnings_for(e, BSK_TRANSPORT_TLS,
+				     BSK_MEDIA_ENC_SRTP_MANDATORY));
+	CHECK(0 == sdes_warnings_for(e, BSK_TRANSPORT_WSS,
+				     BSK_MEDIA_ENC_SRTP_OPTIONAL));
+	CHECK(0 ==
+	      sdes_warnings_for(e, BSK_TRANSPORT_UDP, BSK_MEDIA_ENC_DTLS_SRTP));
+	CHECK(0 == sdes_warnings_for(e, BSK_TRANSPORT_UDP, BSK_MEDIA_ENC_NONE));
+
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	bsk_engine_destroy(e);
+}
+
+
 static void test_single_running_engine(void)
 {
 	bsk_engine_config cfg;
@@ -750,6 +978,162 @@ static void test_concurrent_stop(void)
 	CHECK(__atomic_load_n(&stop_events, __ATOMIC_SEQ_CST) == 1);
 	CHECK(__atomic_load_n(&stop_on_engine_thread, __ATOMIC_SEQ_CST) == 1);
 	bsk_engine_destroy(e);
+}
+
+
+static int destroy_result = -1;
+static int stopped_call_result = -1;
+
+
+static void destroy_handler(bsk_engine *e, const bsk_event *ev, void *user)
+{
+	bsk_error err;
+	(void)user;
+
+	if (ev->type != BSK_EVENT_ENGINE_STATE)
+		return;
+
+	if (ev->u.engine.state == BSK_ENGINE_RUNNING)
+		__atomic_store_n(&destroy_result, (int)bsk_engine_destroy(e),
+				 __ATOMIC_SEQ_CST);
+	if (ev->u.engine.state == BSK_ENGINE_STOPPED)
+		__atomic_store_n(
+			&stopped_call_result,
+			(int)bsk_engine_network_changed(e, true, true, &err),
+			__ATOMIC_SEQ_CST);
+}
+
+
+static void test_engine_thread_guards(void)
+{
+	bsk_engine_config cfg;
+	bsk_engine *e = NULL;
+	bsk_error err;
+	int i;
+
+	base_config(&cfg);
+	CHECK_OK(bsk_engine_create(&cfg, destroy_handler, NULL, &e, &err),
+		 &err);
+	CHECK_OK(bsk_engine_start(e, &err), &err);
+	for (i = 0;
+	     i < 200 && __atomic_load_n(&destroy_result, __ATOMIC_SEQ_CST) < 0;
+	     i++)
+		usleep(10000);
+	CHECK(__atomic_load_n(&destroy_result, __ATOMIC_SEQ_CST) ==
+	      BSK_ERR_INVALID_STATE);
+	CHECK(bsk_engine_get_state(e) == BSK_ENGINE_RUNNING);
+	CHECK(bsk_call_list(e, NULL, 0) == 0);
+
+	CHECK_OK(bsk_engine_stop(e, 2000, &err), &err);
+	CHECK(__atomic_load_n(&stopped_call_result, __ATOMIC_SEQ_CST) ==
+	      BSK_ERR_INVALID_STATE);
+	CHECK(BSK_ERR_INVALID_STATE ==
+	      bsk_engine_network_changed(e, true, true, &err));
+	CHECK(BSK_OK == bsk_engine_destroy(e));
+	CHECK(BSK_OK == bsk_engine_destroy(NULL));
+}
+
+
+struct log_probe {
+	bsk_engine *engine;
+	int calls_ok;
+	int audio_events;
+	int done;
+	int slow;
+	int in_callback;
+	int finished;
+};
+
+static struct log_probe probe;
+
+
+static void probe_event(bsk_engine *e, const bsk_event *ev, void *user)
+{
+	(void)e;
+	(void)user;
+
+	if (ev->type == BSK_EVENT_AUDIO)
+		__atomic_add_fetch(&probe.audio_events, 1, __ATOMIC_SEQ_CST);
+}
+
+
+static void probe_log(bsk_log_level level, bsk_log_domain domain,
+		      const char *line, size_t len, void *user)
+{
+	bsk_error err;
+	(void)level;
+	(void)domain;
+	(void)len;
+	(void)user;
+
+	if (!strstr(line, "probe:"))
+		return;
+
+	if (strstr(line, "probe: call") &&
+	    BSK_OK == bsk_engine_audio_session_activated(probe.engine, &err) &&
+	    BSK_OK == bsk_engine_audio_session_deactivated(probe.engine, &err))
+		__atomic_add_fetch(&probe.calls_ok, 1, __ATOMIC_SEQ_CST);
+
+	if (strstr(line, "probe: slow")) {
+		__atomic_store_n(&probe.in_callback, 1, __ATOMIC_SEQ_CST);
+		usleep(200000);
+		__atomic_store_n(&probe.finished, 1, __ATOMIC_SEQ_CST);
+	}
+}
+
+
+static void *log_from_thread(void *arg)
+{
+	static const char call[] = "probe: call";
+	static const char slow[] = "probe: slow";
+
+	if (arg) {
+		bsk_log_emit(probe.engine, BSK_LOG_WARNING,
+			     BSK_LOG_DOMAIN_MEDIA, slow, sizeof(slow) - 1);
+		return NULL;
+	}
+
+	bsk_log_emit(probe.engine, BSK_LOG_WARNING, BSK_LOG_DOMAIN_MEDIA, call,
+		     sizeof(call) - 1);
+	__atomic_store_n(&probe.done, 1, __ATOMIC_SEQ_CST);
+	return NULL;
+}
+
+
+static void test_log_callback_calls_engine(void)
+{
+	bsk_engine_config cfg;
+	bsk_error err;
+	pthread_t t;
+	int i;
+
+	memset(&probe, 0, sizeof(probe));
+	base_config(&cfg);
+	cfg.log_level = BSK_LOG_WARNING;
+	CHECK_OK(
+		bsk_engine_create(&cfg, probe_event, NULL, &probe.engine, &err),
+		&err);
+	bsk_engine_set_log_handler(probe.engine, probe_log, NULL);
+	CHECK_OK(bsk_engine_start(probe.engine, &err), &err);
+
+	CHECK(0 == pthread_create(&t, NULL, log_from_thread, NULL));
+	for (i = 0; i < 500 && !__atomic_load_n(&probe.done, __ATOMIC_SEQ_CST);
+	     i++)
+		usleep(10000);
+	CHECK(__atomic_load_n(&probe.done, __ATOMIC_SEQ_CST));
+	CHECK(0 == pthread_join(t, NULL));
+	CHECK(__atomic_load_n(&probe.calls_ok, __ATOMIC_SEQ_CST) == 1);
+	CHECK(__atomic_load_n(&probe.audio_events, __ATOMIC_SEQ_CST) == 2);
+
+	CHECK(0 == pthread_create(&t, NULL, log_from_thread, &probe));
+	while (!__atomic_load_n(&probe.in_callback, __ATOMIC_SEQ_CST))
+		usleep(1000);
+	bsk_engine_set_log_handler(probe.engine, NULL, NULL);
+	CHECK(__atomic_load_n(&probe.finished, __ATOMIC_SEQ_CST));
+	CHECK(0 == pthread_join(t, NULL));
+
+	CHECK_OK(bsk_engine_stop(probe.engine, 2000, &err), &err);
+	CHECK(BSK_OK == bsk_engine_destroy(probe.engine));
 }
 
 
@@ -980,12 +1364,18 @@ int main(void)
 	test_config_validation();
 	test_hold_music_config();
 	test_text_validation();
+	test_sip_transports();
+	test_sdes_warning();
 	test_single_running_engine();
 	test_concurrent_stop();
+	test_engine_thread_guards();
+	test_log_callback_calls_engine();
 	test_status_strings();
 	test_engine_lifecycle_without_network();
 	test_config_size_compat();
 	test_rate_control();
+	test_loss_and_mos();
+	test_frame_bounds();
 	test_h264_depacketizer();
 	test_h264_access_unit();
 	test_reason_header();

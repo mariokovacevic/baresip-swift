@@ -40,7 +40,6 @@ bsk_status bsk_engine_prepare_for_push_wakeup(bsk_engine *engine,
 	    engine->state == BSK_ENGINE_FAILED)
 		return bsk_engine_start(engine, err);
 
-	engine->suspended = false;
 	ret = bsk_run(engine, reregister_all_op, NULL);
 	if (ret)
 		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
@@ -58,7 +57,6 @@ bsk_status bsk_engine_suspend(bsk_engine *engine, bsk_error *err)
 		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
 				     NULL, NULL);
 
-	engine->suspended = true;
 	return BSK_OK;
 }
 
@@ -129,7 +127,6 @@ bsk_status bsk_engine_resume(bsk_engine *engine, bsk_error *err)
 		return bsk_error_set(err, BSK_ERR_INVALID_ARGUMENT, EINVAL, 0,
 				     NULL, NULL);
 
-	engine->suspended = false;
 	ret = bsk_run(engine, network_op, &na);
 	if (ret)
 		return bsk_error_set(err, bsk_status_from_errno(ret), ret, 0,
@@ -172,7 +169,8 @@ static int audio_op(bsk_engine *e, void *arg)
 	struct audio_arg *aa = arg;
 	bsk_event ev;
 
-	e->audio_active = aa->active;
+	if (!aa->route_change)
+		e->audio_active = aa->active;
 	bsk_calls_audio_changed(e);
 
 	bsk_event_init(&ev, BSK_EVENT_AUDIO);
@@ -222,8 +220,7 @@ bsk_status bsk_engine_audio_session_deactivated(bsk_engine *engine,
 
 bsk_status bsk_engine_audio_route_changed(bsk_engine *engine, bsk_error *err)
 {
-	struct audio_arg aa = { engine ? engine->audio_active : false, true,
-				false };
+	struct audio_arg aa = { false, true, false };
 	return run_audio(engine, &aa, err);
 }
 

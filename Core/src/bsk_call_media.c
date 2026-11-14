@@ -159,14 +159,11 @@ void bsk_call_fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 		st->audio.secure = stream_is_secure(as);
 		rs = stream_rtcp_stats(as);
 		if (rs) {
-			st->audio.rx_lost = rs->rx.lost;
+			st->audio.rx_lost = rs->rx.lost > 0 ? rs->rx.lost : 0;
 			st->audio.rx_jitter_ms = rs->rx.jit / 1000;
 			st->audio.rtt_ms = rs->rtt / 1000;
-			if (rs->rx.sent + (uint32_t)rs->rx.lost)
-				st->audio.rx_fraction_lost_permille =
-					(uint32_t)((uint64_t)rs->rx.lost *
-						   1000 /
-						   (rs->rx.sent + rs->rx.lost));
+			st->audio.rx_fraction_lost_permille =
+				bsk_loss_permille(rs->rx.sent, rs->rx.lost);
 		}
 		if (0 == stream_jbuf_stats(as, &js))
 			st->audio.jitter_buffer_delay_ms = js.c_delay;
@@ -184,7 +181,7 @@ void bsk_call_fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 			video_bitrate(call_video(c->call));
 		rs = stream_rtcp_stats(vs);
 		if (rs) {
-			st->video.rx_lost = rs->rx.lost;
+			st->video.rx_lost = rs->rx.lost > 0 ? rs->rx.lost : 0;
 			st->video.rx_jitter_ms = rs->rx.jit / 1000;
 			st->video.rtt_ms = rs->rtt / 1000;
 		}
@@ -198,22 +195,7 @@ void bsk_call_fill_stats(struct bsk_call_ctx *c, bsk_call_statistics *st)
 	str_ncpy(st->remote_address, c->ice_remote_addr,
 		 sizeof(st->remote_address));
 
-	{
-		double loss = st->audio.rx_fraction_lost_permille / 10.0;
-		double delay = st->audio.rtt_ms / 2.0 +
-			       st->audio.jitter_buffer_delay_ms + 20.0;
-		double r = 93.2;
-		if (delay > 160.0)
-			r -= 0.024 * delay + 0.11 * (delay - 177.3);
-		else
-			r -= 0.024 * delay;
-		r -= 11.0 + 40.0 * loss / (loss + 10.0);
-		if (r < 0)
-			r = 0;
-		if (r > 100)
-			r = 100;
-		st->mos_estimate =
-			(float)(1.0 + 0.035 * r +
-				r * (r - 60.0) * (100.0 - r) * 7.0e-6);
-	}
+	st->mos_estimate = bsk_mos_estimate(st->audio.rx_fraction_lost_permille,
+					    st->audio.rtt_ms,
+					    st->audio.jitter_buffer_delay_ms);
 }

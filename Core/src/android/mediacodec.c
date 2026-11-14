@@ -6,6 +6,7 @@
 #include <baresip.h>
 #include "bsk_android.h"
 #include "../bsk_h264.h"
+#include "../bsk_frame.h"
 
 enum {
 	COLOR_PLANAR = 19,
@@ -215,6 +216,14 @@ static void copy_plane(uint8_t *dst, int32_t dst_stride, const uint8_t *src,
 }
 
 
+static bool buffer_info_fits(const AMediaCodecBufferInfo *info, size_t size)
+{
+	return info->offset >= 0 && info->size > 0 &&
+	       (size_t)info->offset <= size &&
+	       (size_t)info->size <= size - (size_t)info->offset;
+}
+
+
 static int fill_input(const struct videnc_state *st, uint8_t *buf, size_t size,
 		      const struct vidframe *frame)
 {
@@ -223,7 +232,10 @@ static int fill_input(const struct videnc_state *st, uint8_t *buf, size_t size,
 	const size_t luma = (size_t)st->stride * st->slice;
 	uint8_t *chroma = buf + luma;
 
-	if (luma + (size_t)st->stride * ch > size)
+	if (!w || !h || w > (unsigned)st->stride || h > (unsigned)st->slice ||
+	    luma + (size_t)st->stride * ch > size ||
+	    bsk_yuv420_extent((uint32_t)st->stride, (uint32_t)st->slice,
+			      st->color == COLOR_PLANAR, 0, 0, w, h) > size)
 		return ENOMEM;
 
 	copy_plane(buf, st->stride, frame->data[0], frame->linesize[0], w, h);
@@ -300,8 +312,7 @@ static int drain_encoder(struct videnc_state *st, int64_t timeout_us)
 
 		buf = AMediaCodec_getOutputBuffer(st->codec, (size_t)idx,
 						  &size);
-		if (buf && info.size > 0 &&
-		    (size_t)(info.offset + info.size) <= size) {
+		if (buf && buffer_info_fits(&info, size)) {
 			const uint8_t *data = buf + info.offset;
 			const size_t len = (size_t)info.size;
 
@@ -368,12 +379,17 @@ static int encode(struct videnc_state *st, bool update,
 
 	idx = AMediaCodec_dequeueInputBuffer(st->codec, DEQUEUE_INPUT_US);
 	if (idx >= 0) {
+		size_t queued;
+
 		buf = AMediaCodec_getInputBuffer(st->codec, (size_t)idx, &size);
 		err = buf ? fill_input(st, buf, size, frame) : EIO;
-		AMediaCodec_queueInputBuffer(
-			st->codec, (size_t)idx, 0,
-			err ? 0 : (size_t)st->stride * st->slice * 3 / 2,
-			timestamp, 0);
+		queued = (size_t)st->stride * st->slice * 3 / 2;
+		if (err)
+			queued = 0;
+		else if (queued > size)
+			queued = size;
+		AMediaCodec_queueInputBuffer(st->codec, (size_t)idx, 0, queued,
+					     timestamp, 0);
 		if (err)
 			return err;
 	}
@@ -506,11 +522,36 @@ static void read_output_format(struct viddec_state *st)
 	AMediaFormat_getRect(format, AMEDIAFORMAT_KEY_DISPLAY_CROP,
 			     &st->crop_left, &st->crop_top, &st->crop_right,
 			     &st->crop_bottom);
+	AMediaFormat_delete(format);
+
+	if (st->width <= 0 || st->height <= 0) {
+		st->width = 0;
+		st->height = 0;
+	}
 	if (st->stride < st->width)
 		st->stride = st->width;
 	if (st->slice < st->height)
 		st->slice = st->height;
-	AMediaFormat_delete(format);
+	if (!bsk_crop_valid(st->width, st->height, st->crop_left, st->crop_top,
+			    st->crop_right, st->crop_bottom)) {
+		st->crop_left = 0;
+		st->crop_top = 0;
+		st->crop_right = st->width - 1;
+		st->crop_bottom = st->height - 1;
+	}
+}
+
+
+static bool output_fits(const struct viddec_state *st, size_t size, unsigned w,
+			unsigned h)
+{
+	const uint64_t luma = (uint64_t)st->stride * (uint64_t)st->slice;
+	const uint64_t end = bsk_yuv420_extent(
+		(uint32_t)st->stride, (uint32_t)st->slice,
+		st->color == COLOR_PLANAR, (uint32_t)st->crop_left,
+		(uint32_t)st->crop_top, w, h);
+
+	return end && end <= size && luma + luma / 2 <= size;
 }
 
 
@@ -520,10 +561,11 @@ static int take_output(struct viddec_state *st, const uint8_t *buf, size_t size,
 	const unsigned w = (unsigned)(st->crop_right - st->crop_left + 1);
 	const unsigned h = (unsigned)(st->crop_bottom - st->crop_top + 1);
 	const size_t luma = (size_t)st->stride * st->slice;
-	const size_t need = (size_t)w * h * 3 / 2 + w;
+	const size_t need = (size_t)bsk_yuv420_packed_size(w, h);
 	const bool planar = st->color == COLOR_PLANAR;
 
-	if (w == 0 || h == 0 || w > 4096 || h > 4096 || luma + luma / 2 > size)
+	if (w == 0 || h == 0 || w > 4096 || h > 4096 ||
+	    !output_fits(st, size, w, h))
 		return EBADMSG;
 
 	if (st->frame_cap < need) {
@@ -607,8 +649,7 @@ static int drain_decoder(struct viddec_state *st, struct vidframe *frame)
 		size_t size;
 		uint8_t *buf = AMediaCodec_getOutputBuffer(st->codec,
 							   (size_t)idx, &size);
-		if (buf && info.size > 0 &&
-		    (size_t)(info.offset + info.size) <= size)
+		if (buf && buffer_info_fits(&info, size))
 			err = take_output(st, buf + info.offset,
 					  (size_t)info.size, frame);
 		AMediaCodec_releaseOutputBuffer(st->codec, (size_t)idx, false);

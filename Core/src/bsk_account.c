@@ -215,6 +215,28 @@ static void emit_registration(bsk_engine *e, struct bsk_account_ctx *a,
 }
 
 
+static void warn_sdes(bsk_engine *e, const struct bsk_account_ctx *a,
+		      const bsk_account_config *c)
+{
+	char msg[200];
+	int n;
+
+	if (a->tls || (c->media_encryption != BSK_MEDIA_ENC_SRTP_OPTIONAL &&
+		       c->media_encryption != BSK_MEDIA_ENC_SRTP_MANDATORY))
+		return;
+
+	n = re_snprintf(msg, sizeof(msg),
+			"bsk: account %llu: SDES-SRTP sends the media keys in "
+			"the SDP over unencrypted SIP (%s); use TLS or WSS, "
+			"or DTLS-SRTP",
+			(unsigned long long)a->id,
+			transport_name(c->transport));
+	if (n > 0)
+		bsk_log_emit(e, BSK_LOG_WARNING, BSK_LOG_DOMAIN_CORE, msg,
+			     (size_t)n);
+}
+
+
 struct add_arg {
 	const bsk_account_config *cfg;
 	bsk_account_id id;
@@ -504,6 +526,7 @@ static int add_op(bsk_engine *e, void *arg)
 	a->reject_transfers = c->reject_transfers;
 	list_append(&e->accounts, &a->le, a);
 	aa->id = a->id;
+	warn_sdes(e, a, c);
 
 	return 0;
 }
