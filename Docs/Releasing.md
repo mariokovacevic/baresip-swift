@@ -58,6 +58,21 @@ with dry run off.
      tagged `Package.swift` names this release's URL and the asset's checksum.
    - **Publishes** the release.
 
+## Releasing the Android libraries
+
+Run **Release Android** with the same version after the iOS release tagged `v<version>`. It also
+defaults to a dry run.
+
+1. Checks the version, checks out the tag `v<version>`, and checks `VERSION`, the changelog
+   section and the CI result of the commit the release commit is based on.
+2. Builds the core for Android (`MODULE_SET=full`), and builds, ABI-checks and tests the
+   libraries with that version.
+3. Uploads the six AARs, an SPDX SBOM (`baresipkit-android.spdx.json`) and `SHA256SUMS` as the
+   workflow artifact `android-release-<version>`.
+4. Without dry run: attests their provenance, signs the publications and **stages** the
+   deployment on Maven Central (`publishToMavenCentral`). Nothing is released until a
+   maintainer checks the deployment on the Central Portal and releases it there.
+
 ## Resuming a failed run
 
 - **Failed before the tag was pushed:** run the workflow again with the same version. It replaces
@@ -80,5 +95,3 @@ was published for it, even if a local `Build/out` exists in a checkout of that t
 
 - The XCFramework is a plain zip verified by its SwiftPM checksum and attestation. It is not
   code-signed.
-- The Android libraries are released by `.github/workflows/release-android.yml`, described in
-  its own section once its checks match this workflow.

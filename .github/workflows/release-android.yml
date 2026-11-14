@@ -4,8 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to publish to Maven Central, e.g. 0.1.0"
+        description: "Version to publish, as written in VERSION and tagged by the Release workflow, e.g. 1.0.0"
         required: true
+      dry_run:
+        description: "Build, check and assemble everything, upload it as a workflow artifact, publish nothing"
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -19,31 +23,42 @@ defaults:
 
 jobs:
   publish:
-    name: Build the Android libraries and publish them to Maven Central
+    name: Build the Android libraries and stage them on Maven Central
     runs-on: ubuntu-24.04
     permissions:
       contents: read
       actions: read
+      id-token: write
+      attestations: write
     env:
       VERSION: ${{ inputs.version }}
-      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - name: Validate the version, the branch and the CI result
+      - name: Check the version
         run: |
           if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
-            echo "::error::The version must look like 1.2.3 or 1.2.3-beta.1."
+            echo "::error::The version must look like 1.2.3 or 1.2.3-rc.1."
             exit 1
           fi
-          if [[ "$GITHUB_REF" != "refs/heads/$DEFAULT_BRANCH" ]]; then
-            echo "::error::Run the release from $DEFAULT_BRANCH, not from $GITHUB_REF."
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/v${{ inputs.version }}
+          fetch-depth: 0
+      - name: Check VERSION, the changelog and the CI result of the tagged commit
+        run: |
+          if [[ "$(cat VERSION)" != "$VERSION" ]]; then
+            echo "::error::VERSION at v$VERSION says '$(cat VERSION)', not '$VERSION'."
             exit 1
           fi
-          CONCLUSION="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // "missing"')"
+          if ! grep -Eq "^## \[${VERSION//./\\.}\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md at v$VERSION has no '## [$VERSION] - YYYY-MM-DD' section."
+            exit 1
+          fi
+          SOURCE="$(git rev-parse "v$VERSION^{commit}^")"
+          CONCLUSION="$(gh run list --workflow ci.yml --commit "$SOURCE" --event push --limit 1 --json conclusion --jq '.[0].conclusion // "missing"')"
           if [[ "$CONCLUSION" != success ]]; then
-            echo "::error::The latest CI run for $GITHUB_SHA is '${CONCLUSION:-still running}', not 'success'."
+            echo "::error::The CI run for $SOURCE, the commit the release commit v$VERSION is based on, is '$CONCLUSION', not 'success'."
             exit 1
           fi
       - name: Install build dependencies and the NDK
@@ -56,7 +71,34 @@ jobs:
           echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
       - name: Build the core for Android
         run: PLATFORM=android MODULE_SET=full JOBS=4 Build/build-xcframework.sh
-      - name: Publish to Maven Central
+      - name: Build, check the ABI and test the libraries
+        working-directory: Android
+        run: ./gradlew --no-daemon -PVERSION_NAME="$VERSION" assembleRelease checkKotlinAbi testDebugUnitTest
+      - name: Assemble the SBOM and SHA256SUMS
+        run: |
+          mkdir -p Build/out/android-release
+          for module in baresipkit baresipkit-audio baresipkit-video baresipkit-telecom baresipkit-push baresipkit-compose; do
+            cp "Android/$module/build/outputs/aar/$module-release.aar" "Build/out/android-release/$module-$VERSION.aar"
+          done
+          SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)" python3 Scripts/sbom.py --version "$VERSION" \
+            --module-set full --name baresipkit-android \
+            --artifact "Build/out/android-release/baresipkit-$VERSION.aar" > Build/out/android-release/baresipkit-android.spdx.json
+          (cd Build/out/android-release && sha256sum ./*.aar baresipkit-android.spdx.json > SHA256SUMS)
+          cat Build/out/android-release/SHA256SUMS
+      - name: Upload the assembled libraries for review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-release-${{ inputs.version }}
+          path: Build/out/android-release
+      - name: Attest the provenance of the libraries
+        if: inputs.dry_run == false
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            Build/out/android-release/*.aar
+            Build/out/android-release/baresipkit-android.spdx.json
+      - name: Stage the deployment on Maven Central
+        if: inputs.dry_run == false
         working-directory: Android
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
@@ -65,8 +107,10 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
           ./gradlew --no-daemon -PVERSION_NAME="$VERSION" -PsignAllPublications=true \
-            publishAndReleaseToMavenCentral :dokkaGeneratePublicationHtml
+            publishToMavenCentral :dokkaGeneratePublicationHtml
+          echo "The deployment is staged. Check it on the Central Portal, then release it there."
       - name: Upload the API documentation
+        if: inputs.dry_run == false
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: baresipkit-android-api-${{ inputs.version }}
