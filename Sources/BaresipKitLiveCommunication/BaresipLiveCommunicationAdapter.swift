@@ -23,7 +23,7 @@
     /// ```
     @available(iOS 17.4, *)
     public final class BaresipLiveCommunicationAdapter: @unchecked Sendable {
-        // SAFETY: the mutable dictionaries, sets and `pushCalls` are read and written only while
+        // SAFETY: `book`, the waiters and the mute observers are read and written only while
         // holding `lock`; the conversation manager is used as LiveCommunicationKit allows from
         // any thread.
 
@@ -34,23 +34,12 @@
         let callUUIDHeader: String?
         let handleStyle: BaresipHandleStyle
         let lock = NSLock()
-        var uuidByCall: [BaresipCallID: UUID] = [:]
-        var callByUUID: [UUID: BaresipCallID] = [:]
-        var pendingAnswers: Set<UUID> = []
-        var outgoing: Set<UUID> = []
-        var pushCalls: PushCallLedger
+        var book: SystemCallBook
         var muteObservers: [@Sendable (BaresipCallID, Bool) -> Void] = []
         /// Callers of `placeCall(to:video:)` waiting for the engine call of their start action.
         var placedCallWaiters: [UUID: CheckedContinuation<BaresipCallID, Error>] = [:]
-        /// Whether to send the camera, for answers the app requested with `answer(_:video:)`.
-        var answerVideo: [UUID: Bool] = [:]
         /// Callers waiting until the adapter carried out their action, by action UUID.
         var actionWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
-        /// Outgoing calls whose start action timed out before the engine placed them.
-        var abandonedStarts: Set<UUID> = []
-        /// What to dial for the outgoing calls the adapter asked the system to start; the handle
-        /// the system gets can be the number alone.
-        var startDestinations: [UUID: String] = [:]
         private var eventTask: Task<Void, Never>?
 
         /// Creates the adapter and its conversation manager, and starts following engine events.
@@ -67,7 +56,7 @@
             sendsCameraOnAnswer = configuration.sendsCameraOnAnswer
             callUUIDHeader = configuration.callUUIDHeader
             handleStyle = configuration.handleStyle
-            pushCalls = PushCallLedger(matchesPushWithoutCaller: configuration.matchesPushWithoutCaller)
+            book = SystemCallBook(matchesPushWithoutCaller: configuration.matchesPushWithoutCaller)
             let managerConfiguration = ConversationManager.Configuration(
                 ringtoneName: configuration.ringtoneName,
                 iconTemplateImageData: configuration.iconTemplateImageData,
@@ -97,7 +86,7 @@
         /// - Parameter call: The engine call.
         /// - Returns: The UUID used with LiveCommunicationKit, or `nil`.
         public func uuid(for call: BaresipCallID) -> UUID? {
-            lock.withLock { uuidByCall[call] }
+            lock.withLock { book.uuid(for: call) }
         }
 
         /// Starts an outgoing call through LiveCommunicationKit.
@@ -123,11 +112,11 @@
             let action = StartConversationAction(conversationUUID: uuid,
                                                  handles: [handle(for: destination, displayName: displayName)],
                                                  isVideo: video)
-            lock.withLock { startDestinations[uuid] = destination }
+            lock.withLock { book.willStart(uuid, destination: destination) }
             do {
                 try await manager.perform([action])
             } catch {
-                lock.withLock { startDestinations[uuid] = nil }
+                lock.withLock { book.startNotRequested(uuid) }
                 throw error
             }
         }
@@ -243,18 +232,11 @@
         }
 
         func unbind(_ call: BaresipCallID) -> UUID? {
-            lock.withLock {
-                guard let uuid = uuidByCall.removeValue(forKey: call) else { return nil }
-                callByUUID[uuid] = nil
-                pendingAnswers.remove(uuid)
-                outgoing.remove(uuid)
-                answerVideo[uuid] = nil
-                return uuid
-            }
+            lock.withLock { book.unbind(call) }
         }
 
         func callID(for uuid: UUID) -> BaresipCallID? {
-            lock.withLock { callByUUID[uuid] }
+            lock.withLock { book.call(for: uuid) }
         }
     }
 #endif

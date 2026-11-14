@@ -12,17 +12,9 @@
         public func providerDidReset(_ provider: CXProvider) {
             let (calls, waiters) = lock.withLock {
                 () -> ([BaresipCallID], [CheckedContinuation<BaresipCallID, Error>]) in
-                let calls = Array(uuidByCall.keys)
+                let calls = book.reset()
                 let waiters = Array(placedCallWaiters.values)
-                uuidByCall.removeAll()
-                callByUUID.removeAll()
-                pendingAnswers.removeAll()
-                outgoing.removeAll()
-                pushCalls.removeAll()
                 placedCallWaiters.removeAll()
-                answerVideo.removeAll()
-                abandonedStarts.removeAll()
-                startDestinations.removeAll()
                 return (calls, waiters)
             }
             for waiter in waiters {
@@ -52,20 +44,12 @@
             let box = UncheckedSendable(value: action)
             let video = action.isVideo
             let uuid = action.callUUID
-            let destination = lock.withLock { startDestinations.removeValue(forKey: uuid) } ?? action.handle.value
+            let destination = lock.withLock { book.takeStartDestination(uuid) } ?? action.handle.value
             Task {
                 do {
                     let id = try await engine.makeCall(destination: destination, video: video)
-                    let abandoned = lock.withLock { () -> Bool in
-                        if abandonedStarts.remove(uuid) != nil {
-                            return true
-                        }
-                        outgoing.insert(uuid)
-                        uuidByCall[id] = uuid
-                        callByUUID[uuid] = id
-                        return false
-                    }
-                    if abandoned {
+                    let bound = lock.withLock { book.placed(id, uuid: uuid) }
+                    if !bound {
                         try? await engine.hangup(callID: id)
                         return
                     }
@@ -73,7 +57,7 @@
                     takePlacedCallWaiter(uuid)?.resume(returning: id)
                     await reconcileOutgoing(id, uuid: uuid)
                 } catch {
-                    lock.withLock { _ = abandonedStarts.remove(uuid) }
+                    lock.withLock { book.startFailed(uuid) }
                     box.value.fail()
                     takePlacedCallWaiter(uuid)?.resume(throwing: error)
                 }
@@ -94,14 +78,7 @@
             takeActionWaiter(action.uuid)?.resume(throwing: BaresipCallKitError.actionTimedOut)
             if let start = action as? CXStartCallAction {
                 let uuid = start.callUUID
-                let placed = lock.withLock { () -> BaresipCallID? in
-                    startDestinations[uuid] = nil
-                    guard let call = callByUUID[uuid] else {
-                        abandonedStarts.insert(uuid)
-                        return nil
-                    }
-                    return call
-                }
+                let placed = lock.withLock { book.startTimedOut(uuid) }
                 takePlacedCallWaiter(uuid)?.resume(throwing: BaresipCallKitError.actionTimedOut)
                 if let placed {
                     Task {
@@ -124,24 +101,18 @@
         ///   - action: The answer action.
         public func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
             let uuid = action.callUUID
-            let (call, awaitsInvite) = lock.withLock { () -> (BaresipCallID?, Bool) in
-                if let call = callByUUID[uuid] {
-                    return (call, false)
-                }
-                guard pushCalls.isAnnounced(uuid) else { return (nil, false) }
-                pendingAnswers.insert(uuid)
-                return (nil, true)
-            }
-            guard let call else {
-                complete(action, error: awaitsInvite ? nil : CXErrorCodeRequestTransactionError(.unknownCallUUID))
+            let target = lock.withLock { book.answerTarget(uuid) }
+            guard case .call(let call) = target else {
+                let unknown = CXErrorCodeRequestTransactionError(.unknownCallUUID)
+                complete(action, error: target == .awaitsInvite ? nil : unknown)
                 return
             }
             let box = UncheckedSendable(value: action)
-            let requestedVideo = lock.withLock { answerVideo.removeValue(forKey: uuid) }
+            let camera = lock.withLock { book.takeAnswerCamera(uuid) }
             Task {
                 do {
                     let hasVideo = await (try? engine.callInfo(callID: call))?.hasVideo ?? false
-                    let video = requestedVideo ?? (hasVideo && sendsCameraOnAnswer)
+                    let video = camera.sendsCamera(otherwise: hasVideo && sendsCameraOnAnswer)
                     try await engine.answer(callID: call, video: video)
                     complete(box.value, error: nil)
                 } catch {
@@ -158,11 +129,7 @@
         public func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
             let uuid = action.callUUID
             let deadline = ContinuousClock.now.advanced(by: pushInviteTimeout)
-            let call = lock.withLock { () -> BaresipCallID? in
-                pendingAnswers.remove(uuid)
-                pushCalls.decline(uuid, until: deadline)
-                return callByUUID[uuid]
-            }
+            let call = lock.withLock { book.end(uuid, declineUntil: deadline) }
             guard let call else {
                 complete(action, error: nil)
                 return

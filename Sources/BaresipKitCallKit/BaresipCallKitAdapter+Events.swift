@@ -20,16 +20,10 @@
         }
 
         private func handleIncoming(_ info: BaresipCallInfo) async {
-            let inviteUUID = await announcedUUID(of: info.id)
-            let resolution = lock.withLock { () -> PushCallLedger.Resolution in
-                let resolution = pushCalls.resolve(invite: info.remoteURI, uuid: inviteUUID,
-                                                   now: ContinuousClock.now)
-                if case .announced(let announcement, _) = resolution {
-                    uuidByCall[info.id] = announcement.uuid
-                    callByUUID[announcement.uuid] = info.id
-                    pushCalls.startedRinging(info.id, remoteURI: info.remoteURI, uuid: inviteUUID)
-                }
-                return resolution
+            let inviteUUID = await engine.announcedCallUUID(header: callUUIDHeader, callID: info.id)
+            let resolution = lock.withLock {
+                book.resolveIncoming(info.id, remoteURI: info.remoteURI, announcedUUID: inviteUUID,
+                                     now: ContinuousClock.now)
             }
             switch resolution {
             case .announced(let announcement, let callerConfirmed):
@@ -41,19 +35,12 @@
             }
         }
 
-        /// The UUID in the INVITE's header named by ``BaresipCallKitConfiguration/callUUIDHeader``.
-        private func announcedUUID(of call: BaresipCallID) async -> UUID? {
-            guard let callUUIDHeader, let value = try? await engine.incomingHeader(callUUIDHeader, callID: call)
-            else { return nil }
-            return UUID(uuidString: value.trimmingCharacters(in: .whitespaces))
-        }
-
         private func adoptPushedCall(_ announcement: PushCallLedger.Announcement, for info: BaresipCallInfo,
                                      callerConfirmed: Bool) async {
             let uuid = announcement.uuid
             let update = callUpdate(for: info, replacingAnnouncedName: !callerConfirmed)
             provider.reportCall(with: uuid, updated: update)
-            let answerNow = lock.withLock { pendingAnswers.remove(uuid) != nil }
+            let answerNow = lock.withLock { book.takePendingAnswer(uuid) }
             guard answerNow else { return }
             let video = PushCallLedger.sendsCamera(pushHadVideo: announcement.hasVideo,
                                                    inviteHasVideo: info.hasVideo,
@@ -69,12 +56,8 @@
         /// Reports an INVITE no push announced. It keeps the UUID its header carries, so a push
         /// that arrives later with the same UUID is recognized.
         private func reportIncoming(_ info: BaresipCallInfo, announcedUUID: UUID?) async {
-            let uuid = lock.withLock { () -> UUID in
-                let uuid = announcedUUID.flatMap { callByUUID[$0] == nil && !pushCalls.knows($0) ? $0 : nil } ?? UUID()
-                uuidByCall[info.id] = uuid
-                callByUUID[uuid] = info.id
-                pushCalls.startedRinging(info.id, remoteURI: info.remoteURI, uuid: announcedUUID)
-                return uuid
+            let uuid = lock.withLock {
+                book.bindUnannounced(info.id, remoteURI: info.remoteURI, announcedUUID: announcedUUID)
             }
             let update = callUpdate(for: info, replacingAnnouncedName: false)
             do {
@@ -95,13 +78,9 @@
         }
 
         private func handleState(_ state: BaresipCallState, of call: BaresipCallID, error: BaresipError?) {
-            guard let uuid = uuid(for: call) else { return }
-            let isOutgoing = lock.withLock { () -> Bool in
-                if state != .incoming, state != .earlyMedia {
-                    pushCalls.stoppedRinging(call)
-                }
-                return outgoing.contains(uuid)
-            }
+            guard let change = lock.withLock({ book.stateChanged(call, to: state) }) else { return }
+            let uuid = change.uuid
+            let isOutgoing = change.isOutgoing
             switch state {
             case .outgoingRinging, .earlyMedia:
                 if isOutgoing {

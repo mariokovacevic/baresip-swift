@@ -107,7 +107,7 @@
 
             adapter.provider(adapter.provider, timedOutPerforming: action)
 
-            XCTAssertEqual(adapter.abandonedStarts, [uuid])
+            XCTAssertEqual(adapter.book.abandonedStarts, [uuid])
         }
 
         func testCallsEndedOnAnotherDeviceAreNotMissed() {

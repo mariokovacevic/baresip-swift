@@ -5,7 +5,7 @@
    │
    ├── BaresipKitCallKit   BaresipKitLiveCommunication   BaresipKitPushKit   BaresipKitAudio
    │   BaresipKitVideo     BaresipKitSwiftUI                                                   (Layer 5, optional)
-   │     └── BaresipKitSystemCall   push-to-INVITE matching shared by both call adapters (internal)
+   │     └── BaresipKitSystemCall   call bookkeeping and push-to-INVITE matching shared by both call adapters (internal)
    │
    └── BaresipKit          idiomatic Swift API: BaresipEngine, AsyncStream<BaresipEvent>   (Layer 4)
          │
@@ -71,7 +71,7 @@ Static inline C helpers that copy union members of `bsk_event` into plain struct
 
 - `BaresipKitAudio`: `BaresipAudioSessionController` forwards activation, route changes and interruptions to the engine; it never configures the session unless `configureForVoIP()` is called explicitly.
 - `BaresipKitCallKit`: `BaresipCallKitAdapter` maps call IDs to UUIDs, drives `CXProvider`, handles answer-before-INVITE after a push, and forwards audio activation.
-- `BaresipKitLiveCommunication`: `BaresipLiveCommunicationAdapter` does the same with LiveCommunicationKit's `ConversationManager` from iOS 17.4. Both adapters share `BaresipKitSystemCall`, an internal target with the ledger that matches pushed calls to INVITEs.
+- `BaresipKitLiveCommunication`: `BaresipLiveCommunicationAdapter` does the same with LiveCommunicationKit's `ConversationManager` from iOS 17.4. Both adapters share `BaresipKitSystemCall`, an internal target with `SystemCallBook`, which holds the UUID of every call, pushed calls and their early answers and declines, and the outgoing calls being started, and the ledger that matches pushed calls to INVITEs. Each adapter keeps one `SystemCallBook` behind its lock and only talks to CallKit or LiveCommunicationKit itself.
 - `BaresipKitPushKit`: `BaresipPushKitAdapter` collects the VoIP token, builds the Contact parameters and triggers the push wake-up.
 - `BaresipKitVideo`: `BaresipVideoView` renders frames with `AVSampleBufferDisplayLayer`; `BaresipVideoFrameRelay` forwards frames to closures. From iOS 17 frames go straight to the layer's renderer, which accepts them from any thread; before iOS 17 they are handed to the main actor. A failed renderer shows nothing until it is flushed, and iOS asks for a flush after an interruption such as the app going to the background, so the view flushes it in both cases; otherwise the picture freezes while frames keep arriving.
 - `BaresipKitSwiftUI`: `BaresipPhone` and `BaresipPhoneCall` apply the engine's events to published registration and call state for SwiftUI, and keep the active call. Actions go through a `BaresipCallController` such as the CallKit adapter for the calls it controls, and to the engine otherwise. `BaresipCallVideo` (in `BaresipKitVideo`) and `BaresipSelfView` show a call's video and your own camera.

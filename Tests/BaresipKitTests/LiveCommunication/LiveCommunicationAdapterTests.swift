@@ -89,7 +89,7 @@
 
             adapter.conversationManager(adapter.manager, timedOutPerforming: action)
 
-            XCTAssertEqual(adapter.abandonedStarts, [uuid])
+            XCTAssertEqual(adapter.book.abandonedStarts, [uuid])
         }
 
         func testCallersAreSIPURIsUnlessNumbersAreAskedFor() throws {

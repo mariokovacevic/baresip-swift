@@ -56,24 +56,14 @@
             update.remoteHandle = handle(for: remoteURI ?? "unknown")
             update.localizedCallerName = displayName
             update.hasVideo = hasVideo
-            let uuid = pushedUUID ?? UUID()
-            let announcement = PushCallLedger.Announcement(uuid: uuid, remoteURI: remoteURI, hasVideo: hasVideo,
-                                                           namedByServer: pushedUUID != nil)
-            let (isDuplicate, reported) = lock.withLock { () -> (Bool, UUID) in
-                if callByUUID[uuid] != nil || pushCalls.knows(uuid) {
-                    return (true, UUID())
-                }
-                if pushCalls.duplicatesRingingCall(remoteURI: remoteURI, namedByServer: pushedUUID != nil) {
-                    return (true, uuid)
-                }
-                pushCalls.add(announcement, now: ContinuousClock.now)
-                return (false, uuid)
+            let outcome = lock.withLock {
+                book.announcePush(uuid: pushedUUID, remoteURI: remoteURI, hasVideo: hasVideo, now: ContinuousClock.now)
             }
-            if !isDuplicate {
-                schedulePushExpiry(uuid)
+            if !outcome.isDuplicate {
+                schedulePushExpiry(outcome.reported)
             }
-            provider.reportNewIncomingCall(with: reported, update: update) { [weak self] error in
-                self?.pushCallReported(reported, isDuplicate: isDuplicate, failed: error != nil)
+            provider.reportNewIncomingCall(with: outcome.reported, update: update) { [weak self] error in
+                self?.pushCallReported(outcome.reported, isDuplicate: outcome.isDuplicate, failed: error != nil)
                 completion(error)
             }
         }
@@ -107,11 +97,7 @@
         }
 
         func expirePushCall(_ uuid: UUID) {
-            let expired = lock.withLock { () -> Bool in
-                guard pushCalls.discard(uuid) else { return false }
-                pendingAnswers.remove(uuid)
-                return true
-            }
+            let expired = lock.withLock { book.expirePush(uuid) }
             if expired {
                 provider.reportCall(with: uuid, endedAt: Date(), reason: .failed)
             }
@@ -136,11 +122,7 @@
         }
 
         private func forgetRefusedPushCall(_ uuid: UUID) {
-            let orphan = lock.withLock { () -> BaresipCallID? in
-                pushCalls.discard(uuid)
-                pendingAnswers.remove(uuid)
-                return callByUUID[uuid]
-            }
+            let orphan = lock.withLock { book.forgetRefusedPush(uuid) }
             guard let orphan else { return }
             Task {
                 try? await engine.reject(callID: orphan, statusCode: Self.busyStatusCode)

@@ -157,7 +157,8 @@ same behaviour through the Kotlin API:
 | `VideoSinkTests` (7) | `VideoTest` (3), `VideoGeometryTest` (8), `H264LoopbackTest` (emulator), `EventDecoderTest` | `CVPixelBuffer`/IOSurface cases are Apple only; Android adds rendering geometry and MediaCodec H.264 |
 | `AudioInterruptionTests` (6), `AudioOptionsTests` (4) | `AudioControllerTest` (7) | Focus loss pauses, regained focus resumes only what the controller activated, Telecom-owned audio waits; iOS media-services reset and Bluetooth profile flags have no Android counterpart |
 | `CallKitActionResultTests` (9), `LiveCommunicationAdapterTests` (8) | `TelecomActionsTest` (4), `DisconnectCauseTest` (3), `PushCallLedgerTest` | Successful, refused and timed-out actions, abandoned starts, calls ended elsewhere, SIP URI or number handles; ending an unknown call succeeds |
-| `PushCallLedgerTests` (22), `PushMatchTests` (8) | `PushCallLedgerTest` (21), `PushMatchTest` (7) | Ported one to one |
+| `PushCallLedgerTests` (25), `PushMatchTests` (8) | `PushCallLedgerTest` (24), `PushMatchTest` (7) | Ported one to one |
+| `SystemCallBookTests` (13) | `PushCallLedgerTest`, `TelecomActionsTest` | The call bookkeeping both iOS adapters share: pushed and unannounced calls, early answers and declines, placed and abandoned starts, the camera on answer; on Android it lives in `BaresipTelecomAdapter` |
 | `ContactParameterUpdatesTests` (7), `IncomingPushReportTests` (2) | `PushTest` (5) | PushKit's "report before returning" rule does not apply to FCM |
 | `BaresipPhoneTests` (14), `BaresipPhoneControlTests` (16), `MessagePeerTests` (4) | `BaresipPhoneTest` (12), `BaresipPhoneControlTest` (18) | Ported one to one; snapshot cases merged |
 | `RedialRequestTests` (3) | `BaresipRedialRequestTest` (5), `RedialTest` (emulator) | Intents instead of user activities, with the trusted `CALL` rule |

@@ -45,11 +45,11 @@
         ///   show, or the LiveCommunicationKit error when the system refuses the request.
         public func answer(_ call: BaresipCallID, video: Bool) async throws {
             let uuid = try knownUUID(for: call)
-            lock.withLock { answerVideo[uuid] = video }
+            lock.withLock { book.requestAnswer(uuid, sendsCamera: video) }
             do {
                 try await answerCall(uuid: uuid)
             } catch {
-                lock.withLock { answerVideo[uuid] = nil }
+                lock.withLock { book.cancelAnswerRequest(uuid) }
                 throw error
             }
         }

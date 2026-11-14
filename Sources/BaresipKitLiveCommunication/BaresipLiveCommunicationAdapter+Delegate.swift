@@ -18,17 +18,9 @@
         public func conversationManagerDidReset(_ manager: ConversationManager) {
             let (calls, waiters) = lock.withLock {
                 () -> ([BaresipCallID], [CheckedContinuation<BaresipCallID, Error>]) in
-                let calls = Array(uuidByCall.keys)
+                let calls = book.reset()
                 let waiters = Array(placedCallWaiters.values)
-                uuidByCall.removeAll()
-                callByUUID.removeAll()
-                pendingAnswers.removeAll()
-                outgoing.removeAll()
-                pushCalls.removeAll()
                 placedCallWaiters.removeAll()
-                answerVideo.removeAll()
-                abandonedStarts.removeAll()
-                startDestinations.removeAll()
                 return (calls, waiters)
             }
             for waiter in waiters {
@@ -119,14 +111,7 @@
             takeActionWaiter(action.uuid)?.resume(throwing: BaresipLiveCommunicationError.actionTimedOut)
             let uuid = action.conversationUUID
             if action is StartConversationAction {
-                let placed = lock.withLock { () -> BaresipCallID? in
-                    startDestinations[uuid] = nil
-                    guard let call = callByUUID[uuid] else {
-                        abandonedStarts.insert(uuid)
-                        return nil
-                    }
-                    return call
-                }
+                let placed = lock.withLock { book.startTimedOut(uuid) }
                 takePlacedCallWaiter(uuid)?.resume(throwing: BaresipLiveCommunicationError.actionTimedOut)
                 if let placed {
                     Task {
@@ -144,7 +129,7 @@
             let box = UncheckedSendable(value: action)
             let video = action.isVideo
             let uuid = action.conversationUUID
-            let destination = lock.withLock { startDestinations.removeValue(forKey: uuid) }
+            let destination = lock.withLock { book.takeStartDestination(uuid) }
                 ?? action.handles.first?.value
             guard let destination, !destination.isEmpty else {
                 action.fail()
@@ -154,16 +139,8 @@
             Task {
                 do {
                     let id = try await engine.makeCall(destination: destination, video: video)
-                    let abandoned = lock.withLock { () -> Bool in
-                        if abandonedStarts.remove(uuid) != nil {
-                            return true
-                        }
-                        outgoing.insert(uuid)
-                        uuidByCall[id] = uuid
-                        callByUUID[uuid] = id
-                        return false
-                    }
-                    if abandoned {
+                    let bound = lock.withLock { book.placed(id, uuid: uuid) }
+                    if !bound {
                         try? await engine.hangup(callID: id)
                         return
                     }
@@ -171,7 +148,7 @@
                     takePlacedCallWaiter(uuid)?.resume(returning: id)
                     await reconcileOutgoing(id, uuid: uuid)
                 } catch {
-                    lock.withLock { _ = abandonedStarts.remove(uuid) }
+                    lock.withLock { book.startFailed(uuid) }
                     box.value.fail()
                     takePlacedCallWaiter(uuid)?.resume(throwing: error)
                 }
@@ -182,25 +159,18 @@
         private func performJoin(_ action: JoinConversationAction) {
             let uuid = action.conversationUUID
             let box = UncheckedSendable(value: action)
-            let (call, awaitsInvite) = lock.withLock { () -> (BaresipCallID?, Bool) in
-                if let call = callByUUID[uuid] {
-                    return (call, false)
-                }
-                guard pushCalls.isAnnounced(uuid) else { return (nil, false) }
-                pendingAnswers.insert(uuid)
-                return (nil, true)
-            }
-            guard let call else {
-                complete(action, error: awaitsInvite ? nil : BaresipLiveCommunicationError.unknownCall) {
+            let target = lock.withLock { book.answerTarget(uuid) }
+            guard case .call(let call) = target else {
+                complete(action, error: target == .awaitsInvite ? nil : BaresipLiveCommunicationError.unknownCall) {
                     box.value.fulfill(dateConnected: Date())
                 }
                 return
             }
-            let requestedVideo = lock.withLock { answerVideo.removeValue(forKey: uuid) }
+            let camera = lock.withLock { book.takeAnswerCamera(uuid) }
             Task {
                 do {
                     let hasVideo = await (try? engine.callInfo(callID: call))?.hasVideo ?? false
-                    let video = requestedVideo ?? (hasVideo && sendsCameraOnAnswer)
+                    let video = camera.sendsCamera(otherwise: hasVideo && sendsCameraOnAnswer)
                     try await engine.answer(callID: call, video: video)
                     complete(box.value, error: nil) {
                         box.value.fulfill(dateConnected: Date())
@@ -216,11 +186,7 @@
             let uuid = action.conversationUUID
             let box = UncheckedSendable(value: action)
             let deadline = ContinuousClock.now.advanced(by: pushInviteTimeout)
-            let call = lock.withLock { () -> BaresipCallID? in
-                pendingAnswers.remove(uuid)
-                pushCalls.decline(uuid, until: deadline)
-                return callByUUID[uuid]
-            }
+            let call = lock.withLock { book.end(uuid, declineUntil: deadline) }
             guard let call else {
                 complete(action, error: nil) {
                     box.value.fulfill(dateEnded: Date())
